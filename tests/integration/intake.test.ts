@@ -468,3 +468,82 @@ describe('closing the form', () => {
     });
   });
 });
+
+/**
+ * The embedded form, and the one cross-origin allowance it needs.
+ *
+ * The widget runs on a venture's own site and talks to this API, so those requests are
+ * genuinely cross-origin. What matters is that the allowance is exactly as wide as the set of
+ * hosts an owner registered, and no wider.
+ */
+describe('the embed', () => {
+  it('serves a script that derives its origin rather than accepting one', async () => {
+    const response = await publicRequest('/public/intake/embed.js');
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('javascript');
+    const script = await response.text();
+
+    // The origin comes from the script's own URL. An embedding page that could configure it
+    // could point the form at another workspace.
+    expect(script).toContain('new URL(self.src, location.href).origin');
+    // Everything written into the page is text, never markup.
+    expect(script).toContain('node.textContent = value');
+    // Assigned usage, not the word: the script's own comment says "textContent, never
+    // innerHTML", and a test that matched the word would fail on the explanation.
+    expect(script).not.toMatch(/\.innerHTML\s*=/);
+    expect(script).not.toMatch(/insertAdjacentHTML/);
+    // No cookie or Access session can ride along, even if one existed.
+    expect(script).toContain("credentials: 'omit'");
+    // And there is no marketing checkbox to pre-tick, ticked or otherwise.
+    expect(script.toLowerCase()).not.toContain('marketing');
+  });
+
+  it('grants a cross-origin allowance to a registered site and nobody else', async () => {
+    const allowed = await publicRequest('/public/intake/form');
+    expect(allowed.headers.get('access-control-allow-origin')).toBe(`https://${CHANNEL_A}`);
+    expect(allowed.headers.get('vary')).toContain('Origin');
+
+    // An unregistered origin gets no allowance, so a browser stops the request before it is
+    // made — which is the right place for it to stop.
+    const stranger = await h.app.fetch(
+      new Request('http://127.0.0.1:4173/public/intake/form', {
+        headers: {
+          host: CHANNEL_A,
+          'x-forwarded-host': CHANNEL_A,
+          origin: 'https://attacker.example.com',
+        },
+      }),
+    );
+    expect(stranger.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  it('answers a preflight for a registered site, and refuses one for a stranger', async () => {
+    const preflight = await h.app.fetch(
+      new Request('http://127.0.0.1:4173/public/intake', {
+        method: 'OPTIONS',
+        headers: {
+          host: CHANNEL_A,
+          'x-forwarded-host': CHANNEL_A,
+          origin: `https://${CHANNEL_A}`,
+          'access-control-request-method': 'POST',
+        },
+      }),
+    );
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get('access-control-allow-origin')).toBe(`https://${CHANNEL_A}`);
+    expect(preflight.headers.get('access-control-allow-methods')).toContain('POST');
+
+    const stranger = await h.app.fetch(
+      new Request('http://127.0.0.1:4173/public/intake', {
+        method: 'OPTIONS',
+        headers: {
+          host: CHANNEL_A,
+          'x-forwarded-host': CHANNEL_A,
+          origin: 'https://attacker.example.com',
+          'access-control-request-method': 'POST',
+        },
+      }),
+    );
+    expect(stranger.headers.get('access-control-allow-origin')).toBeNull();
+  });
+});

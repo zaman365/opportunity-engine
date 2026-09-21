@@ -57,6 +57,7 @@ import {
   listReportFindings,
   listReportGrants,
   listScanSteps,
+  resolveIntakeChannel,
   listScans,
   listReviews,
   revokeOfferPrerequisite,
@@ -104,6 +105,9 @@ import { assertPublishable, createReport } from './services/report.ts';
 import { createOfferDraft, matchOffersForOpportunity, withdrawDraft } from './services/offer.ts';
 import { channelForRequest, submitIntakeRequest, verifyIntakeRequest } from './services/intake.ts';
 import { issueReportGrant, readDeliveredReport, revokeGrant } from './services/report-delivery.ts';
+import { deliveredReportPage, invalidLinkPage, PUBLIC_PAGE_CSP } from './public-pages.ts';
+import { EMBED_CACHE_CONTROL, EMBED_SCRIPT } from './embed.ts';
+import type { ReportBody } from './services/report.ts';
 import { completeIdempotencyKey } from '@oe/db';
 
 /**
@@ -1310,8 +1314,49 @@ export function createApp(deps: AppDependencies) {
    */
   const publicApi = new Hono<AppEnv>();
 
+  /**
+   * The embeddable form, as a script.
+   *
+   * Served from the API rather than bundled into a venture site, so the disclosure a
+   * requester agrees to and the origin submissions go to both come from here. A site that
+   * embedded its own copy could change either.
+   *
+   * Cross-origin by nature — it runs on `marktfix.com` and talks to this API — so it carries
+   * the one CORS allowance in this application, and only for the two endpoints it needs.
+   */
+  publicApi.get('/intake/embed.js', (c) => {
+    c.header('content-type', 'application/javascript; charset=utf-8');
+    c.header('cache-control', EMBED_CACHE_CONTROL);
+    return c.body(EMBED_SCRIPT, 200);
+  });
+
+  /**
+   * The preflight for a cross-origin submission.
+   *
+   * Answered only for a host that has a registered, enabled channel — the same set of origins
+   * `assertPublicOrigin` accepts on the request itself, so the two cannot disagree. An
+   * unregistered origin gets no allowance and its browser stops the request before it is
+   * made, which is the correct place for it to stop.
+   */
+  publicApi.options('/intake', async (c) => {
+    await allowEmbeddingOrigin(c, deps);
+    c.header('access-control-allow-methods', 'POST, OPTIONS');
+    c.header('access-control-allow-headers', 'content-type');
+    c.header('access-control-max-age', '600');
+    return c.body(null, 204);
+  });
+
+  publicApi.options('/intake/:id/verify', async (c) => {
+    await allowEmbeddingOrigin(c, deps);
+    c.header('access-control-allow-methods', 'POST, OPTIONS');
+    c.header('access-control-allow-headers', 'content-type');
+    c.header('access-control-max-age', '600');
+    return c.body(null, 204);
+  });
+
   publicApi.get('/intake/form', async (c) => {
     const channel = await channelForRequest(deps, c.req.raw);
+    await allowEmbeddingOrigin(c, deps);
     return c.json({
       host: channel.host,
       purpose_text: channel.purpose_text,
@@ -1323,6 +1368,7 @@ export function createApp(deps: AppDependencies) {
   publicApi.post('/intake', async (c) => {
     const channel = await channelForRequest(deps, c.req.raw);
     assertPublicOrigin(c.req.raw, channel.host);
+    await allowEmbeddingOrigin(c, deps);
     const body = parse(SubmitIntakeRequestSchema, await readJsonBody(c.req.raw));
     const result = await submitIntakeRequest(
       deps,
@@ -1346,6 +1392,7 @@ export function createApp(deps: AppDependencies) {
   publicApi.post('/intake/:id/verify', async (c) => {
     const channel = await channelForRequest(deps, c.req.raw);
     assertPublicOrigin(c.req.raw, channel.host);
+    await allowEmbeddingOrigin(c, deps);
     const id = uuidParam(c.req.param('id'));
     const body = parse(VerifyIntakeRequestSchema, await readJsonBody(c.req.raw));
     const result = await verifyIntakeRequest(
@@ -1388,6 +1435,47 @@ export function createApp(deps: AppDependencies) {
     return c.json(toDeliveredReport(delivered.report, delivered.grant));
   });
 
+  /**
+   * The customer-facing reader.
+   *
+   * Served from `/r/:token` rather than under `/public`, because it is the URL a person sees
+   * and types. It is plain HTML with no script: a page carrying claims a reviewer put their
+   * name to has the narrowest attack surface when there is nothing on it to execute.
+   *
+   * It is deliberately outside the operator app, which sits behind Cloudflare Access in
+   * production. A customer must never need to get past Access to read their own report.
+   */
+  app.get('/r/:token', async (c) => {
+    const respond = (status: 200 | 404, html: string) => {
+      c.header('content-type', 'text/html; charset=utf-8');
+      c.header('content-security-policy', PUBLIC_PAGE_CSP);
+      c.header('x-robots-tag', 'noindex, nofollow, noarchive');
+      c.header('cache-control', 'no-store');
+      return c.body(html, status);
+    };
+    try {
+      const delivered = await readDeliveredReport(
+        deps,
+        c.req.param('token') ?? '',
+        c.get('requestId'),
+      );
+      return respond(
+        200,
+        deliveredReportPage({
+          body: delivered.report.body as unknown as ReportBody,
+          reportVersion: delivered.report.version,
+          publishedAt: delivered.report.published_at,
+          expiresAt: delivered.grant.expires_at,
+        }),
+      );
+    } catch (error) {
+      // Expired, revoked, mistyped, another workspace's, never issued — and anything
+      // unexpected. All one page, which is the whole point of the page.
+      if (!(error instanceof ApiProblem)) console.error('[public report]', error);
+      return respond(404, invalidLinkPage());
+    }
+  });
+
   app.route('/public', publicApi);
 
   app.route('/api/v1', v1);
@@ -1406,6 +1494,36 @@ const INTAKE_STATES = ['pending_verification', 'verified', 'declined', 'expired'
  */
 function canSeeContact(actor: RequestActor): boolean {
   return actor.membership.role === 'reviewer' || actor.membership.role === 'owner';
+}
+
+/**
+ * The one cross-origin allowance in this application.
+ *
+ * The embedded form runs on a venture's own site and talks to this API, so those two requests
+ * are genuinely cross-origin. ADR-004 rules out permissive credentialed CORS, and this is
+ * neither permissive nor credentialed: the allowance is granted only to an origin whose host
+ * has a registered, enabled intake channel — the same set `assertPublicOrigin` accepts, so the
+ * two cannot drift apart — and the form sends `credentials: 'omit'`, so no cookie or Access
+ * session can ride along even if one existed.
+ *
+ * `Vary: Origin` is unconditional, so a cache cannot serve one site's allowance to another.
+ */
+async function allowEmbeddingOrigin(
+  c: { req: { raw: Request }; header: (name: string, value: string) => void },
+  deps: AppDependencies,
+): Promise<void> {
+  c.header('vary', 'Origin');
+  const origin = c.req.raw.headers.get('origin');
+  if (origin === null) return;
+  let host: string;
+  try {
+    host = new URL(origin).hostname.toLowerCase();
+  } catch {
+    return;
+  }
+  const channel = await deps.identityDb.withoutTenant((tx) => resolveIntakeChannel(tx, host));
+  if (!channel) return;
+  c.header('access-control-allow-origin', origin);
 }
 
 /**

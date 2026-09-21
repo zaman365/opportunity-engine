@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Opportunity Engine · initial internal API",
-    "version": "2.5.0",
+    "version": "2.7.0",
     "description": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01 (accepted also as MF-LINK-01, MF-ASSET-01). Adds the M2 offer catalogue and the M3 requested-intake surface. Operations under /public have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it."
   },
   "servers": [
@@ -5193,6 +5193,102 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RevokeReportGrant"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/r/{token}": {
+      "get": {
+        "operationId": "readDeliveredReportPage",
+        "summary": "The report as a page, for the person it is about",
+        "description": "No authentication. Server-rendered HTML with no script, outside the operator application because that sits behind Cloudflare Access in production and a customer must never need to get past Access to read their own report. Every failure — expired, revoked, mistyped, another workspace's, never issued — renders the same page, which says nothing about whether a report exists. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-public-surface": true,
+        "x-protected-by": [
+          "bearer_token_256_bit",
+          "hashed_at_rest",
+          "audience_bound",
+          "version_scoped",
+          "expiry",
+          "revocation",
+          "no_business_write",
+          "escaped_output",
+          "hashed_style_csp"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{32,64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The report page.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The same page for every kind of unusable link. Deliberately identical to a 200 in everything except status and content, so a prober learns nothing from either.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/intake/embed.js": {
+      "get": {
+        "operationId": "getIntakeEmbedScript",
+        "summary": "The embeddable request form, as a script",
+        "description": "No authentication. One script tag and one container element on a venture's own site. It derives the origin it posts to from its own URL rather than from an attribute, so an embedding page cannot point it at another workspace; it renders the channel's purpose text as text rather than supplying its own; and it writes into a Shadow DOM so neither it nor the host page can restyle the other. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-public-surface": true,
+        "x-protected-by": [
+          "origin_derived_not_configured",
+          "shadow_dom_isolation",
+          "text_content_only",
+          "server_supplied_disclosure",
+          "no_credentials"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The script.",
+            "content": {
+              "application/javascript": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource. Also returned when requested intake is switched off.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
               }
             }
           }

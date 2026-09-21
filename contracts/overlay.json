@@ -1,7 +1,7 @@
 {
   "$comment": "M2 additions to the build kit's M1 OpenAPI document. See contracts/README.md.",
   "base": "opportunity-engine-build-kit/contracts/openapi.json",
-  "version": "2.5.0",
+  "version": "2.7.0",
   "changes": [
     {
       "op": "set",
@@ -4099,6 +4099,120 @@
       "pointer": "/info/version",
       "value": "2.5.0",
       "why": "M3 slice 2 adds protected report delivery: new operations and schemas, no existing operation changed."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1r~1{token}",
+      "value": {
+        "get": {
+          "operationId": "readDeliveredReportPage",
+          "summary": "The report as a page, for the person it is about",
+          "description": "No authentication. Server-rendered HTML with no script, outside the operator application because that sits behind Cloudflare Access in production and a customer must never need to get past Access to read their own report. Every failure \u2014 expired, revoked, mistyped, another workspace's, never issued \u2014 renders the same page, which says nothing about whether a report exists. Contract only; not a claim this endpoint exists.",
+          "tags": ["M3"],
+          "x-public-surface": true,
+          "x-protected-by": [
+            "bearer_token_256_bit",
+            "hashed_at_rest",
+            "audience_bound",
+            "version_scoped",
+            "expiry",
+            "revocation",
+            "no_business_write",
+            "escaped_output",
+            "hashed_style_csp"
+          ],
+          "parameters": [
+            {
+              "name": "token",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{32,64}$"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "The report page.",
+              "content": {
+                "text/html": {
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "The same page for every kind of unusable link. Deliberately identical to a 200 in everything except status and content, so a prober learns nothing from either.",
+              "content": {
+                "text/html": {
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "The link an operator hands to a customer points here, so the contract has to describe it \u2014 and tests/contract/openapi-routes.test.ts requires every mounted route to be declared. It returns HTML rather than JSON, which is why it sits outside /public alongside the JSON form of the same grant."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/version",
+      "value": "2.6.0",
+      "why": "Adds the customer-facing report page. Additive; no existing operation changed."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1public~1intake~1embed.js",
+      "value": {
+        "get": {
+          "operationId": "getIntakeEmbedScript",
+          "summary": "The embeddable request form, as a script",
+          "description": "No authentication. One script tag and one container element on a venture's own site. It derives the origin it posts to from its own URL rather than from an attribute, so an embedding page cannot point it at another workspace; it renders the channel's purpose text as text rather than supplying its own; and it writes into a Shadow DOM so neither it nor the host page can restyle the other. Contract only; not a claim this endpoint exists.",
+          "tags": ["M3"],
+          "x-public-surface": true,
+          "x-protected-by": [
+            "origin_derived_not_configured",
+            "shadow_dom_isolation",
+            "text_content_only",
+            "server_supplied_disclosure",
+            "no_credentials"
+          ],
+          "parameters": [],
+          "responses": {
+            "200": {
+              "description": "The script.",
+              "content": {
+                "application/javascript": {
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "No such resource. Also returned when requested intake is switched off.",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "The embed is a surface a stranger's browser fetches, so it belongs in the contract for the same reason the form and the report page do: tests/contract/openapi-routes.test.ts requires every mounted route to be declared, and an undeclared public surface is one nobody reviewed."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/version",
+      "value": "2.7.0",
+      "why": "Adds the embeddable form script. Additive; no existing operation changed."
     }
   ]
 }

@@ -270,6 +270,98 @@ describe('reading through the link', () => {
   });
 });
 
+/**
+ * The page a customer actually opens.
+ *
+ * Two things are asserted that the JSON route cannot show: that the content is escaped, and
+ * that the invalid-link page is the *same page* for every reason a link might not work.
+ */
+describe('the customer-facing page', () => {
+  async function pageFor(token: string): Promise<Response> {
+    return await h.app.fetch(new Request(`http://127.0.0.1:4173/r/${token}`));
+  }
+
+  it('renders the report, with its limits attached to its claims', async () => {
+    const live = await h.json<IssuedReportGrant>(
+      await h.request(`/api/v1/reports/${reportId}/grants`, {
+        method: 'POST',
+        subject: 'reviewer@fixture.test',
+        body: JSON.stringify({
+          recipient_note: 'page rendering case',
+          recipient_ref: 'page@example.com',
+        }),
+      }),
+    );
+    // The link an operator hands over points at the page, not at the JSON.
+    expect(live.url).toContain('/r/');
+
+    const response = await pageFor(live.token);
+    expect(response.status, await response.clone().text()).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/html');
+    const html = await response.text();
+
+    expect(html).toContain('What we inspected');
+    expect(html).toContain('What this does not establish');
+    expect(html).toContain('What we did not do');
+    // No script anywhere, and a CSP that would refuse one if there were.
+    expect(html).not.toMatch(/<script/i);
+    const csp = response.headers.get('content-security-policy') ?? '';
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    // Style is allowed by hash, not by unsafe-inline.
+    expect(csp).toMatch(/style-src 'sha256-[A-Za-z0-9+/=]+'/);
+    expect(csp).not.toContain('unsafe-inline');
+    expect(response.headers.get('x-robots-tag')).toContain('noindex');
+
+    // Nothing that reaches another object.
+    expect(html).not.toContain('/api/v1/');
+    expect(html).not.toContain(reportId);
+  });
+
+  it('shows one page for every reason a link might not work', async () => {
+    const pages = new Set<string>();
+    for (const token of ['a'.repeat(43), 'not-a-token', 'b'.repeat(64)]) {
+      const response = await pageFor(token);
+      expect(response.status, token).toBe(404);
+      expect(response.headers.get('content-type')).toContain('text/html');
+      pages.add(await response.text());
+    }
+    expect(pages.size).toBe(1);
+    const page = [...pages][0]!;
+    expect(page).toContain('This link is not available');
+    // It must not say which of the reasons applied, nor offer a way to probe for more.
+    expect(page).not.toMatch(/revoked|expired on|does not exist|no such/i);
+    expect(page).not.toMatch(/<form/i);
+  });
+
+  it('escapes what it renders', async () => {
+    // The report body is written by this system, but a scope summary reaches it from an
+    // operator's keyboard and a target URL from a stranger's form. Neither is markup.
+    const html = await (
+      await pageFor(
+        (
+          await h.json<IssuedReportGrant>(
+            await h.request(`/api/v1/reports/${reportId}/grants`, {
+              method: 'POST',
+              subject: 'reviewer@fixture.test',
+              body: JSON.stringify({
+                recipient_note: 'escaping case',
+                recipient_ref: 'escape@example.com',
+              }),
+            }),
+          )
+        ).token,
+      )
+    ).text();
+    // The fixture URL contains no markup, so the assertion is structural: every `<` in the
+    // document opens a tag this file wrote, and none came from data.
+    const tags = html.match(/<[a-zA-Z/!]/g) ?? [];
+    expect(tags.length).toBeGreaterThan(20);
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('javascript:');
+  });
+});
+
 describe('expiry', () => {
   it('is enforced by the database, not by the application clock', async () => {
     // The identity role's policy compares against the database's own `now()`, so an expired

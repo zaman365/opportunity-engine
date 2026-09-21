@@ -513,9 +513,7 @@ test.describe('operator journey', () => {
     const url = (
       await page
         .locator('section[aria-label="Protected links"] p')
-        .filter({
-          hasText: '/public/reports/',
-        })
+        .filter({ hasText: '/r/' })
         .first()
         .innerText()
     ).trim();
@@ -523,10 +521,15 @@ test.describe('operator journey', () => {
     try {
       const delivered = await reader.get(url);
       expect(delivered.status(), await delivered.text()).toBe(200);
-      const payload = (await delivered.json()) as Record<string, unknown>;
-      expect(Object.keys(payload)).not.toContain('account_id');
-      expect(Object.keys(payload)).not.toContain('scan_id');
+      expect(delivered.headers()['content-type']).toContain('text/html');
       expect(delivered.headers()['x-robots-tag']).toContain('noindex');
+      const html = await delivered.text();
+      // The customer reads what was checked, what was found and what none of it establishes.
+      expect(html).toContain('What we inspected');
+      expect(html).toContain('What this does not establish');
+      // And nothing that reaches another object, nor anything to execute.
+      expect(html).not.toContain('/api/v1/');
+      expect(html).not.toMatch(/<script/i);
 
       // Withdrawing takes effect on the next read. There is no session to expire.
       await page.getByRole('button', { name: 'Done' }).click();
@@ -536,12 +539,12 @@ test.describe('operator journey', () => {
 
       const after = await reader.get(url);
       expect(after.status()).toBe(404);
-      // And the refusal says nothing about what was there.
-      const problem = (await after.json()) as { detail: string };
-      expect(problem.detail).toBe(
-        'This link is not valid. It may have expired, or been withdrawn.',
-      );
-      expect(JSON.stringify(problem)).not.toContain('Atelier Nord');
+      // The same page a mistyped link gets, saying nothing about what was there or why it
+      // stopped working.
+      const withdrawn = await after.text();
+      expect(withdrawn).toContain('This link is not available');
+      expect(withdrawn).not.toContain('Atelier Nord');
+      expect(withdrawn).not.toMatch(/revoked|withdrawn by/i);
     } finally {
       await reader.dispose();
     }

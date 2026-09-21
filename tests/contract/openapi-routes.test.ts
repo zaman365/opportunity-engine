@@ -38,6 +38,11 @@ function mountedRoutes(instance: unknown): MountedRoute[] {
   const out: MountedRoute[] = [];
   for (const route of routes) {
     if (route.method === 'ALL') continue;
+    // A CORS preflight is transport, not an operation: it carries no body, returns no
+    // content, and exists only so a browser will permit the POST that IS declared. Documenting
+    // it would describe the mechanism rather than the surface. The allowance it grants is
+    // asserted in tests/integration/intake.test.ts, against the actual origins.
+    if (route.method === 'OPTIONS') continue;
     const key = `${route.method} ${route.path}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -64,7 +69,15 @@ const contractOperations = Object.entries(spec.paths).flatMap(([path, item]) =>
 
 const implemented = mountedRoutes(app)
   .map((route) => ({ ...route, path: toContractPath(route.path) }))
-  .filter((route) => route.path.startsWith('/v1/') || route.path.startsWith('/public/'));
+  // `/r/` is the customer-facing report page. Included deliberately: a surface a stranger can
+  // reach is exactly the kind that must not drift from the contract unnoticed, and a filter
+  // that quietly excluded it would defeat the point of this file.
+  .filter(
+    (route) =>
+      route.path.startsWith('/v1/') ||
+      route.path.startsWith('/public/') ||
+      route.path.startsWith('/r/'),
+  );
 
 describe('routes and contract', () => {
   it('implements every operation the served contract declares', () => {

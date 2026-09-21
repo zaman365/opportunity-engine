@@ -123,10 +123,10 @@ describe('M1 compatibility', () => {
           expect(operation['x-protected-by']?.length, label).toBeGreaterThan(0);
           // A public path lives under /public. An operator path that set this flag by
           // accident would be claiming to be unauthenticated while sitting behind /v1.
-          expect(path.startsWith('/public/'), label).toBe(true);
+          expect(path.startsWith('/public/') || path.startsWith('/r/'), label).toBe(true);
         } else {
           expect(roles, label).toContain(operation['x-minimum-role']);
-          expect(path.startsWith('/public/'), label).toBe(false);
+          expect(path.startsWith('/public/') || path.startsWith('/r/'), label).toBe(false);
         }
       }
     }
@@ -166,10 +166,8 @@ describe('M1 compatibility', () => {
     )) {
       for (const [method, operation] of Object.entries(item)) {
         const label = `${method} ${path}`;
-        expect(
-          path.startsWith('/public/') === (operation['x-public-surface'] === true),
-          label,
-        ).toBe(true);
+        const unauthenticated = path.startsWith('/public/') || path.startsWith('/r/');
+        expect(unauthenticated === (operation['x-public-surface'] === true), label).toBe(true);
       }
     }
   });

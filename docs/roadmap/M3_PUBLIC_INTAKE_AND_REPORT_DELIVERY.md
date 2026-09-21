@@ -48,11 +48,24 @@ else. [ADR-022](../adr/ADR-022-report-delivery.md).
 points at it, so the link works — but the customer-facing page, including the non-leaking
 invalid-link page as a _page_ rather than a problem document, is slice 3.
 
-## Slice 3 · embedding the form
+## Slice 3 · embedding the form — **done**
 
-- A typed, versioned client for the existing Astro and Next sites, with their branding intact.
-- The purpose text a requester agrees to comes from the channel, not from the embedding page,
-  and the version they agreed to is recorded with their request.
+`GET /public/intake/embed.js` is one script tag and one container element. No framework, no
+build step, and nothing configurable that matters:
+
+- **It derives its origin from its own URL**, so an embedding page cannot point it at another
+  workspace by editing an attribute.
+- **It renders the channel's purpose text as text**, fetched from the API. A page that could
+  supply its own wording could promise anything in this system's name; one that could style it
+  could hide it. A form that cannot fetch its disclosure does not render at all.
+- **Shadow DOM both ways**, so the host site cannot restyle a disclosure it did not write.
+- **No marketing checkbox** — not an unticked one.
+- One scoped CORS allowance, granted only to origins whose host has a registered, enabled
+  channel, with `credentials: 'omit'` so no session could ride along if one existed.
+
+**Still owed:** German copy at length. The report template supports `de` and the schema carries
+it, but no German report has been rendered or reviewed, and the embed's own strings are English
+only.
 
 ## Explicitly not in M3
 

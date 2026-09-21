@@ -110,9 +110,9 @@ export async function issueReportGrant(
     },
   });
 
-  // The URL of the thing that actually exists. A branded HTML reader is M3 slice 3; until it
-  // is built, handing out a link to a page that 404s would be worse than handing out none.
-  return { grant, token, url: `${deps.config.appOrigin}/public/reports/${token}` };
+  // The page a person reads, not the JSON behind it. `/public/reports/{token}` serves the
+  // same grant as data for anything that wants to consume it.
+  return { grant, token, url: `${deps.config.appOrigin}/r/${token}` };
 }
 
 export async function revokeGrant(
