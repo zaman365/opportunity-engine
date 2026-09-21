@@ -1,4 +1,10 @@
-import { expect, test, type Page } from '@playwright/test';
+import {
+  expect,
+  request as apiRequest,
+  test,
+  type APIRequestContext,
+  type Page,
+} from '@playwright/test';
 
 /**
  * Operator browser acceptance and the design-critique screenshot set.
@@ -13,6 +19,7 @@ import { expect, test, type Page } from '@playwright/test';
  */
 
 const SHOTS = 'docs/design/screenshots';
+const BASE_URL = 'http://127.0.0.1:4173';
 const FIXTURE_PRODUCT = 'http://127.0.0.1:4179/product';
 /** The M2 fixture site; see fixtures/m2-server.mjs. */
 const M2 = 'http://127.0.0.1:4180';
@@ -75,6 +82,63 @@ async function runScan(
     )
     .not.toMatch(/queued|validating|capturing|analysing/);
   return id;
+}
+
+/** The MF-LINK-REPAIR scope's prerequisites, as the kit's catalogue states them. */
+const PREREQUISITES = [
+  'authorized code/platform access',
+  'agreed destination',
+  'scope approval',
+] as const;
+
+/**
+ * Put the account back to "confirmed, nothing recorded".
+ *
+ * Withdraws any open draft and revokes any live prerequisite. Both are reversible, recorded
+ * acts rather than deletions, so this leaves history behind exactly as a real withdrawal
+ * would — which is the behaviour being tested, not a way around it.
+ */
+async function resetOfferState(
+  page: Page,
+  asOwner: APIRequestContext,
+  ownerHeaders: Record<string, string>,
+  opportunityId: string,
+  reviewerCsrf: string,
+): Promise<void> {
+  const drafts = (await (
+    await page.request.get(`/api/v1/opportunities/${opportunityId}/offer-drafts`)
+  ).json()) as { items: { id: string; state: string; version: number }[] };
+  for (const draft of drafts.items.filter((item) => item.state === 'draft')) {
+    const response = await page.request.post(`/api/v1/offer-drafts/${draft.id}/withdraw`, {
+      headers: {
+        'x-csrf-token': reviewerCsrf,
+        'idempotency-key': crypto.randomUUID(),
+        origin: BASE_URL,
+      },
+      data: { expected_version: draft.version, reason: 'Resetting the browser fixture.' },
+    });
+    expect(response.status(), await response.text()).toBe(200);
+  }
+
+  const { csrf_token: ownerCsrf } = (await (
+    await asOwner.get('/api/v1/session', { headers: ownerHeaders })
+  ).json()) as { csrf_token: string };
+  const recorded = (await (
+    await asOwner.get(`/api/v1/accounts/${ACCOUNT}/offer-prerequisites`, {
+      headers: ownerHeaders,
+    })
+  ).json()) as { items: { prerequisite: string; revoked_at: string | null }[] };
+  for (const item of recorded.items.filter((row) => row.revoked_at === null)) {
+    const response = await asOwner.post(`/api/v1/accounts/${ACCOUNT}/offer-prerequisites/revoke`, {
+      headers: {
+        ...ownerHeaders,
+        'x-csrf-token': ownerCsrf,
+        'idempotency-key': crypto.randomUUID(),
+      },
+      data: { prerequisite: item.prerequisite, reason: 'Resetting the browser fixture.' },
+    });
+    expect(response.status(), await response.text()).toBe(200);
+  }
 }
 
 test.describe('operator journey', () => {
@@ -167,6 +231,129 @@ test.describe('operator journey', () => {
     await page.getByRole('button', { name: 'Publish version' }).click();
     await expect(page.locator('.chip')).toContainText('published');
     await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-report.png`, fullPage: true });
+  });
+
+  /**
+   * The catalogue step, in the browser.
+   *
+   * The assertion that matters is negative: there is no price input anywhere on this screen,
+   * and the button that would commit to a number is disabled until an owner has recorded the
+   * prerequisites. A reviewer cannot type a price into this application at all.
+   */
+  test('a confirmed case offers only scopes an owner priced', async ({ page }, testInfo) => {
+    const scanId = await runScan(page, FIXTURE_PRODUCT);
+    const scan = (await (await page.request.get(`/api/v1/scans/${scanId}`)).json()) as {
+      finding_ids: string[];
+    };
+    const findingId = scan.finding_ids[0]!;
+    const { csrf_token: csrf } = (await (await page.request.get('/api/v1/session')).json()) as {
+      csrf_token: string;
+    };
+    const confirmed = await page.request.post(`/api/v1/findings/${findingId}/review`, {
+      headers: {
+        'x-csrf-token': csrf,
+        'idempotency-key': crypto.randomUUID(),
+        origin: 'http://127.0.0.1:4173',
+      },
+      data: {
+        expected_version: 1,
+        decision: 'confirm',
+        reason: 'Both recorded checks returned 404 for the linked size guide.',
+        acknowledged_limitations: true,
+      },
+    });
+    expect(confirmed.status(), await confirmed.text()).toBe(200);
+
+    // The case that holds THIS finding. Every scan of the same fixture page rolls into one
+    // case, so a run with several scans leaves other findings still awaiting a decision —
+    // which is why `next_action` is asserted in the integration suite, against a clean
+    // database, rather than here.
+    const opportunities = (await (await page.request.get('/api/v1/opportunities')).json()) as {
+      items: { id: string; finding_ids: string[] }[];
+    };
+    const opportunity = opportunities.items.find((item) => item.finding_ids.includes(findingId));
+    expect(opportunity, 'the confirmed finding should belong to a case').toBeDefined();
+
+    // This suite runs twice, desktop and narrow, against one seeded database, and the whole
+    // point of the test is the journey from "nothing recorded" to "drafted". So it puts the
+    // account back to nothing recorded before opening the page, rather than asserting
+    // whatever the previous project left behind.
+    const asOwner = await apiRequest.newContext({ baseURL: BASE_URL });
+    const ownerHeaders = { 'x-fixture-subject': 'owner@fixture.test', origin: BASE_URL };
+    await resetOfferState(page, asOwner, ownerHeaders, opportunity!.id, csrf);
+
+    await page.goto(`/opportunities/${opportunity!.id}?finding=${findingId}`);
+    if (testInfo.project.name !== 'desktop') {
+      await page.getByRole('tab', { name: 'Decision' }).click();
+    }
+
+    const offer = page.locator('.offer').first();
+    await expect(offer).toContainText('MF-LINK-REPAIR');
+    await expect(offer.locator('.offer-price')).toContainText('290.00 EUR net');
+    // The scope's exclusions are on screen with its price. A promise and its limits travel
+    // together or the limits are decoration.
+    await expect(offer).toContainText('guaranteed revenue uplift');
+
+    // Nowhere to type a price, and nothing to draft yet.
+    await expect(page.locator('.offer input[type="number"]')).toHaveCount(0);
+    await expect(offer).toContainText('Prerequisites not recorded');
+    for (const prerequisite of PREREQUISITES) await expect(offer).toContainText(prerequisite);
+    await expect(page.getByRole('button', { name: 'Draft this scope' })).toBeDisabled();
+    // The reason is on the card. A scope must not read as both on offer and unavailable.
+    await expect(page.getByText(/scopes? (is|are) unavailable/)).toHaveCount(0);
+    await page.screenshot({
+      path: `${SHOTS}/${testInfo.project.name}-scope-blocked.png`,
+      fullPage: true,
+    });
+
+    // An owner records each prerequisite with a note. Only then does the button open.
+    // Its own request context, not the page's: the page is signed in as the reviewer, and the
+    // CSRF token is bound to the subject it was issued to — a reviewer's token does not
+    // authorise an owner's request, which is exactly what binding it is for.
+    const ownerSession = (await (
+      await asOwner.get('/api/v1/session', { headers: ownerHeaders })
+    ).json()) as { role: string; csrf_token: string };
+    expect(ownerSession.role).toBe('owner');
+
+    for (const prerequisite of PREREQUISITES) {
+      const recorded = await asOwner.post(`/api/v1/accounts/${ACCOUNT}/offer-prerequisites`, {
+        headers: {
+          ...ownerHeaders,
+          'x-csrf-token': ownerSession.csrf_token,
+          'idempotency-key': crypto.randomUUID(),
+        },
+        data: {
+          prerequisite,
+          note: `Synthetic fixture: ${prerequisite} confirmed in writing on 21 September 2026.`,
+        },
+      });
+      expect(recorded.status(), await recorded.text()).toBe(201);
+    }
+
+    await page.reload();
+    if (testInfo.project.name !== 'desktop') {
+      await page.getByRole('tab', { name: 'Decision' }).click();
+    }
+    const draft = page.getByRole('button', { name: 'Draft this scope' });
+    await expect(draft).toBeEnabled();
+    await draft.click();
+
+    await expect(page.getByText('MF-LINK-REPAIR drafted')).toBeVisible();
+    await expect(page.locator('.offer[data-state="draft"]')).toContainText(
+      'A later catalogue change does not reprice',
+    );
+    await page.screenshot({
+      path: `${SHOTS}/${testInfo.project.name}-scope-drafted.png`,
+      fullPage: true,
+    });
+
+    // Withdrawal needs a reason; the control refuses an empty one.
+    const withdraw = page.getByRole('button', { name: 'Withdraw', exact: true });
+    await expect(withdraw).toBeDisabled();
+    await page.getByLabel('Withdraw this draft').fill('Customer postponed the work.');
+    await expect(withdraw).toBeEnabled();
+
+    await asOwner.dispose();
   });
 
   test('a blocked scan explains itself and produces no finding', async ({ page }, testInfo) => {

@@ -15,3 +15,6 @@ migration and rollback, verification, and status.
 | [ADR-014](ADR-014-dispatch-index.md)      | Cross-tenant dispatch through a routing index, not BYPASSRLS          | Accepted    |
 | [ADR-015](ADR-015-two-target-policies.md) | A separate fixture target policy rather than a relaxed production one | Accepted    |
 | [ADR-016](ADR-016-composition.md)         | Case composition: the observation matrix leads                        | Provisional |
+| [ADR-017](ADR-017-asset-detector.md)      | MF-ASSET-01 needs a browser, and its own fixtures                     | Accepted    |
+| [ADR-018](ADR-018-contract-overlay.md)    | Generate the served contract from the handoff plus an overlay         | Accepted    |
+| [ADR-019](ADR-019-offer-catalog.md)       | Scope from a catalogue, price from an owner, neither from the code    | Accepted    |

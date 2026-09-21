@@ -1,12 +1,15 @@
 import type { ReviewFinding } from '@oe/contracts';
-import { transition, TransitionError } from '@oe/domain';
+import { nextActionForCase, transition, TransitionError } from '@oe/domain';
 import {
   applyFindingReview,
   findingEvidenceIds,
+  findingStatesForOpportunity,
   getFinding,
   insertAuditEvent,
   insertReview,
   listEvidenceByIds,
+  listOpportunitiesForFinding,
+  updateOpportunity,
   type FindingRow,
   type QueryExecutor,
 } from '@oe/db';
@@ -98,6 +101,8 @@ export async function reviewFinding(
     reason: input.body.reason,
   });
 
+  await advanceCases(tx, finding.id);
+
   await insertAuditEvent(tx, {
     id: deps.newId(),
     actorSubject: input.actor.identity.subject,
@@ -116,6 +121,19 @@ export async function reviewFinding(
   });
 
   return updated;
+}
+
+/** Re-derive what each affected case is waiting on. The rule lives in `nextActionForCase`. */
+async function advanceCases(tx: QueryExecutor, findingId: string): Promise<void> {
+  for (const opportunity of await listOpportunitiesForFinding(tx, findingId)) {
+    const nextAction = nextActionForCase({
+      findingStates: await findingStatesForOpportunity(tx, opportunity.id),
+      current: opportunity.next_action,
+    });
+    if (nextAction !== opportunity.next_action) {
+      await updateOpportunity(tx, { id: opportunity.id, nextAction });
+    }
+  }
 }
 
 /**

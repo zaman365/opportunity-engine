@@ -5,3 +5,6 @@ export * from './url-policy.ts';
 export * from './detector-link.ts';
 export * from './detector-asset.ts';
 export * from './config.ts';
+export * from './offer-catalog.ts';
+export * from './offer-matcher.ts';
+export * from './case-progress.ts';

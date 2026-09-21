@@ -456,6 +456,198 @@ export type Opportunities = z.infer<typeof Opportunities>;
 export const Budgets = page(Budget);
 export type Budgets = z.infer<typeof Budgets>;
 
+/* --------------------------------------------------------- offer catalogue */
+
+/**
+ * A commercial price, in MINOR units.
+ *
+ * Deliberately not `Money`. `Money` carries provider cost in micro-units of the ledger
+ * currency; this carries what a customer pays in cents of a sale currency. BUDGET_LEDGER.md
+ * forbids adding the two, and giving them different field names makes a mix-up fail to parse
+ * rather than quietly produce a number that is wrong by four orders of magnitude.
+ */
+export const OfferPrice = z
+  .object({
+    currency: CurrencyCode,
+    amount_minor: z.string().regex(/^[0-9]+$/),
+    tax_treatment: z.union([z.string(), z.null()]),
+  })
+  .strict();
+export type OfferPrice = z.infer<typeof OfferPrice>;
+
+export const Offer = z
+  .object({
+    id: Uuid,
+    venture_id: Uuid,
+    sku: z.string().regex(/^[A-Z0-9-]+$/),
+    version: z.number().int().min(1),
+    promise: z.string().min(1).max(2000),
+    detector_families: z.array(z.string()).min(1),
+    inclusions: z.array(z.string()),
+    exclusions: z.array(z.string()),
+    prerequisites: z.array(z.string()),
+    acceptance: z.array(z.string()).min(1),
+    /** Null until an owner approves one. A scope with no price is not sellable. */
+    price: z.union([OfferPrice, z.null()]),
+    effort_band: z.union([z.string(), z.null()]),
+    enabled: z.boolean(),
+    approved_at: z.union([DateTime, z.null()]),
+  })
+  .strict();
+export type Offer = z.infer<typeof Offer>;
+
+export const OfferIneligibility = z.enum([
+  'no_confirmed_finding',
+  'detector_not_supported_by_any_sku',
+  'sku_not_enabled',
+  'sku_has_no_approved_price',
+  'prerequisites_unmet',
+  'delivery_capacity_reached',
+]);
+export type OfferIneligibility = z.infer<typeof OfferIneligibility>;
+
+export const EligibleOffer = z
+  .object({
+    offer: Offer,
+    finding_ids: z.array(Uuid).min(1),
+    root_cause_keys: z.array(z.string()).min(1),
+    unmet_prerequisites: z.array(z.string()),
+    draftable: z.boolean(),
+  })
+  .strict();
+export type EligibleOffer = z.infer<typeof EligibleOffer>;
+
+export const OfferMatch = z
+  .object({
+    eligible: z.array(EligibleOffer),
+    rejected: z.array(z.object({ sku: z.string(), reason: OfferIneligibility }).strict()),
+    route_to_manual_quotation: z.boolean(),
+    capacity_reached: z.boolean(),
+    open_commitments: z.number().int().min(0),
+    delivery_capacity: z.number().int().min(0),
+  })
+  .strict();
+export type OfferMatch = z.infer<typeof OfferMatch>;
+
+export const OfferDraftState = z.enum(['draft', 'withdrawn', 'superseded']);
+export type OfferDraftState = z.infer<typeof OfferDraftState>;
+
+export const OfferDraft = z
+  .object({
+    id: Uuid,
+    opportunity_id: Uuid,
+    offer_id: Uuid,
+    offer_sku: z.string(),
+    offer_version: z.number().int().min(1),
+    state: OfferDraftState,
+    version: z.number().int().min(1),
+    /** Copied at draft time. A later catalogue change must not reprice a quote already given. */
+    price: OfferPrice,
+    snapshot: z.record(z.string(), z.unknown()),
+    finding_ids: z.array(Uuid).min(1),
+    root_cause_keys: z.array(z.string()).min(1),
+    created_by: Uuid,
+    created_at: DateTime,
+    withdrawn_at: z.union([DateTime, z.null()]),
+    withdraw_reason: z.union([z.string(), z.null()]),
+  })
+  .strict();
+export type OfferDraft = z.infer<typeof OfferDraft>;
+
+export const OfferDrafts = z.object({ items: z.array(OfferDraft) }).strict();
+export type OfferDrafts = z.infer<typeof OfferDrafts>;
+
+/** No price field, by design: a price that did not come from an owner approval is not one. */
+export const CreateOfferDraft = z.object({ offer_id: Uuid }).strict();
+export type CreateOfferDraft = z.infer<typeof CreateOfferDraft>;
+
+export const WithdrawOfferDraft = z
+  .object({ expected_version: z.number().int().min(1), reason: z.string().min(1).max(2000) })
+  .strict();
+export type WithdrawOfferDraft = z.infer<typeof WithdrawOfferDraft>;
+
+/**
+ * A prerequisite recorded as met.
+ *
+ * Nothing the engine captures can establish "authorized code access" or "agreed destination".
+ * Somebody has to say so, with a note explaining how they know, and stay named for saying it.
+ * Revoked records are kept rather than deleted.
+ */
+export const OfferPrerequisite = z
+  .object({
+    id: Uuid,
+    account_id: Uuid,
+    prerequisite: z.string().min(1).max(200),
+    recorded_by: Uuid,
+    recorded_at: DateTime,
+    revoked_at: z.union([DateTime, z.null()]),
+    revoke_reason: z.union([z.string(), z.null()]),
+  })
+  .strict();
+export type OfferPrerequisite = z.infer<typeof OfferPrerequisite>;
+
+export const OfferPrerequisites = z.object({ items: z.array(OfferPrerequisite) }).strict();
+export type OfferPrerequisites = z.infer<typeof OfferPrerequisites>;
+
+export const RecordOfferPrerequisite = z
+  .object({
+    prerequisite: z.string().min(1).max(200),
+    /** Required. A prerequisite recorded without a note is an assertion with nothing behind it. */
+    note: z.string().min(10).max(2000),
+  })
+  .strict();
+export type RecordOfferPrerequisite = z.infer<typeof RecordOfferPrerequisite>;
+
+export const RevokeOfferPrerequisite = z
+  .object({
+    prerequisite: z.string().min(1).max(200),
+    reason: z.string().min(1).max(2000),
+  })
+  .strict();
+export type RevokeOfferPrerequisite = z.infer<typeof RevokeOfferPrerequisite>;
+
+/* ------------------------------------------------- operator read surfaces */
+
+export const ScanStep = z
+  .object({
+    id: Uuid,
+    step_key: z.string(),
+    state: z.string(),
+    attempt: z.number().int().min(0),
+    provider_request_id: z.union([z.string(), z.null()]),
+    updated_at: DateTime,
+  })
+  .strict();
+export type ScanStep = z.infer<typeof ScanStep>;
+
+export const ScanTimeline = z
+  .object({
+    steps: z.array(ScanStep),
+    evidence: z.array(Evidence),
+    findings: z.array(Finding),
+  })
+  .strict();
+export type ScanTimeline = z.infer<typeof ScanTimeline>;
+
+/** One decision, bound to the finding version it was made against. Never edited. */
+export const Review = z
+  .object({
+    id: Uuid,
+    finding_id: Uuid,
+    finding_version: z.number().int().min(1),
+    reviewer_id: Uuid,
+    decision: z.enum(['confirm', 'reject', 'unknown']),
+    reason: z.string().min(1).max(2000),
+    created_at: DateTime,
+  })
+  .strict();
+export type Review = z.infer<typeof Review>;
+
+export const Reviews = page(Review);
+export type Reviews = z.infer<typeof Reviews>;
+export const Authorizations = page(Authorization);
+export type Authorizations = z.infer<typeof Authorizations>;
+
 export { ExpectedVersion };
 
 /** Name → schema, keyed exactly as the OpenAPI `components.schemas` map. */
@@ -489,4 +681,21 @@ export const componentSchemas = {
   Budgets,
   FindingDetail,
   OpportunityDetail,
+  OfferPrice,
+  Offer,
+  EligibleOffer,
+  OfferMatch,
+  OfferDraft,
+  OfferDrafts,
+  CreateOfferDraft,
+  WithdrawOfferDraft,
+  OfferPrerequisite,
+  OfferPrerequisites,
+  RecordOfferPrerequisite,
+  RevokeOfferPrerequisite,
+  ScanStep,
+  ScanTimeline,
+  Review,
+  Reviews,
+  Authorizations,
 } as const;

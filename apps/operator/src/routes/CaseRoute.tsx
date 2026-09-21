@@ -7,6 +7,7 @@ import { buildMatrix, ObservationMatrix } from '../components/ObservationMatrix.
 import { EvidenceStage } from '../components/EvidenceStage.tsx';
 import { FindingNarrative, findingTone } from '../components/FindingNarrative.tsx';
 import { ReviewSeam } from '../components/ReviewSeam.tsx';
+import { ScopePanel } from '../components/ScopePanel.tsx';
 import { CoverageSummary } from '../components/panels.tsx';
 import { Chip, ErrorPanel, Loading, Notice, Timestamp } from '../components/primitives.tsx';
 import { docketOf } from './QueueRoute.tsx';
@@ -217,7 +218,15 @@ export function CaseRoute({ session }: { session: Session }) {
               />
 
               {finding.state === 'confirmed' ? (
-                <ConfirmedNext finding={finding} scan={scan.data} session={session} />
+                <>
+                  <ConfirmedNext finding={finding} scan={scan.data} session={session} />
+                  {/* What the confirmed work is worth, from the approved catalogue. Below the
+                      report action deliberately: the claim is settled before it is priced. */}
+                  <ScopePanel
+                    opportunityId={opportunity.id}
+                    canDraft={session.role === 'reviewer' || session.role === 'owner'}
+                  />
+                </>
               ) : (
                 <ReviewSeam
                   finding={finding}

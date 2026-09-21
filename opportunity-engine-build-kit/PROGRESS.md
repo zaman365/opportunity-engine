@@ -1,6 +1,6 @@
 # Progress
 
-**Kit version 2.0 · last session 21 September 2026 (M2 slice 1)**
+**Kit version 2.0 · last session 21 September 2026 (M2 slice 2)**
 
 ## Completed in this kit
 
@@ -15,13 +15,99 @@ VERIFICATION.md.
 |---|---|
 | Production application scaffold | **Built** · monorepo, pinned versions, lockfile, real build/type/lint/test scripts |
 | Live authentication/membership | **Partly** · Access JWT verification implemented (jose, pinned issuer/audience/algorithms) but never exercised against a real Access deployment. The local fixture identity is the only path actually run |
-| Production database/migrations | **Local only** · 8 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
+| Production database/migrations | **Local only** · 9 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
 | Live public scan adapter | **Not implemented** · `BrowserRunCaptureProvider` runs the address policy then reports `not_configured`. No egress-boundary proof, no credentials |
 | Detectors | **2 of 6 implemented** · MF-LINK-01 and MF-ASSET-01, both with negative controls. MF-DATA-01, PDP-CONTENT-01, PDP-VISUAL-01 and PDP-MOBILE-01 are specified and unrequestable |
 | Persistent budget enforcement | **Implemented and tested** · SQL command functions, runtime holds `SELECT` only, concurrency asserted against real connections |
 | Human review and reports | **Implemented and tested** · versioned review with optimistic locking, immutable hash-bound report snapshot |
-| OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely |
+| Offer catalogue | **Implemented and tested** · deterministic matching from an owner-approved catalogue, prerequisites recorded by a named owner, price/scope snapshotted into each draft. Nothing is sent; a draft is an internal record |
+| Commercial prices | **Provisional** · EUR 290 / EUR 190 net, approved in `config/offer-approvals.json`. **VAT treatment unconfirmed** and recorded as open in both approval notes |
+| OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely, now for a legal reason as well as a design one (`docs/legal/DACH_OUTREACH_STUDY.md`) |
 | Production deployment | **Not performed** · no cloud resource was created or contacted |
+
+## Session log · 21 September 2026 · M2 slice 2 · the offer catalogue
+
+**Agent:** Claude Opus 5 · **branch:** main · **milestone:** M2, the step between a confirmed
+finding and a price.
+
+### What was built
+
+The catalogue step: `GET /v1/opportunities/{id}/offers` matches a case's **confirmed** findings
+against the venture's catalogue; `POST .../offer-drafts` writes a scope at its approved price;
+`POST /v1/offer-drafts/{id}/withdraw` withdraws one with a reason. Prerequisites are recorded
+and revoked by an owner through `/v1/accounts/{id}/offer-prerequisites`.
+
+Nothing in this slice can produce a price. Scope comes from the kit's
+`config/offer-catalog.json`, which stays byte-identical; price comes from a separate
+`config/offer-approvals.json` that records what the owner approved, joined on `sku@version` so
+an approval cannot follow a scope to a new version. `CreateOfferDraft` carries only an
+`offer_id` — there is no field through which a caller could supply a number — and the operator
+UI has no price input, which the browser test asserts rather than assumes.
+
+"Enabled requires an approved price" is stated three times: in the merge, where it names the
+SKU; in the matcher, which will not return an unpriced entry; and as a CHECK constraint, which
+holds against a caller that skipped both. Rationale in
+[ADR-019](../docs/adr/ADR-019-offer-catalog.md).
+
+### What the owner approved
+
+| SKU | Price | Effort | State |
+|---|---|---|---|
+| `MF-LINK-REPAIR` | EUR 290 net | 1–3 h | enabled |
+| `PDP-REVIEWED-AUDIT` | EUR 190 net | 0.8–1.3 h | enabled |
+
+**VAT treatment is unconfirmed.** Both prices are net; whether VAT is added depends on a
+registration status nobody has verified. Recorded as open in the approval notes, and it has to
+be settled before a quote reaches a customer.
+
+### Two gaps this slice found
+
+1. **`apps/api/src/app.ts` claimed a test that did not exist** —
+   `tests/contract/openapi-routes.test.ts`. Writing it found three read operations that were
+   implemented and served but never declared in the contract: `GET /v1/scans/{id}/timeline`,
+   `GET /v1/accounts/{id}/authorizations`, `GET /v1/findings/{id}/reviews`. The overlay now
+   declares them, so the served contract describes every route the application mounts.
+2. **The runner never moved an existing case's `next_action`.** Invisible while every case sat
+   at `review_evidence` forever; once a confirmed case can reach `draft_offer`, a fresh
+   candidate landing on it would have been hidden behind a next step nobody could take. The
+   rule now lives in one place, `nextActionForCase`, used by both the runner and the review
+   service.
+
+### Commands run and actual results
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | Clean across node, web and e2e projects |
+| `npm run lint` | Clean |
+| `npm run format:check` | Clean |
+| `npm run contract:check` | `contracts/openapi.json` matches the overlay |
+| `npm run build` | Operator bundle built |
+| `npm run test:unit` | **145 passed** (119 → 145; 26 new for the matcher, the merge and `nextActionForCase`) |
+| `npm run test:contract` | **51 passed** (48 → 51; the new route-conformance test) |
+| `npm run test:db` | **51 passed** (38 → 51; 13 new for the constraints) |
+| `npm run test:integration` | **79 passed** (64 → 79; 15 new for the draft flow) |
+| `npm run test:e2e` | **23 passed, 7 skipped** (21 → 23) |
+
+### One intermittent failure, observed once and not reproduced
+
+On one cold run of the browser suite, `accessibility behaviour › keyboard reaches the case`
+failed; three subsequent clean runs (servers restarted, database reset) all passed 23/23. The
+cause was not found, so it is recorded here rather than treated as fixed. The test predates
+this slice and touches no offer-catalogue code.
+
+### Still true after this slice
+
+- No live capture, no deployment, no outreach, nothing sent to anybody.
+- A draft is an internal record. External delivery is a separate, later permission.
+- `AUTOMATIC_OUTREACH_ENABLED`, `PUBLIC_INTAKE_ENABLED`, `AUTOMATIC_PRODUCTION_WRITES_ENABLED`
+  and `AUTOMATIC_TOPUPS_ENABLED` are all still refused at startup.
+
+### Next smallest complete task
+
+**M3 inbound intake.** The owner chose inbound first: a public request-a-check form behind
+abuse controls, with the report-access token that lets a customer read their own report
+without a workspace seat. Outreach stays off — the DACH study found automated cold email to
+German businesses unlawful under UWG §7(2) Nr. 2, with no B2B exception.
 
 ## Session log · 21 September 2026 · M2 slice 1 · MF-ASSET-01
 
@@ -220,11 +306,7 @@ them.
 ### Next smallest complete task
 
 **M1 increment 5 — the live capture adapter — is blocked** on the authorizations above. The
-next unblocked work is the first slice of M2: implement **MF-ASSET-01** against new local
-fixtures (a resource that fails, one that lazy-loads slowly, one decorative image, one variant
-change), including its negative controls, before touching any other detector. It reuses the
-existing capture port, evidence model, review path and report composer unchanged — which is the
-point of having built one detector end to end first.
+next unblocked work is M3 inbound intake; see the M2 slice 2 log above.
 
 ## Session log template
 

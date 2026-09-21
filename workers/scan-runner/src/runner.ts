@@ -8,6 +8,7 @@ import type {
 } from '@oe/capture';
 import {
   advanceScan,
+  findingStatesForOpportunity,
   findOpportunityByAccountAndRootCause,
   getAccount,
   getScan,
@@ -19,6 +20,7 @@ import {
   linkFindingEvidence,
   linkOpportunityFinding,
   listEvidenceForScan,
+  updateOpportunity,
   markReservationUncertain,
   releaseReservation,
   settleReservation,
@@ -37,6 +39,7 @@ import {
   DETECTOR_VERSION,
   evaluateImportantLink,
   evaluateProductImage,
+  nextActionForCase,
   scoreOpportunity,
   type AssetDetectorResult,
   type ImageObservation,
@@ -698,6 +701,18 @@ export class ScanRunner {
         opportunityId,
         findingId: finding.id,
       });
+      // A new undecided finding puts an existing case back in the review queue. Without this
+      // a case that had been confirmed and moved on to `draft_offer` would keep a fresh
+      // candidate hidden behind a next step nobody can take yet.
+      if (existing) {
+        const nextAction = nextActionForCase({
+          findingStates: await findingStatesForOpportunity(tx, opportunityId),
+          current: existing.next_action,
+        });
+        if (nextAction !== existing.next_action) {
+          await updateOpportunity(tx, { id: opportunityId, nextAction });
+        }
+      }
 
       await insertAuditEvent(tx, {
         id: this.#options.newId(),
@@ -883,6 +898,18 @@ export class ScanRunner {
         opportunityId,
         findingId: finding.id,
       });
+      // A new undecided finding puts an existing case back in the review queue. Without this
+      // a case that had been confirmed and moved on to `draft_offer` would keep a fresh
+      // candidate hidden behind a next step nobody can take yet.
+      if (existing) {
+        const nextAction = nextActionForCase({
+          findingStates: await findingStatesForOpportunity(tx, opportunityId),
+          current: existing.next_action,
+        });
+        if (nextAction !== existing.next_action) {
+          await updateOpportunity(tx, { id: opportunityId, nextAction });
+        }
+      }
 
       await insertAuditEvent(tx, {
         id: this.#options.newId(),

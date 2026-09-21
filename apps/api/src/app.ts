@@ -3,12 +3,16 @@ import {
   Account as AccountSchema,
   ChangeBudget,
   CreateAccount,
+  CreateOfferDraft as CreateOfferDraftSchema,
   CreateReport as CreateReportSchema,
   CreateScan as CreateScanSchema,
   AuthorizationInput,
   ExpectedVersion,
   PauseBudget,
+  RecordOfferPrerequisite as RecordOfferPrerequisiteSchema,
   ReviewFinding as ReviewFindingSchema,
+  RevokeOfferPrerequisite as RevokeOfferPrerequisiteSchema,
+  WithdrawOfferDraft as WithdrawOfferDraftSchema,
   type Session,
 } from '@oe/contracts';
 import { IMPLEMENTED_DETECTORS, missingBindings, transition, TransitionError } from '@oe/domain';
@@ -27,6 +31,7 @@ import {
   insertAccount,
   insertAuditEvent,
   insertAuthorization,
+  insertOfferPrerequisite,
   LedgerError,
   listAuthorizations,
   listAccounts,
@@ -34,11 +39,14 @@ import {
   listEvidenceByIds,
   listEvidenceForScan,
   listFindingsForScan,
+  listOfferDrafts,
+  listOfferPrerequisites,
   listOpportunities,
   listReportFindings,
   listScanSteps,
   listScans,
   listReviews,
+  revokeOfferPrerequisite,
   setBudgetPaused,
   type ScanRow,
   type QueryExecutor,
@@ -62,14 +70,19 @@ import {
   toBudget,
   toEvidence,
   toFinding,
+  toOfferDraft,
+  toOfferPrerequisite,
   toOpportunity,
   toReport,
+  toReview,
+  toScanStep,
   toScan,
   type ScanCostSnapshot,
 } from './projections.ts';
 import { admitScan, ledgerProblem } from './services/scan-admission.ts';
 import { reviewFinding } from './services/review.ts';
 import { assertPublishable, createReport } from './services/report.ts';
+import { createOfferDraft, matchOffersForOpportunity, withdrawDraft } from './services/offer.ts';
 import { completeIdempotencyKey } from '@oe/db';
 
 /**
@@ -789,11 +802,11 @@ export function createApp(deps: AppDependencies) {
     return c.json(result.body as object, 200);
   });
 
-  /* --------------------------------------------- operator-only extras */
+  /* ------------------------------------------ operator read surfaces */
 
-  // Not in the M1 OpenAPI surface: read-only detail the workbench needs and the contract
-  // covers only implicitly. Kept under a clearly separate prefix so the contract test can
-  // tell intentional extras from drift.
+  // Read-only detail the workbench needs. The M1 handoff contract did not declare these
+  // three; `tests/contract/openapi-routes.test.ts` found that gap, and the overlay now
+  // declares them, so the served contract describes every route this app mounts.
   v1.get('/scans/:id/timeline', requireRole('viewer'), async (c) => {
     const actor = c.get('actor');
     const id = uuidParam(c.req.param('id'));
@@ -810,7 +823,7 @@ export function createApp(deps: AppDependencies) {
         projected.push(toFinding(finding, links.supports, links.contradicts));
       }
       return {
-        steps,
+        steps: steps.map(toScanStep),
         evidence: evidence.map((e) =>
           toEvidence(e, Boolean(e.object_key) && deps.evidence.available && !e.redacted),
         ),
@@ -844,9 +857,215 @@ export function createApp(deps: AppDependencies) {
       const scan = await getScan(tx, finding.scan_id);
       if (!scan) throw new ApiProblem('NOT_FOUND', 'No such finding in this workspace.');
       assertVenture(actor, scan.venture_id);
-      return listReviews(tx, id);
+      return (await listReviews(tx, id)).map(toReview);
     });
     return c.json({ items: rows, next_cursor: null });
+  });
+
+  /* ------------------------------------------------------ offer catalogue */
+
+  /**
+   * What this case is eligible for.
+   *
+   * Recomputed on every read rather than stored. Eligibility depends on finding states, the
+   * current catalogue, recorded prerequisites and open commitments, any of which can move
+   * between two reads — a cached answer would be a price quoted from stale facts.
+   */
+  v1.get('/opportunities/:id/offers', requireRole('viewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const match = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const result = await matchOffersForOpportunity(tx, id);
+      assertVenture(actor, result.ventureId);
+      return result.match;
+    });
+    return c.json(match);
+  });
+
+  v1.get('/opportunities/:id/offer-drafts', requireRole('viewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const items = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const opportunity = await getOpportunity(tx, id);
+      if (!opportunity) throw new ApiProblem('NOT_FOUND', 'No such opportunity in this workspace.');
+      assertVenture(actor, opportunity.venture_id);
+      const rows = await listOfferDrafts(tx, id);
+      return rows.map(toOfferDraft);
+    });
+    return c.json({ items });
+  });
+
+  v1.post('/opportunities/:id/offer-drafts', requireRole('reviewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const body = parse(CreateOfferDraftSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { id, ...body });
+    const created = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'createOfferDraft', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const opportunity = await getOpportunity(tx, id);
+      if (!opportunity) throw new ApiProblem('NOT_FOUND', 'No such opportunity in this workspace.');
+      assertVenture(actor, opportunity.venture_id);
+      const row = await createOfferDraft(tx, deps, {
+        actor,
+        opportunityId: id,
+        body,
+        requestId: c.get('requestId'),
+      });
+      const draft = toOfferDraft(row);
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 201,
+        responseBody: draft,
+      });
+      return { status: 201, body: draft };
+    });
+    return c.json(created.body as object, 201);
+  });
+
+  v1.post('/offer-drafts/:id/withdraw', requireRole('reviewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const body = parse(WithdrawOfferDraftSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { id, ...body });
+    const result = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'withdrawOfferDraft', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const row = await withdrawDraft(tx, deps, {
+        actor,
+        draftId: id,
+        body,
+        requestId: c.get('requestId'),
+      });
+      // Read after the write: the venture check must be against the row that actually moved,
+      // and RLS has already confined it to this workspace.
+      const opportunity = await getOpportunity(tx, row.opportunity_id);
+      if (!opportunity) throw new ApiProblem('NOT_FOUND', 'No such draft in this workspace.');
+      assertVenture(actor, opportunity.venture_id);
+      const draft = toOfferDraft(row);
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 200,
+        responseBody: draft,
+      });
+      return { status: 200, body: draft };
+    });
+    return c.json(result.body as object, 200);
+  });
+
+  /* -------------------------------------------------- offer prerequisites */
+
+  v1.get('/accounts/:id/offer-prerequisites', requireRole('viewer'), async (c) => {
+    const actor = c.get('actor');
+    const accountId = uuidParam(c.req.param('id'));
+    const items = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const account = await getAccount(tx, accountId);
+      if (!account) throw new ApiProblem('NOT_FOUND', 'No such account in this workspace.');
+      assertVenture(actor, account.venture_id);
+      const rows = await listOfferPrerequisites(tx, accountId);
+      return rows.map(toOfferPrerequisite);
+    });
+    return c.json({ items });
+  });
+
+  v1.post('/accounts/:id/offer-prerequisites', requireRole('owner'), async (c) => {
+    const actor = c.get('actor');
+    const accountId = uuidParam(c.req.param('id'));
+    const body = parse(RecordOfferPrerequisiteSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), {
+      accountId,
+      ...body,
+    });
+    const created = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'recordPrerequisite', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const account = await getAccount(tx, accountId);
+      if (!account) throw new ApiProblem('NOT_FOUND', 'No such account in this workspace.');
+      assertVenture(actor, account.venture_id);
+      const existing = await listOfferPrerequisites(tx, accountId);
+      if (
+        existing.some((row) => row.prerequisite === body.prerequisite && row.revoked_at === null)
+      ) {
+        throw new ApiProblem(
+          'VERSION_CONFLICT',
+          `"${body.prerequisite}" is already recorded for this account. Revoke it before recording it again.`,
+        );
+      }
+      const row = await insertOfferPrerequisite(tx, {
+        id: deps.newId(),
+        accountId,
+        prerequisite: body.prerequisite,
+        note: body.note,
+        recordedBy: actor.membership.membershipId,
+      });
+      await insertAuditEvent(tx, {
+        id: deps.newId(),
+        actorSubject: actor.identity.subject,
+        action: 'offer_prerequisite.recorded',
+        objectType: 'offer_prerequisite',
+        objectId: row.id,
+        objectVersion: 1,
+        requestId: c.get('requestId'),
+        // The note is the evidence for the claim and stays in the audit record, not the
+        // projection: a viewer sees that a prerequisite is met, not the customer's details.
+        detail: { account_id: accountId, prerequisite: row.prerequisite, note: row.note },
+      });
+      const projected = toOfferPrerequisite(row);
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 201,
+        responseBody: projected,
+      });
+      return { status: 201, body: projected };
+    });
+    return c.json(created.body as object, 201);
+  });
+
+  v1.post('/accounts/:id/offer-prerequisites/revoke', requireRole('owner'), async (c) => {
+    const actor = c.get('actor');
+    const accountId = uuidParam(c.req.param('id'));
+    const body = parse(RevokeOfferPrerequisiteSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), {
+      accountId,
+      ...body,
+    });
+    const result = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'revokePrerequisite', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const account = await getAccount(tx, accountId);
+      if (!account) throw new ApiProblem('NOT_FOUND', 'No such account in this workspace.');
+      assertVenture(actor, account.venture_id);
+      const row = await revokeOfferPrerequisite(tx, {
+        accountId,
+        prerequisite: body.prerequisite,
+        reason: body.reason,
+        at: deps.now().toISOString(),
+      });
+      if (!row) {
+        throw new ApiProblem(
+          'NOT_FOUND',
+          `"${body.prerequisite}" is not currently recorded for this account.`,
+        );
+      }
+      await insertAuditEvent(tx, {
+        id: deps.newId(),
+        actorSubject: actor.identity.subject,
+        action: 'offer_prerequisite.revoked',
+        objectType: 'offer_prerequisite',
+        objectId: row.id,
+        objectVersion: 1,
+        requestId: c.get('requestId'),
+        detail: { account_id: accountId, prerequisite: row.prerequisite, reason: body.reason },
+      });
+      const projected = toOfferPrerequisite(row);
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 200,
+        responseBody: projected,
+      });
+      return { status: 200, body: projected };
+    });
+    return c.json(result.body as object, 200);
   });
 
   app.route('/api/v1', v1);

@@ -2,8 +2,8 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Opportunity Engine · initial internal API",
-    "version": "2.1.0",
-    "description": "Generated from the build kit's M1 contract plus contracts/overlay.json. Implemented detectors: MF-LINK-01, MF-ASSET-01. Contract only; an operation appearing here is not a claim that a deployment serves it."
+    "version": "2.2.0",
+    "description": "Generated from the build kit's M1 contract plus contracts/overlay.json. Implemented detectors: MF-LINK-01, MF-ASSET-01. Adds the M2 offer catalogue: eligibility, drafting and withdrawal. Contract only; an operation appearing here is not a claim that a deployment serves it."
   },
   "servers": [
     {
@@ -479,6 +479,108 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AuthorizationInput"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listAuthorizations",
+        "summary": "Purpose permissions recorded for this account",
+        "description": "Minimum role: viewer. Phase: M1. Membership, purpose, object and budget checks also apply. Returns no purpose text or evidence note. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M1"
+        ],
+        "x-minimum-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Authorizations"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
               }
             }
           }
@@ -2630,6 +2732,1054 @@
           }
         }
       }
+    },
+    "/v1/opportunities/{id}/offers": {
+      "get": {
+        "operationId": "matchOffers",
+        "summary": "Which catalogue scopes this case is eligible for",
+        "description": "Minimum role: viewer. Phase: M2. Membership, purpose, object and budget checks also apply. Matching is deterministic against the venture catalogue; it never invents a price or widens a scope. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M2"
+        ],
+        "x-minimum-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferMatch"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/opportunities/{id}/offer-drafts": {
+      "get": {
+        "operationId": "listOfferDrafts",
+        "summary": "Scopes already drafted for this case",
+        "description": "Minimum role: viewer. Phase: M2. Membership, purpose, object and budget checks also apply. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M2"
+        ],
+        "x-minimum-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDrafts"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createOfferDraft",
+        "summary": "Draft an eligible scope at its approved price",
+        "description": "Minimum role: reviewer. Phase: M2. Membership, purpose, object and budget checks also apply. Refused unless the case has a confirmed finding the SKU supports, the SKU is enabled with an owner-approved price, its prerequisites are recorded as met and delivery capacity remains. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M2"
+        ],
+        "x-minimum-role": "reviewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDraft"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOfferDraft"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/offer-drafts/{id}/withdraw": {
+      "post": {
+        "operationId": "withdrawOfferDraft",
+        "summary": "Withdraw a drafted scope with a reason",
+        "description": "Minimum role: reviewer. Phase: M2. Membership, purpose, object and budget checks also apply. A draft is never deleted; withdrawing records who withdrew it and why. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M2"
+        ],
+        "x-minimum-role": "reviewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferDraft"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawOfferDraft"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/accounts/{id}/offer-prerequisites": {
+      "get": {
+        "operationId": "listOfferPrerequisites",
+        "summary": "Prerequisites recorded for this account",
+        "description": "Minimum role: viewer. Phase: M2. Membership, purpose, object and budget checks also apply. Returns revoked entries too, so a reader sees the history rather than only the current state. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M2"
+        ],
+        "x-minimum-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferPrerequisites"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "recordOfferPrerequisite",
+        "summary": "Record a prerequisite as met, with a note",
+        "description": "Minimum role: owner. Phase: M2. Membership, purpose, object and budget checks also apply. Recording a prerequisite is a claim about a customer relationship, not an observation, so it is an owner act and the recorder is bound to it. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M2"
+        ],
+        "x-minimum-role": "owner",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferPrerequisite"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordOfferPrerequisite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/accounts/{id}/offer-prerequisites/revoke": {
+      "post": {
+        "operationId": "revokeOfferPrerequisite",
+        "summary": "Revoke a recorded prerequisite with a reason",
+        "description": "Minimum role: owner. Phase: M2. Membership, purpose, object and budget checks also apply. The record is kept and marked revoked; scopes depending on it stop being draftable. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M2"
+        ],
+        "x-minimum-role": "owner",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferPrerequisite"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeOfferPrerequisite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/scans/{id}/timeline": {
+      "get": {
+        "operationId": "getScanTimeline",
+        "summary": "Steps, evidence and findings for one scan",
+        "description": "Minimum role: viewer. Phase: M1. Membership, purpose, object and budget checks also apply. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M1"
+        ],
+        "x-minimum-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanTimeline"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/findings/{id}/reviews": {
+      "get": {
+        "operationId": "listFindingReviews",
+        "summary": "Review history for one finding",
+        "description": "Minimum role: viewer. Phase: M1. Membership, purpose, object and budget checks also apply. Each entry names the reviewer and the finding version it was bound to. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M1"
+        ],
+        "x-minimum-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reviews"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4322,6 +5472,686 @@
           "opportunity",
           "findings",
           "evidence"
+        ]
+      },
+      "OfferPrice": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A commercial price in MINOR units of its currency. Deliberately not Money: Money carries provider cost in micro-units of the ledger currency, and the two must never be added. The differing field names make a mix-up a schema error rather than an arithmetic one.",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "amount_minor": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "tax_treatment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "currency",
+          "amount_minor",
+          "tax_treatment"
+        ]
+      },
+      "Offer": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A catalogue entry at one version. Scope is defined by the catalogue; price is set by an owner approval. An entry with no approved price is visible but not sellable.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "venture_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sku": {
+            "type": "string",
+            "pattern": "^[A-Z0-9-]+$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "promise": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "detector_families": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "inclusions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prerequisites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptance": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferPrice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effort_band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "venture_id",
+          "sku",
+          "version",
+          "promise",
+          "detector_families",
+          "inclusions",
+          "exclusions",
+          "prerequisites",
+          "acceptance",
+          "price",
+          "effort_band",
+          "enabled",
+          "approved_at"
+        ]
+      },
+      "EligibleOffer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "offer": {
+            "$ref": "#/components/schemas/Offer"
+          },
+          "finding_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1
+          },
+          "root_cause_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "unmet_prerequisites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "draftable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "offer",
+          "finding_ids",
+          "root_cause_keys",
+          "unmet_prerequisites",
+          "draftable"
+        ]
+      },
+      "OfferMatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Which catalogue scopes a case's CONFIRMED findings are eligible for. Deterministic and rule-based: the price and scope come from the catalogue, never from generation. When nothing matches, route_to_manual_quotation is true, which is an answer rather than a failure.",
+        "properties": {
+          "eligible": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EligibleOffer"
+            }
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "sku": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "no_confirmed_finding",
+                    "detector_not_supported_by_any_sku",
+                    "sku_not_enabled",
+                    "sku_has_no_approved_price",
+                    "prerequisites_unmet",
+                    "delivery_capacity_reached"
+                  ]
+                }
+              },
+              "required": [
+                "sku",
+                "reason"
+              ]
+            }
+          },
+          "route_to_manual_quotation": {
+            "type": "boolean"
+          },
+          "capacity_reached": {
+            "type": "boolean"
+          },
+          "open_commitments": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "delivery_capacity": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "eligible",
+          "rejected",
+          "route_to_manual_quotation",
+          "capacity_reached",
+          "open_commitments",
+          "delivery_capacity"
+        ]
+      },
+      "OfferDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A scope drafted for one case at one catalogue version. The price and scope are a snapshot: a later catalogue change does not reprice a draft already given.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "opportunity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "offer_sku": {
+            "type": "string"
+          },
+          "offer_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "withdrawn",
+              "superseded"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "price": {
+            "$ref": "#/components/schemas/OfferPrice"
+          },
+          "snapshot": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "finding_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1
+          },
+          "root_cause_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "withdrawn_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "withdraw_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "opportunity_id",
+          "offer_id",
+          "offer_sku",
+          "offer_version",
+          "state",
+          "version",
+          "price",
+          "snapshot",
+          "finding_ids",
+          "root_cause_keys",
+          "created_by",
+          "created_at",
+          "withdrawn_at",
+          "withdraw_reason"
+        ]
+      },
+      "OfferDrafts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfferDraft"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CreateOfferDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Names the catalogue entry to draft. No price field: a caller cannot supply one, because a price that did not come from an owner approval is not a price this system will quote.",
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "offer_id"
+        ]
+      },
+      "WithdrawOfferDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "expected_version",
+          "reason"
+        ]
+      },
+      "OfferPrerequisite": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A condition about the customer that no capture can establish — authorized access, an agreed destination, a scope approval. Somebody records it and is named for recording it, the same shape as a review. Revoked entries are kept: what was claimed stays readable.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "prerequisite": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "recorded_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revoke_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "prerequisite",
+          "recorded_by",
+          "recorded_at",
+          "revoked_at",
+          "revoke_reason"
+        ]
+      },
+      "OfferPrerequisites": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfferPrerequisite"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "RecordOfferPrerequisite": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The note is required and is the evidence for the claim: who granted what, when and how it was confirmed. A prerequisite recorded without one is an assertion with nothing behind it.",
+        "properties": {
+          "prerequisite": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "prerequisite",
+          "note"
+        ]
+      },
+      "RevokeOfferPrerequisite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "prerequisite": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "prerequisite",
+          "reason"
+        ]
+      },
+      "ScanStep": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "step_key": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "provider_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "step_key",
+          "state",
+          "attempt",
+          "provider_request_id",
+          "updated_at"
+        ]
+      },
+      "ScanTimeline": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Everything recorded for one scan: which steps ran and how they ended, the evidence captured, and the findings derived from it. The reviewer's working view.",
+        "properties": {
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScanStep"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            }
+          }
+        },
+        "required": [
+          "steps",
+          "evidence",
+          "findings"
+        ]
+      },
+      "Review": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "One review decision, bound to the finding version it was made against. Immutable: a later decision is a new record, never an edit of this one.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "finding_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "finding_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reviewer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decision": {
+            "enum": [
+              "confirm",
+              "reject",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "finding_id",
+          "finding_version",
+          "reviewer_id",
+          "decision",
+          "reason",
+          "created_at"
+        ]
+      },
+      "Reviews": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Review"
+            }
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "Authorizations": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Authorization"
+            }
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
         ]
       }
     }

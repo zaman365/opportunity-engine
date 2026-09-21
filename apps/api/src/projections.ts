@@ -4,20 +4,31 @@ import type {
   Budget,
   Evidence,
   Finding,
+  Offer,
+  OfferDraft,
+  OfferPrerequisite,
   Opportunity,
   PriorityScore,
   Report,
+  Review,
   Scan,
+  ScanStep,
 } from '@oe/contracts';
+import { effortBand, type CatalogOffer } from '@oe/domain';
 import type {
   AccountRow,
   AuthorizationRow,
   BudgetRow,
   EvidenceRow,
   FindingRow,
+  OfferDraftRow,
+  OfferPrerequisiteRow,
+  OfferRow,
   OpportunityRow,
   ReportRow,
+  ReviewRow,
   ScanRow,
+  ScanStepRow,
 } from '@oe/db';
 
 /**
@@ -217,4 +228,123 @@ export function decodeCursor(cursor: string): { timestamp: string; id: string } 
   } catch {
     return null;
   }
+}
+
+export function toOffer(row: OfferRow): Offer {
+  const catalogOffer = toCatalogOffer(row);
+  return {
+    id: row.id,
+    venture_id: row.venture_id,
+    sku: row.sku,
+    version: row.version,
+    promise: row.promise,
+    detector_families: row.detector_families,
+    inclusions: row.inclusions,
+    exclusions: row.exclusions,
+    prerequisites: row.prerequisites,
+    acceptance: row.acceptance,
+    // Price and enabled travel together with nothing in between: a client that shows a number
+    // for a disabled SKU is showing a price nobody approved.
+    price:
+      row.price_minor !== null && row.currency !== null
+        ? {
+            currency: row.currency,
+            amount_minor: row.price_minor,
+            tax_treatment: row.tax_treatment,
+          }
+        : null,
+    effort_band: effortBand(catalogOffer),
+    enabled: row.enabled,
+    approved_at: row.approved_at,
+  };
+}
+
+/** The same row in the matcher's shape. The matcher is pure; this is where the row meets it. */
+export function toCatalogOffer(row: OfferRow): CatalogOffer {
+  return {
+    id: row.id,
+    sku: row.sku,
+    version: row.version,
+    promise: row.promise,
+    detectorFamilies: row.detector_families,
+    inclusions: row.inclusions,
+    exclusions: row.exclusions,
+    prerequisites: row.prerequisites,
+    acceptance: row.acceptance,
+    currency: row.currency,
+    priceMinor: row.price_minor,
+    taxTreatment: row.tax_treatment,
+    minEffortMinutes: row.min_effort_minutes,
+    maxEffortMinutes: row.max_effort_minutes,
+    enabled: row.enabled,
+  };
+}
+
+export function toOfferDraft(row: OfferDraftRow): OfferDraft {
+  return {
+    id: row.id,
+    opportunity_id: row.opportunity_id,
+    offer_id: row.offer_id,
+    offer_sku: row.offer_sku,
+    offer_version: row.offer_version,
+    state: row.state as OfferDraft['state'],
+    version: row.version,
+    price: {
+      currency: row.currency,
+      amount_minor: row.price_minor,
+      tax_treatment:
+        typeof row.snapshot['tax_treatment'] === 'string' ? row.snapshot['tax_treatment'] : null,
+    },
+    snapshot: row.snapshot,
+    finding_ids: row.finding_ids,
+    root_cause_keys: row.root_cause_keys,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    withdrawn_at: row.withdrawn_at,
+    withdraw_reason: row.withdraw_reason,
+  };
+}
+
+export function toOfferPrerequisite(row: OfferPrerequisiteRow): OfferPrerequisite {
+  return {
+    id: row.id,
+    account_id: row.account_id,
+    prerequisite: row.prerequisite,
+    // `note` is deliberately absent: it describes a customer relationship and belongs in the
+    // audit record, not in a projection any viewer can read.
+    recorded_by: row.recorded_by,
+    recorded_at: row.recorded_at,
+    revoked_at: row.revoked_at,
+    revoke_reason: row.revoke_reason,
+  };
+}
+
+/**
+ * Review history.
+ *
+ * The reason IS the substance here — this endpoint exists so a workspace can read why a claim
+ * was confirmed — but it is projected rather than passed through, so a column added to
+ * `oe.reviews` later cannot ride onto the wire unnoticed.
+ */
+export function toReview(row: ReviewRow): Review {
+  return {
+    id: row.id,
+    finding_id: row.finding_id,
+    finding_version: row.finding_version,
+    reviewer_id: row.reviewer_id,
+    decision: row.decision as Review['decision'],
+    reason: row.reason,
+    created_at: row.created_at,
+  };
+}
+
+export function toScanStep(row: ScanStepRow): ScanStep {
+  return {
+    id: row.id,
+    step_key: row.step_key,
+    state: row.state,
+    attempt: row.attempt,
+    provider_request_id: row.provider_request_id,
+    updated_at: row.updated_at,
+  };
 }

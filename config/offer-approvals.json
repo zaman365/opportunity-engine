@@ -1,0 +1,32 @@
+{
+  "$comment": "Owner price approvals. The build kit's config/offer-catalog.json defines each SKU's scope and stays byte-identical; this file records what the owner approved on top of it. Scope is a product decision, price is an owner decision, and keeping them in separate files keeps it obvious which is which.",
+  "catalog": "opportunity-engine-build-kit/config/offer-catalog.json",
+  "approvals": [
+    {
+      "sku": "MF-LINK-REPAIR",
+      "version": 1,
+      "enabled": true,
+      "currency": "EUR",
+      "price_minor": "29000",
+      "tax_treatment": "net",
+      "min_effort_minutes": 60,
+      "max_effort_minutes": 180,
+      "approved_by_subject": "owner@fixture.test",
+      "approved_at": "2026-09-21T00:00:00Z",
+      "approval_note": "Provisional, from docs/commercial/OFFER_PRICING.md. EUR 290 net rather than the bottom of the kit's illustrative EUR 190-590 band, because at EUR 190 a three-hour repair contributes EUR 10 and a floor has to survive the bad case. OPEN: VAT treatment is unconfirmed - the price is net and whether VAT is added depends on registration status, which must be settled before any quote reaches a customer. Effort band is an estimate; no repair has been delivered for a paying customer yet."
+    },
+    {
+      "sku": "PDP-REVIEWED-AUDIT",
+      "version": 1,
+      "enabled": true,
+      "currency": "EUR",
+      "price_minor": "19000",
+      "tax_treatment": "net",
+      "min_effort_minutes": 45,
+      "max_effort_minutes": 75,
+      "approved_by_subject": "owner@fixture.test",
+      "approved_at": "2026-09-21T00:00:00Z",
+      "approval_note": "Provisional, from docs/commercial/OFFER_PRICING.md. EUR 190 net, creditable in full against one repair booked within 30 days; the credit caps at one repair. OPEN: VAT treatment unconfirmed, price is net. The credit is not yet implemented in code - it is a commercial term recorded here, and quoting it requires the engagement model in M3."
+    }
+  ]
+}

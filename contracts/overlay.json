@@ -1,7 +1,7 @@
 {
   "$comment": "M2 additions to the build kit's M1 OpenAPI document. See contracts/README.md.",
   "base": "opportunity-engine-build-kit/contracts/openapi.json",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "changes": [
     {
       "op": "set",
@@ -93,6 +93,1900 @@
         "implemented_detectors"
       ],
       "why": "Required rather than optional: a session that does not say what the server runs would let the interface fall back to a guess. This narrows a response schema, which is safe \u2014 the server always populates it."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/OfferPrice",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A commercial price in MINOR units of its currency. Deliberately not Money: Money carries provider cost in micro-units of the ledger currency, and the two must never be added. The differing field names make a mix-up a schema error rather than an arithmetic one.",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "amount_minor": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "tax_treatment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["currency", "amount_minor", "tax_treatment"]
+      },
+      "why": "M2 adds the catalogue step between a confirmed finding and a quotation. The handoff contract has no shape for a priced scope, so the served contract needs one; adding a component schema cannot invalidate any payload the M1 contract accepted."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/Offer",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A catalogue entry at one version. Scope is defined by the catalogue; price is set by an owner approval. An entry with no approved price is visible but not sellable.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "venture_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sku": {
+            "type": "string",
+            "pattern": "^[A-Z0-9-]+$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "promise": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "detector_families": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "inclusions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prerequisites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptance": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferPrice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effort_band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "venture_id",
+          "sku",
+          "version",
+          "promise",
+          "detector_families",
+          "inclusions",
+          "exclusions",
+          "prerequisites",
+          "acceptance",
+          "price",
+          "effort_band",
+          "enabled",
+          "approved_at"
+        ]
+      },
+      "why": "M2 adds the catalogue step between a confirmed finding and a quotation. The handoff contract has no shape for a priced scope, so the served contract needs one; adding a component schema cannot invalidate any payload the M1 contract accepted."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/EligibleOffer",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "offer": {
+            "$ref": "#/components/schemas/Offer"
+          },
+          "finding_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1
+          },
+          "root_cause_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "unmet_prerequisites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "draftable": {
+            "type": "boolean"
+          }
+        },
+        "required": ["offer", "finding_ids", "root_cause_keys", "unmet_prerequisites", "draftable"]
+      },
+      "why": "M2 adds the catalogue step between a confirmed finding and a quotation. The handoff contract has no shape for a priced scope, so the served contract needs one; adding a component schema cannot invalidate any payload the M1 contract accepted."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/OfferMatch",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Which catalogue scopes a case's CONFIRMED findings are eligible for. Deterministic and rule-based: the price and scope come from the catalogue, never from generation. When nothing matches, route_to_manual_quotation is true, which is an answer rather than a failure.",
+        "properties": {
+          "eligible": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EligibleOffer"
+            }
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "sku": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "no_confirmed_finding",
+                    "detector_not_supported_by_any_sku",
+                    "sku_not_enabled",
+                    "sku_has_no_approved_price",
+                    "prerequisites_unmet",
+                    "delivery_capacity_reached"
+                  ]
+                }
+              },
+              "required": ["sku", "reason"]
+            }
+          },
+          "route_to_manual_quotation": {
+            "type": "boolean"
+          },
+          "capacity_reached": {
+            "type": "boolean"
+          },
+          "open_commitments": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "delivery_capacity": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "eligible",
+          "rejected",
+          "route_to_manual_quotation",
+          "capacity_reached",
+          "open_commitments",
+          "delivery_capacity"
+        ]
+      },
+      "why": "M2 adds the catalogue step between a confirmed finding and a quotation. The handoff contract has no shape for a priced scope, so the served contract needs one; adding a component schema cannot invalidate any payload the M1 contract accepted."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/OfferDraft",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A scope drafted for one case at one catalogue version. The price and scope are a snapshot: a later catalogue change does not reprice a draft already given.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "opportunity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "offer_sku": {
+            "type": "string"
+          },
+          "offer_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "enum": ["draft", "withdrawn", "superseded"]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "price": {
+            "$ref": "#/components/schemas/OfferPrice"
+          },
+          "snapshot": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "finding_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1
+          },
+          "root_cause_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "withdrawn_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "withdraw_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "opportunity_id",
+          "offer_id",
+          "offer_sku",
+          "offer_version",
+          "state",
+          "version",
+          "price",
+          "snapshot",
+          "finding_ids",
+          "root_cause_keys",
+          "created_by",
+          "created_at",
+          "withdrawn_at",
+          "withdraw_reason"
+        ]
+      },
+      "why": "M2 adds the catalogue step between a confirmed finding and a quotation. The handoff contract has no shape for a priced scope, so the served contract needs one; adding a component schema cannot invalidate any payload the M1 contract accepted."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/OfferDrafts",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfferDraft"
+            }
+          }
+        },
+        "required": ["items"]
+      },
+      "why": "M2 adds the catalogue step between a confirmed finding and a quotation. The handoff contract has no shape for a priced scope, so the served contract needs one; adding a component schema cannot invalidate any payload the M1 contract accepted."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/CreateOfferDraft",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Names the catalogue entry to draft. No price field: a caller cannot supply one, because a price that did not come from an owner approval is not a price this system will quote.",
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": ["offer_id"]
+      },
+      "why": "M2 adds the catalogue step between a confirmed finding and a quotation. The handoff contract has no shape for a priced scope, so the served contract needs one; adding a component schema cannot invalidate any payload the M1 contract accepted."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/WithdrawOfferDraft",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": ["expected_version", "reason"]
+      },
+      "why": "M2 adds the catalogue step between a confirmed finding and a quotation. The handoff contract has no shape for a priced scope, so the served contract needs one; adding a component schema cannot invalidate any payload the M1 contract accepted."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1opportunities~1{id}~1offers",
+      "value": {
+        "get": {
+          "operationId": "matchOffers",
+          "summary": "Which catalogue scopes this case is eligible for",
+          "description": "Minimum role: viewer. Phase: M2. Membership, purpose, object and budget checks also apply. Matching is deterministic against the venture catalogue; it never invents a price or widens a scope. Contract only; not a claim this endpoint exists.",
+          "tags": ["M2"],
+          "x-minimum-role": "viewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/OfferMatch"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "The catalogue step needs a surface: read what a case is eligible for, draft one of those scopes, and withdraw a draft. These are new operations, not changes to existing ones, so every M1 call keeps behaving exactly as the handoff specified."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1opportunities~1{id}~1offer-drafts",
+      "value": {
+        "get": {
+          "operationId": "listOfferDrafts",
+          "summary": "Scopes already drafted for this case",
+          "description": "Minimum role: viewer. Phase: M2. Membership, purpose, object and budget checks also apply. Contract only; not a claim this endpoint exists.",
+          "tags": ["M2"],
+          "x-minimum-role": "viewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/OfferDrafts"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "createOfferDraft",
+          "summary": "Draft an eligible scope at its approved price",
+          "description": "Minimum role: reviewer. Phase: M2. Membership, purpose, object and budget checks also apply. Refused unless the case has a confirmed finding the SKU supports, the SKU is enabled with an owner-approved price, its prerequisites are recorded as met and delivery capacity remains. Contract only; not a claim this endpoint exists.",
+          "tags": ["M2"],
+          "x-minimum-role": "reviewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 200
+              }
+            },
+            {
+              "name": "X-CSRF-Token",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 20
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/OfferDraft"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOfferDraft"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "The catalogue step needs a surface: read what a case is eligible for, draft one of those scopes, and withdraw a draft. These are new operations, not changes to existing ones, so every M1 call keeps behaving exactly as the handoff specified."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1offer-drafts~1{id}~1withdraw",
+      "value": {
+        "post": {
+          "operationId": "withdrawOfferDraft",
+          "summary": "Withdraw a drafted scope with a reason",
+          "description": "Minimum role: reviewer. Phase: M2. Membership, purpose, object and budget checks also apply. A draft is never deleted; withdrawing records who withdrew it and why. Contract only; not a claim this endpoint exists.",
+          "tags": ["M2"],
+          "x-minimum-role": "reviewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 200
+              }
+            },
+            {
+              "name": "X-CSRF-Token",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 20
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/OfferDraft"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WithdrawOfferDraft"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "The catalogue step needs a surface: read what a case is eligible for, draft one of those scopes, and withdraw a draft. These are new operations, not changes to existing ones, so every M1 call keeps behaving exactly as the handoff specified."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/description",
+      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. Implemented detectors: MF-LINK-01, MF-ASSET-01. Adds the M2 offer catalogue: eligibility, drafting and withdrawal. Contract only; an operation appearing here is not a claim that a deployment serves it.",
+      "why": "The served contract now covers the catalogue step as well as the two detectors, and its description should say what a reader will actually find in it."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/version",
+      "value": "2.2.0",
+      "why": "New operations and schemas are a minor version of the served contract: additive, with no existing operation changed or removed."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/OfferPrerequisite",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A condition about the customer that no capture can establish \u2014 authorized access, an agreed destination, a scope approval. Somebody records it and is named for recording it, the same shape as a review. Revoked entries are kept: what was claimed stays readable.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "prerequisite": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "recorded_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revoke_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "prerequisite",
+          "recorded_by",
+          "recorded_at",
+          "revoked_at",
+          "revoke_reason"
+        ]
+      },
+      "why": "Prerequisites decide whether an eligible scope is draftable, so the contract needs a shape for recording and revoking them. Additive: no payload the M1 contract accepted is affected."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/OfferPrerequisites",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfferPrerequisite"
+            }
+          }
+        },
+        "required": ["items"]
+      },
+      "why": "Prerequisites decide whether an eligible scope is draftable, so the contract needs a shape for recording and revoking them. Additive: no payload the M1 contract accepted is affected."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/RecordOfferPrerequisite",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The note is required and is the evidence for the claim: who granted what, when and how it was confirmed. A prerequisite recorded without one is an assertion with nothing behind it.",
+        "properties": {
+          "prerequisite": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000
+          }
+        },
+        "required": ["prerequisite", "note"]
+      },
+      "why": "Prerequisites decide whether an eligible scope is draftable, so the contract needs a shape for recording and revoking them. Additive: no payload the M1 contract accepted is affected."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/RevokeOfferPrerequisite",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "prerequisite": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": ["prerequisite", "reason"]
+      },
+      "why": "Prerequisites decide whether an eligible scope is draftable, so the contract needs a shape for recording and revoking them. Additive: no payload the M1 contract accepted is affected."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1accounts~1{id}~1offer-prerequisites",
+      "value": {
+        "get": {
+          "operationId": "listOfferPrerequisites",
+          "summary": "Prerequisites recorded for this account",
+          "description": "Minimum role: viewer. Phase: M2. Membership, purpose, object and budget checks also apply. Returns revoked entries too, so a reader sees the history rather than only the current state. Contract only; not a claim this endpoint exists.",
+          "tags": ["M2"],
+          "x-minimum-role": "viewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/OfferPrerequisites"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "recordOfferPrerequisite",
+          "summary": "Record a prerequisite as met, with a note",
+          "description": "Minimum role: owner. Phase: M2. Membership, purpose, object and budget checks also apply. Recording a prerequisite is a claim about a customer relationship, not an observation, so it is an owner act and the recorder is bound to it. Contract only; not a claim this endpoint exists.",
+          "tags": ["M2"],
+          "x-minimum-role": "owner",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 200
+              }
+            },
+            {
+              "name": "X-CSRF-Token",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 20
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/OfferPrerequisite"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordOfferPrerequisite"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "Recording and revoking a prerequisite needs a surface of its own: these are owner acts about a customer relationship, separate from the reviewer act of drafting a scope. New operations only; every M1 call is untouched."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1accounts~1{id}~1offer-prerequisites~1revoke",
+      "value": {
+        "post": {
+          "operationId": "revokeOfferPrerequisite",
+          "summary": "Revoke a recorded prerequisite with a reason",
+          "description": "Minimum role: owner. Phase: M2. Membership, purpose, object and budget checks also apply. The record is kept and marked revoked; scopes depending on it stop being draftable. Contract only; not a claim this endpoint exists.",
+          "tags": ["M2"],
+          "x-minimum-role": "owner",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 200
+              }
+            },
+            {
+              "name": "X-CSRF-Token",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 20
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/OfferPrerequisite"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeOfferPrerequisite"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "Recording and revoking a prerequisite needs a surface of its own: these are owner acts about a customer relationship, separate from the reviewer act of drafting a scope. New operations only; every M1 call is untouched."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/ScanStep",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "step_key": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "provider_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "step_key", "state", "attempt", "provider_request_id", "updated_at"]
+      },
+      "why": "These three read operations were already implemented and served; the handoff contract simply never declared them, which tests/contract/openapi-routes.test.ts caught. Declaring them closes the gap rather than leaving working endpoints undocumented. Response schemas only: nothing a client could send changes."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/ScanTimeline",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Everything recorded for one scan: which steps ran and how they ended, the evidence captured, and the findings derived from it. The reviewer's working view.",
+        "properties": {
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScanStep"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            }
+          }
+        },
+        "required": ["steps", "evidence", "findings"]
+      },
+      "why": "These three read operations were already implemented and served; the handoff contract simply never declared them, which tests/contract/openapi-routes.test.ts caught. Declaring them closes the gap rather than leaving working endpoints undocumented. Response schemas only: nothing a client could send changes."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/Review",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "One review decision, bound to the finding version it was made against. Immutable: a later decision is a new record, never an edit of this one.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "finding_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "finding_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reviewer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decision": {
+            "enum": ["confirm", "reject", "unknown"]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "finding_id",
+          "finding_version",
+          "reviewer_id",
+          "decision",
+          "reason",
+          "created_at"
+        ]
+      },
+      "why": "These three read operations were already implemented and served; the handoff contract simply never declared them, which tests/contract/openapi-routes.test.ts caught. Declaring them closes the gap rather than leaving working endpoints undocumented. Response schemas only: nothing a client could send changes."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/Reviews",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Review"
+            }
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["items", "next_cursor"]
+      },
+      "why": "These three read operations were already implemented and served; the handoff contract simply never declared them, which tests/contract/openapi-routes.test.ts caught. Declaring them closes the gap rather than leaving working endpoints undocumented. Response schemas only: nothing a client could send changes."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/Authorizations",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Authorization"
+            }
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["items", "next_cursor"]
+      },
+      "why": "These three read operations were already implemented and served; the handoff contract simply never declared them, which tests/contract/openapi-routes.test.ts caught. Declaring them closes the gap rather than leaving working endpoints undocumented. Response schemas only: nothing a client could send changes."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1scans~1{id}~1timeline",
+      "value": {
+        "get": {
+          "operationId": "getScanTimeline",
+          "summary": "Steps, evidence and findings for one scan",
+          "description": "Minimum role: viewer. Phase: M1. Membership, purpose, object and budget checks also apply. Contract only; not a claim this endpoint exists.",
+          "tags": ["M1"],
+          "x-minimum-role": "viewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ScanTimeline"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "These three read operations were already implemented and served; the handoff contract simply never declared them, which tests/contract/openapi-routes.test.ts caught. Declaring them closes the gap rather than leaving working endpoints undocumented. Response schemas only: nothing a client could send changes."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1accounts~1{id}~1authorizations/get",
+      "value": {
+        "operationId": "listAuthorizations",
+        "summary": "Purpose permissions recorded for this account",
+        "description": "Minimum role: viewer. Phase: M1. Membership, purpose, object and budget checks also apply. Returns no purpose text or evidence note. Contract only; not a claim this endpoint exists.",
+        "tags": ["M1"],
+        "x-minimum-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Authorizations"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "These three read operations were already implemented and served; the handoff contract simply never declared them, which tests/contract/openapi-routes.test.ts caught. Declaring them closes the gap rather than leaving working endpoints undocumented. Response schemas only: nothing a client could send changes."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1findings~1{id}~1reviews",
+      "value": {
+        "get": {
+          "operationId": "listFindingReviews",
+          "summary": "Review history for one finding",
+          "description": "Minimum role: viewer. Phase: M1. Membership, purpose, object and budget checks also apply. Each entry names the reviewer and the finding version it was bound to. Contract only; not a claim this endpoint exists.",
+          "tags": ["M1"],
+          "x-minimum-role": "viewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Reviews"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "These three read operations were already implemented and served; the handoff contract simply never declared them, which tests/contract/openapi-routes.test.ts caught. Declaring them closes the gap rather than leaving working endpoints undocumented. Response schemas only: nothing a client could send changes."
     }
   ]
 }

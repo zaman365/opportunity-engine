@@ -1246,3 +1246,252 @@ export async function listVentures(tx: QueryExecutor): Promise<VentureRow[]> {
   );
   return result.rows;
 }
+
+/* --------------------------------------------------------------- offers */
+
+export interface OfferRow {
+  id: string;
+  venture_id: string;
+  sku: string;
+  version: number;
+  promise: string;
+  detector_families: string[];
+  inclusions: string[];
+  exclusions: string[];
+  prerequisites: string[];
+  acceptance: string[];
+  currency: string | null;
+  price_minor: string | null;
+  tax_treatment: string | null;
+  min_effort_minutes: number | null;
+  max_effort_minutes: number | null;
+  enabled: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
+  approval_note: string | null;
+}
+
+const OFFER_COLUMNS = `id, venture_id, sku, version, promise, detector_families, inclusions, exclusions,
+  prerequisites, acceptance, currency, price_minor::text, tax_treatment,
+  min_effort_minutes, max_effort_minutes, enabled, approved_by, approval_note,
+  to_char(approved_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS approved_at`;
+
+/**
+ * The current version of every catalogue entry this venture sells.
+ *
+ * A SKU version is never edited in place — approving a price or changing a scope writes a new
+ * version — so "current" means the highest version, and an older quote keeps pointing at the
+ * version it was drafted from.
+ */
+export async function listCurrentOffers(tx: QueryExecutor, ventureId: string): Promise<OfferRow[]> {
+  const result = await tx.query<OfferRow>(
+    `SELECT DISTINCT ON (sku) ${OFFER_COLUMNS}
+       FROM oe.offers WHERE venture_id = $1 ORDER BY sku, version DESC`,
+    [ventureId],
+  );
+  return result.rows;
+}
+
+export async function getOffer(tx: QueryExecutor, id: string): Promise<OfferRow | null> {
+  const result = await tx.query<OfferRow>(`SELECT ${OFFER_COLUMNS} FROM oe.offers WHERE id = $1`, [
+    id,
+  ]);
+  return result.rows[0] ?? null;
+}
+
+export interface OfferDraftRow {
+  id: string;
+  opportunity_id: string;
+  offer_id: string;
+  offer_sku: string;
+  offer_version: number;
+  state: string;
+  version: number;
+  currency: string;
+  price_minor: string;
+  snapshot: Record<string, unknown>;
+  finding_ids: string[];
+  root_cause_keys: string[];
+  created_by: string;
+  created_at: string;
+  withdrawn_at: string | null;
+  withdraw_reason: string | null;
+}
+
+const DRAFT_COLUMNS = `id, opportunity_id, offer_id, offer_sku, offer_version, state, version,
+  currency, price_minor::text, snapshot, finding_ids, root_cause_keys, created_by, withdraw_reason,
+  to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
+  to_char(withdrawn_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS withdrawn_at`;
+
+export async function insertOfferDraft(
+  tx: QueryExecutor,
+  input: {
+    id: string;
+    opportunityId: string;
+    offerId: string;
+    offerSku: string;
+    offerVersion: number;
+    currency: string;
+    priceMinor: string;
+    snapshot: Record<string, unknown>;
+    findingIds: string[];
+    rootCauseKeys: string[];
+    createdBy: string;
+  },
+): Promise<OfferDraftRow> {
+  const result = await tx.query<OfferDraftRow>(
+    `INSERT INTO oe.offer_drafts
+       (tenant_id, id, opportunity_id, offer_id, offer_sku, offer_version, currency, price_minor,
+        snapshot, finding_ids, root_cause_keys, created_by)
+     VALUES (oe.tenant_context(), $1, $2, $3, $4, $5, $6, $7::bigint, $8::jsonb, $9::uuid[], $10::text[], $11)
+     RETURNING ${DRAFT_COLUMNS}`,
+    [
+      input.id,
+      input.opportunityId,
+      input.offerId,
+      input.offerSku,
+      input.offerVersion,
+      input.currency,
+      input.priceMinor,
+      JSON.stringify(input.snapshot),
+      input.findingIds,
+      input.rootCauseKeys,
+      input.createdBy,
+    ],
+  );
+  return result.rows[0]!;
+}
+
+export async function listOfferDrafts(
+  tx: QueryExecutor,
+  opportunityId: string,
+): Promise<OfferDraftRow[]> {
+  const result = await tx.query<OfferDraftRow>(
+    `SELECT ${DRAFT_COLUMNS} FROM oe.offer_drafts
+      WHERE opportunity_id = $1 ORDER BY created_at DESC`,
+    [opportunityId],
+  );
+  return result.rows;
+}
+
+export async function withdrawOfferDraft(
+  tx: QueryExecutor,
+  input: { id: string; expectedVersion: number; reason: string; at: string },
+): Promise<OfferDraftRow | null> {
+  const result = await tx.query<OfferDraftRow>(
+    `UPDATE oe.offer_drafts
+        SET state = 'withdrawn', version = version + 1,
+            withdrawn_at = $4::timestamptz, withdraw_reason = $3
+      WHERE id = $1 AND version = $2 AND state = 'draft'
+      RETURNING ${DRAFT_COLUMNS}`,
+    [input.id, input.expectedVersion, input.reason, input.at],
+  );
+  return result.rows[0] ?? null;
+}
+
+/** Open commitments across the workspace. Offers consume delivery hours, not just compute. */
+export async function countOpenCommitments(tx: QueryExecutor): Promise<number> {
+  const result = await tx.query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM oe.offer_drafts WHERE state = 'draft'",
+  );
+  return result.rows[0]?.n ?? 0;
+}
+
+export async function getDeliveryCapacity(tx: QueryExecutor): Promise<number | null> {
+  const result = await tx.query<{ concurrent_limit: number }>(
+    'SELECT concurrent_limit FROM oe.delivery_capacity WHERE tenant_id = oe.tenant_context()',
+  );
+  return result.rows[0]?.concurrent_limit ?? null;
+}
+
+export interface OfferPrerequisiteRow {
+  id: string;
+  account_id: string;
+  prerequisite: string;
+  note: string;
+  recorded_by: string;
+  recorded_at: string;
+  revoked_at: string | null;
+  revoke_reason: string | null;
+}
+
+const PREREQUISITE_COLUMNS = `id, account_id, prerequisite, note, recorded_by, revoke_reason,
+  to_char(recorded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS recorded_at,
+  to_char(revoked_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS revoked_at`;
+
+/** Everything recorded for this account, revoked entries included: history, not current state. */
+export async function listOfferPrerequisites(
+  tx: QueryExecutor,
+  accountId: string,
+): Promise<OfferPrerequisiteRow[]> {
+  const result = await tx.query<OfferPrerequisiteRow>(
+    `SELECT ${PREREQUISITE_COLUMNS} FROM oe.offer_prerequisites
+      WHERE account_id = $1 ORDER BY prerequisite, recorded_at DESC`,
+    [accountId],
+  );
+  return result.rows;
+}
+
+export async function insertOfferPrerequisite(
+  tx: QueryExecutor,
+  input: {
+    id: string;
+    accountId: string;
+    prerequisite: string;
+    note: string;
+    recordedBy: string;
+  },
+): Promise<OfferPrerequisiteRow> {
+  const result = await tx.query<OfferPrerequisiteRow>(
+    `INSERT INTO oe.offer_prerequisites
+       (tenant_id, id, account_id, prerequisite, note, recorded_by)
+     VALUES (oe.tenant_context(), $1, $2, $3, $4, $5)
+     RETURNING ${PREREQUISITE_COLUMNS}`,
+    [input.id, input.accountId, input.prerequisite, input.note, input.recordedBy],
+  );
+  return result.rows[0]!;
+}
+
+export async function revokeOfferPrerequisite(
+  tx: QueryExecutor,
+  input: { accountId: string; prerequisite: string; reason: string; at: string },
+): Promise<OfferPrerequisiteRow | null> {
+  const result = await tx.query<OfferPrerequisiteRow>(
+    `UPDATE oe.offer_prerequisites
+        SET revoked_at = $4::timestamptz, revoke_reason = $3
+      WHERE account_id = $1 AND prerequisite = $2 AND revoked_at IS NULL
+      RETURNING ${PREREQUISITE_COLUMNS}`,
+    [input.accountId, input.prerequisite, input.reason, input.at],
+  );
+  return result.rows[0] ?? null;
+}
+
+/** Every case a finding is linked to. A root cause can surface in more than one. */
+export async function listOpportunitiesForFinding(
+  tx: QueryExecutor,
+  findingId: string,
+): Promise<OpportunityRow[]> {
+  const result = await tx.query<OpportunityRow>(
+    `SELECT DISTINCT ${OPPORTUNITY_COLUMNS_O}
+       FROM oe.opportunities o
+       JOIN oe.opportunity_findings l ON l.tenant_id = o.tenant_id AND l.opportunity_id = o.id
+      WHERE l.finding_id = $1`,
+    [findingId],
+  );
+  return result.rows;
+}
+
+/** The state of every finding on a case, for deciding what the case is now waiting on. */
+export async function findingStatesForOpportunity(
+  tx: QueryExecutor,
+  opportunityId: string,
+): Promise<string[]> {
+  const result = await tx.query<{ state: string }>(
+    `SELECT f.state
+       FROM oe.opportunity_findings l
+       JOIN oe.findings f ON f.tenant_id = l.tenant_id AND f.id = l.finding_id
+      WHERE l.opportunity_id = $1`,
+    [opportunityId],
+  );
+  return result.rows.map((row) => row.state);
+}

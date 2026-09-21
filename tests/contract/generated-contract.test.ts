@@ -59,7 +59,9 @@ describe('generation', () => {
 
 describe('M1 compatibility', () => {
   it('keeps every path and operation the handoff declared', () => {
-    expect(Object.keys(generated.paths).sort()).toEqual(Object.keys(base.paths).sort());
+    // A superset, not an equality: M2 adds operations. What must not happen is a path or an
+    // operationId the handoff declared going missing or being renamed under a client.
+    expect(Object.keys(generated.paths)).toEqual(expect.arrayContaining(Object.keys(base.paths)));
     for (const [path, item] of Object.entries(
       base.paths as Record<string, Record<string, { operationId?: string }>>,
     )) {
@@ -87,9 +89,27 @@ describe('M1 compatibility', () => {
   });
 
   it('keeps every component schema the handoff declared', () => {
-    expect(Object.keys(generated.components.schemas).sort()).toEqual(
-      Object.keys(base.components.schemas).sort(),
+    expect(Object.keys(generated.components.schemas)).toEqual(
+      expect.arrayContaining(Object.keys(base.components.schemas)),
     );
+  });
+
+  /**
+   * Added operations are where a contract quietly loses its guarantees: a new endpoint with no
+   * declared minimum role reads as "anyone", and a new write with no idempotency key reads as
+   * "retry at your own risk". Both are checked here for everything the overlay adds, so the
+   * next added path cannot skip them either.
+   */
+  it('holds added operations to the same rules as the handoff ones', () => {
+    const roles = ['viewer', 'operator', 'reviewer', 'owner'];
+    for (const [path, item] of Object.entries(
+      generated.paths as Record<string, Record<string, { 'x-minimum-role'?: string }>>,
+    )) {
+      if (path in base.paths) continue;
+      for (const [method, operation] of Object.entries(item)) {
+        expect(roles, `${method} ${path}`).toContain(operation['x-minimum-role']);
+      }
+    }
   });
 
   it('still requires an Idempotency-Key and a CSRF token on every unsafe operation', () => {
