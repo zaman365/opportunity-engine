@@ -4,6 +4,7 @@ import type { Report, Session } from '@oe/contracts';
 import { ApiError, NetworkError, command, newIdempotencyKey } from '../api/client.ts';
 import { useResource } from '../api/hooks.ts';
 import { Chip, ErrorPanel, Loading, Notice, Timestamp } from '../components/primitives.tsx';
+import { DeliveryPanel } from '../components/DeliveryPanel.tsx';
 
 interface ReportBody {
   title: string;
@@ -102,6 +103,11 @@ export function ReportRoute({ session }: { session: Session }) {
           <ReportActions report={report} session={session} onChanged={resource.reload} />
         </div>
       </div>
+
+      <DeliveryPanel
+        report={report}
+        canIssue={session.role === 'reviewer' || session.role === 'owner'}
+      />
 
       <article className="report">
         <h1>{body.title}</h1>

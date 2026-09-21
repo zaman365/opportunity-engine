@@ -435,6 +435,118 @@ test.describe('operator journey', () => {
     }
   });
 
+  /**
+   * The delivery seam, in the browser.
+   *
+   * The assertions that matter are about what the screen says as much as what it does: the
+   * token is shown once, issuing sends nothing, and a withdrawn link stops working on the very
+   * next read with no session to wait out.
+   */
+  test('a published report can be shared by link, and the link withdrawn', async ({
+    page,
+  }, testInfo) => {
+    const scanId = await runScan(page, FIXTURE_PRODUCT);
+    const scan = (await (await page.request.get(`/api/v1/scans/${scanId}`)).json()) as {
+      finding_ids: string[];
+      account_id: string;
+    };
+    const findingId = scan.finding_ids[0]!;
+    const { csrf_token: csrf } = (await (await page.request.get('/api/v1/session')).json()) as {
+      csrf_token: string;
+    };
+    const post = (path: string, data: unknown) =>
+      page.request.post(path, {
+        headers: {
+          'x-csrf-token': csrf,
+          'idempotency-key': crypto.randomUUID(),
+          origin: BASE_URL,
+        },
+        data,
+      });
+
+    const confirmed = await post(`/api/v1/findings/${findingId}/review`, {
+      expected_version: 1,
+      decision: 'confirm',
+      reason: 'Both recorded checks returned 404 for the linked size guide.',
+      acknowledged_limitations: true,
+    });
+    expect(confirmed.status(), await confirmed.text()).toBe(200);
+    const finding = (await confirmed.json()) as { id: string; version: number };
+
+    const created = await post('/api/v1/reports', {
+      account_id: scan.account_id,
+      scan_id: scanId,
+      finding_versions: [{ finding_id: finding.id, version: finding.version }],
+      language: 'en',
+      scope_summary: 'We inspected one product page and the information page linked from it.',
+    });
+    expect(created.status(), await created.text()).toBe(201);
+    const reportId = ((await created.json()) as { id: string }).id;
+
+    await page.goto(`/reports/${reportId}`);
+    // A draft cannot be delivered, and the screen says why rather than hiding the control.
+    await expect(page.getByLabel('Who is this link for')).toHaveCount(0);
+    await expect(page.locator('section[aria-label="Protected links"]')).toContainText(
+      'Only a published version can be delivered',
+    );
+
+    await page.getByRole('button', { name: 'Approve' }).click();
+    await page.getByRole('button', { name: 'Publish version' }).click();
+    await expect(page.locator('.chip').first()).toContainText('published');
+
+    await page.getByLabel('Who is this link for').fill('the person who requested the check');
+    const issue = page.getByRole('button', { name: 'Issue a protected link' });
+    // Both fields are needed: a link nobody can later identify is a link nobody can withdraw.
+    await expect(issue).toBeDisabled();
+    await page.getByLabel('Their address, for your own records').fill('requester@example.com');
+    await expect(issue).toBeEnabled();
+    await issue.click();
+
+    await expect(page.getByText('Copy this link now')).toBeVisible();
+    await expect(page.locator('.notice[data-tone="attention"]')).toContainText('shown once');
+    await page.screenshot({
+      path: `${SHOTS}/${testInfo.project.name}-report-link.png`,
+      fullPage: true,
+    });
+
+    // The link works, and carries nothing that reaches another object.
+    const url = (
+      await page
+        .locator('section[aria-label="Protected links"] p')
+        .filter({
+          hasText: '/public/reports/',
+        })
+        .first()
+        .innerText()
+    ).trim();
+    const reader = await apiRequest.newContext();
+    try {
+      const delivered = await reader.get(url);
+      expect(delivered.status(), await delivered.text()).toBe(200);
+      const payload = (await delivered.json()) as Record<string, unknown>;
+      expect(Object.keys(payload)).not.toContain('account_id');
+      expect(Object.keys(payload)).not.toContain('scan_id');
+      expect(delivered.headers()['x-robots-tag']).toContain('noindex');
+
+      // Withdrawing takes effect on the next read. There is no session to expire.
+      await page.getByRole('button', { name: 'Done' }).click();
+      await page.getByLabel('Withdraw this link').fill('Sent to the wrong address.');
+      await page.getByRole('button', { name: 'Withdraw', exact: true }).click();
+      await expect(page.locator('.grant[data-state="revoked"]')).toBeVisible();
+
+      const after = await reader.get(url);
+      expect(after.status()).toBe(404);
+      // And the refusal says nothing about what was there.
+      const problem = (await after.json()) as { detail: string };
+      expect(problem.detail).toBe(
+        'This link is not valid. It may have expired, or been withdrawn.',
+      );
+      expect(JSON.stringify(problem)).not.toContain('Atelier Nord');
+    } finally {
+      await reader.dispose();
+    }
+  });
+
   test('a blocked scan explains itself and produces no finding', async ({ page }, testInfo) => {
     // A challenge page answers instead of the product page.
     const scanId = await runScan(page, 'http://127.0.0.1:4179/challenge');

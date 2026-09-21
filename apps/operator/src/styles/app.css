@@ -1195,3 +1195,36 @@ main {
   color: var(--ink-secondary);
   margin: 0;
 }
+
+/* --------------------------------------------------------- report delivery */
+
+/*
+ * A grant is a small record of who can read what, so it is a row rather than a card. The
+ * withdrawn and expired states are legible without colour: the chip carries a word and a
+ * glyph, and the row itself dims.
+ */
+.grant {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  padding: var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.grant[data-state='revoked'],
+.grant[data-state='expired'] {
+  opacity: 0.7;
+}
+.grant > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  font-weight: 560;
+}
+.grant .hint {
+  font-size: var(--text-meta);
+  color: var(--ink-secondary);
+  margin: 0;
+}

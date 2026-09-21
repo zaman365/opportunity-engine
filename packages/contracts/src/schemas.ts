@@ -775,6 +775,81 @@ export const DeclineIntakeRequest = z
   .strict();
 export type DeclineIntakeRequest = z.infer<typeof DeclineIntakeRequest>;
 
+/* ------------------------------------------------------ report delivery */
+
+export const ReportGrantState = z.enum(['live', 'expired', 'revoked']);
+export type ReportGrantState = z.infer<typeof ReportGrantState>;
+
+/**
+ * A link to one report version, for one recipient, for a bounded time.
+ *
+ * Not a membership. ACCESS_MODEL.md: giving a client a viewer seat so they can read their own
+ * case "is the single most likely way this system leaks one customer's data to another". A
+ * grant opens that version and nothing else — not the scan, not the evidence artifacts, not
+ * the account, not another report.
+ *
+ * The token is deliberately absent from this shape. It exists once, in `IssuedReportGrant`.
+ */
+export const ReportGrant = z
+  .object({
+    id: Uuid,
+    report_id: Uuid,
+    report_version: z.number().int().min(1),
+    recipient_note: z.string(),
+    expires_at: DateTime,
+    revoked_at: z.union([DateTime, z.null()]),
+    revoke_reason: z.union([z.string(), z.null()]),
+    created_by: Uuid,
+    created_at: DateTime,
+    state: ReportGrantState,
+  })
+  .strict();
+export type ReportGrant = z.infer<typeof ReportGrant>;
+
+/** The one response carrying the token. No operation can return it a second time. */
+export const IssuedReportGrant = z
+  .object({ grant: ReportGrant, token: z.string(), url: z.string() })
+  .strict();
+export type IssuedReportGrant = z.infer<typeof IssuedReportGrant>;
+
+export const ReportGrants = z.object({ items: z.array(ReportGrant) }).strict();
+export type ReportGrants = z.infer<typeof ReportGrants>;
+
+/**
+ * No expiry field, and no address field.
+ *
+ * The lifetime is the server's, so a link cannot be issued that outlives what anybody decided.
+ * `recipient_ref` is opaque-keyed before storage and never read back; `recipient_note` is the
+ * human label an operator sees in the list.
+ */
+export const IssueReportGrant = z
+  .object({
+    recipient_note: z.string().min(3).max(200),
+    recipient_ref: z.string().min(3).max(320),
+  })
+  .strict();
+export type IssueReportGrant = z.infer<typeof IssueReportGrant>;
+
+export const RevokeReportGrant = z.object({ reason: z.string().min(1).max(2000) }).strict();
+export type RevokeReportGrant = z.infer<typeof RevokeReportGrant>;
+
+/**
+ * What the holder of a link may read.
+ *
+ * The rendered body as it was published, and nothing that would let them reach anything else:
+ * no account id, no scan id, no evidence ids, no artifact URLs, no reviewer identity.
+ */
+export const DeliveredReport = z
+  .object({
+    report_version: z.number().int().min(1),
+    language: ReportLanguage,
+    published_at: z.union([DateTime, z.null()]),
+    expires_at: DateTime,
+    body: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+export type DeliveredReport = z.infer<typeof DeliveredReport>;
+
 export { ExpectedVersion };
 
 /** Name → schema, keyed exactly as the OpenAPI `components.schemas` map. */
@@ -835,4 +910,10 @@ export const componentSchemas = {
   IntakeChannels,
   SetIntakeChannelEnabled,
   DeclineIntakeRequest,
+  ReportGrant,
+  IssuedReportGrant,
+  ReportGrants,
+  IssueReportGrant,
+  RevokeReportGrant,
+  DeliveredReport,
 } as const;

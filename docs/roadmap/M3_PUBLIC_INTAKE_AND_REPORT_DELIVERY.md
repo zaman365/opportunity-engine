@@ -28,17 +28,25 @@ Two rules carry it, and both are load-bearing for everything after:
 - **A request is not permission.** Verifying an address proves control of an inbox, not of a
   website. No account, no authorization, no scan, no budget movement.
 
-## Slice 2 · protected report delivery — **next**
+## Slice 2 · protected report delivery — **done**
 
-- A report-access grant: random token, stored hashed, audience-bound, short-lived, revocable,
-  scoped to **one report version** and nothing else.
-- `GET` never mutates. Replay across reports and across tenants both refused.
-- No personal data in the URL.
-- An invalid, expired or revoked link gets one page that does not leak whether the report ever
-  existed, who it belonged to, or why the link stopped working.
-- Evidence referenced by a delivered report stays protected: the grant does not open the
-  operator's artifact routes.
-- English and German templates, both reviewed.
+A grant opens one report version, for one recipient, for two weeks, revocably, and nothing
+else. [ADR-022](../adr/ADR-022-report-delivery.md).
+
+- 256-bit token, stored only as a keyed hash, audience-bound, returned exactly once.
+- Expiry and revocation are enforced by the identity role's row policy, so an expired or
+  revoked grant is invisible to the lookup before any application code could decide otherwise.
+- `GET` performs no business write. Use is recorded as an append-only audit event, not as
+  state a reader could change.
+- One answer for every bad link — expired, revoked, mistyped, another workspace's, never
+  issued — because the differences are what a prober wants.
+- The delivered shape is an allowlist: no account id, no scan id, no evidence ids, no artifact
+  URLs, no reviewer identity. A column added to `oe.reports` later cannot ride out through it.
+- The runtime role cannot extend a lifetime, repoint a token or delete a grant.
+
+**Still owed here:** a branded HTML reader. The API serves JSON today and the issued link
+points at it, so the link works — but the customer-facing page, including the non-leaking
+invalid-link page as a _page_ rather than a problem document, is slice 3.
 
 ## Slice 3 · embedding the form
 

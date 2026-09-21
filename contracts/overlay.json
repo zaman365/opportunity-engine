@@ -1,7 +1,7 @@
 {
   "$comment": "M2 additions to the build kit's M1 OpenAPI document. See contracts/README.md.",
   "base": "opportunity-engine-build-kit/contracts/openapi.json",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "changes": [
     {
       "op": "set",
@@ -3451,6 +3451,654 @@
       "pointer": "/info/version",
       "value": "2.4.0",
       "why": "The detector enum widens and the description changes. Additive: every payload the previous version accepted is still accepted."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/ReportGrant",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A link to one report version, for one recipient, for a bounded time. Not a membership: it opens that version and nothing else \u2014 not the scan, not the evidence artifacts, not the account, not another report. The token itself is never in this shape; it is returned once, at issue.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "report_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "report_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "recipient_note": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revoke_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "enum": ["live", "expired", "revoked"]
+          }
+        },
+        "required": [
+          "id",
+          "report_id",
+          "report_version",
+          "recipient_note",
+          "expires_at",
+          "revoked_at",
+          "revoke_reason",
+          "created_by",
+          "created_at",
+          "state"
+        ]
+      },
+      "why": "M3 slice 2 delivers a reviewed report to the person it is about without giving them a workspace seat, which ACCESS_MODEL.md names as the one genuinely hard case in the access model. Additive schemas only; the token appears in exactly one response shape and in no stored projection."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/IssuedReportGrant",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The one and only response carrying the token. It is not stored in a readable form and cannot be retrieved again by any operation; losing it means issuing a new grant and revoking this one.",
+        "properties": {
+          "grant": {
+            "$ref": "#/components/schemas/ReportGrant"
+          },
+          "token": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": ["grant", "token", "url"]
+      },
+      "why": "M3 slice 2 delivers a reviewed report to the person it is about without giving them a workspace seat, which ACCESS_MODEL.md names as the one genuinely hard case in the access model. Additive schemas only; the token appears in exactly one response shape and in no stored projection."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/ReportGrants",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportGrant"
+            }
+          }
+        },
+        "required": ["items"]
+      },
+      "why": "M3 slice 2 delivers a reviewed report to the person it is about without giving them a workspace seat, which ACCESS_MODEL.md names as the one genuinely hard case in the access model. Additive schemas only; the token appears in exactly one response shape and in no stored projection."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/IssueReportGrant",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "No expiry field: the lifetime is fixed by the server, so a link cannot be issued that outlives what anybody decided. No address field either \u2014 the recipient reference is opaque-keyed before storage and the note is what an operator reads.",
+        "properties": {
+          "recipient_note": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "recipient_ref": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 320
+          }
+        },
+        "required": ["recipient_note", "recipient_ref"]
+      },
+      "why": "M3 slice 2 delivers a reviewed report to the person it is about without giving them a workspace seat, which ACCESS_MODEL.md names as the one genuinely hard case in the access model. Additive schemas only; the token appears in exactly one response shape and in no stored projection."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/RevokeReportGrant",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": ["reason"]
+      },
+      "why": "M3 slice 2 delivers a reviewed report to the person it is about without giving them a workspace seat, which ACCESS_MODEL.md names as the one genuinely hard case in the access model. Additive schemas only; the token appears in exactly one response shape and in no stored projection."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/DeliveredReport",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "What the holder of a link may read: the rendered report body as it was published, and nothing that would let them reach anything else. No account id, no scan id, no evidence ids, no artifact URLs, no reviewer identity.",
+        "properties": {
+          "report_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "language": {
+            "enum": ["en", "de"]
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "body": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": ["report_version", "language", "published_at", "expires_at", "body"]
+      },
+      "why": "M3 slice 2 delivers a reviewed report to the person it is about without giving them a workspace seat, which ACCESS_MODEL.md names as the one genuinely hard case in the access model. Additive schemas only; the token appears in exactly one response shape and in no stored projection."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1public~1reports~1{token}",
+      "value": {
+        "get": {
+          "operationId": "readDeliveredReport",
+          "summary": "Read a report through a protected link",
+          "description": "No authentication. Resolves a bearer token to one report version. Performs no business write: that the link was used is recorded as an append-only audit event, never as state a reader could change. Every failure \u2014 expired, revoked, mistyped, another workspace, never issued \u2014 returns the same 404. Contract only; not a claim this endpoint exists.",
+          "tags": ["M3"],
+          "x-public-surface": true,
+          "x-protected-by": [
+            "bearer_token_256_bit",
+            "hashed_at_rest",
+            "audience_bound",
+            "version_scoped",
+            "expiry",
+            "revocation",
+            "no_business_write"
+          ],
+          "parameters": [
+            {
+              "name": "token",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{32,64}$"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/DeliveredReport"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "This link is not valid. Returned identically for an expired link, a revoked one, a mistyped one, one belonging to another workspace, and one that never existed",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Report delivery is not configured",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "Issuing, listing and revoking a protected link are operator acts; reading through one is not, and has no actor at all. The public operation carries x-protected-by rather than x-minimum-role, and names the seven things that bound it. New operations only; every M1 call is untouched."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1reports~1{id}~1grants",
+      "value": {
+        "get": {
+          "operationId": "listReportGrants",
+          "summary": "Links issued for this report",
+          "description": "Minimum role: viewer. Phase: M3. Membership, purpose, object and budget checks also apply. Tokens are not returned; only whether each grant is live, expired or revoked. Contract only; not a claim this endpoint exists.",
+          "tags": ["M3"],
+          "x-minimum-role": "viewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ReportGrants"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "issueReportGrant",
+          "summary": "Issue a protected link to a published report",
+          "description": "Minimum role: reviewer. Phase: M3. Membership, purpose, object and budget checks also apply. Only a published report may be delivered, and the grant is bound to the version published at that moment. The response carries the token once and it cannot be retrieved again. Issuing a link sends nothing: delivery to the recipient is a separate act with a separate permission. Contract only; not a claim this endpoint exists.",
+          "tags": ["M3"],
+          "x-minimum-role": "reviewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 200
+              }
+            },
+            {
+              "name": "X-CSRF-Token",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 20
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/IssuedReportGrant"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueReportGrant"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "Issuing, listing and revoking a protected link are operator acts; reading through one is not, and has no actor at all. The public operation carries x-protected-by rather than x-minimum-role, and names the seven things that bound it. New operations only; every M1 call is untouched."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1report-grants~1{id}~1revoke",
+      "value": {
+        "post": {
+          "operationId": "revokeReportGrant",
+          "summary": "Withdraw a protected link",
+          "description": "Minimum role: reviewer. Phase: M3. Membership, purpose, object and budget checks also apply. Takes effect on the next read; there is no session to expire. The grant is kept and marked revoked with a reason. Contract only; not a claim this endpoint exists.",
+          "tags": ["M3"],
+          "x-minimum-role": "reviewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 200
+              }
+            },
+            {
+              "name": "X-CSRF-Token",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 20
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ReportGrant"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeReportGrant"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "Issuing, listing and revoking a protected link are operator acts; reading through one is not, and has no actor at all. The public operation carries x-protected-by rather than x-minimum-role, and names the seven things that bound it. New operations only; every M1 call is untouched."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/version",
+      "value": "2.5.0",
+      "why": "M3 slice 2 adds protected report delivery: new operations and schemas, no existing operation changed."
     }
   ]
 }

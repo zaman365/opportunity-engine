@@ -5,6 +5,7 @@ import {
   CreateAccount,
   CreateOfferDraft as CreateOfferDraftSchema,
   DeclineIntakeRequest as DeclineIntakeRequestSchema,
+  IssueReportGrant as IssueReportGrantSchema,
   CreateReport as CreateReportSchema,
   CreateScan as CreateScanSchema,
   AuthorizationInput,
@@ -13,6 +14,7 @@ import {
   RecordOfferPrerequisite as RecordOfferPrerequisiteSchema,
   ReviewFinding as ReviewFindingSchema,
   RevokeOfferPrerequisite as RevokeOfferPrerequisiteSchema,
+  RevokeReportGrant as RevokeReportGrantSchema,
   SetIntakeChannelEnabled as SetIntakeChannelEnabledSchema,
   SubmitIntakeRequest as SubmitIntakeRequestSchema,
   VerifyIntakeRequest as VerifyIntakeRequestSchema,
@@ -34,6 +36,7 @@ import {
   getIntakeRequest,
   getOpportunity,
   getReport,
+  getReportGrant,
   getScan,
   insertAccount,
   insertAuditEvent,
@@ -52,6 +55,7 @@ import {
   listOfferPrerequisites,
   listOpportunities,
   listReportFindings,
+  listReportGrants,
   listScanSteps,
   listScans,
   listReviews,
@@ -84,9 +88,11 @@ import {
   toIntakeRequest,
   toOfferDraft,
   toOfferPrerequisite,
+  toDeliveredReport,
   toOpportunity,
   toPublicIntakeRequest,
   toReport,
+  toReportGrant,
   toReview,
   toScanStep,
   toScan,
@@ -97,6 +103,7 @@ import { reviewFinding } from './services/review.ts';
 import { assertPublishable, createReport } from './services/report.ts';
 import { createOfferDraft, matchOffersForOpportunity, withdrawDraft } from './services/offer.ts';
 import { channelForRequest, submitIntakeRequest, verifyIntakeRequest } from './services/intake.ts';
+import { issueReportGrant, readDeliveredReport, revokeGrant } from './services/report-delivery.ts';
 import { completeIdempotencyKey } from '@oe/db';
 
 /**
@@ -1204,6 +1211,88 @@ export function createApp(deps: AppDependencies) {
     return c.json(result.body as object, 200);
   });
 
+  /* ------------------------------------------------- report delivery */
+
+  v1.get('/reports/:id/grants', requireRole('viewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const items = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const report = await getReport(tx, id);
+      if (!report) throw new ApiProblem('NOT_FOUND', 'No such report in this workspace.');
+      const scan = await getScan(tx, report.scan_id);
+      if (scan) assertVenture(actor, scan.venture_id);
+      const rows = await listReportGrants(tx, id);
+      return rows.map((row) => toReportGrant(row, deps.now()));
+    });
+    return c.json({ items });
+  });
+
+  v1.post('/reports/:id/grants', requireRole('reviewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const body = parse(IssueReportGrantSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { id, ...body });
+    const created = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'issueReportGrant', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const report = await getReport(tx, id);
+      if (!report) throw new ApiProblem('NOT_FOUND', 'No such report in this workspace.');
+      const scan = await getScan(tx, report.scan_id);
+      if (scan) assertVenture(actor, scan.venture_id);
+      const issued = await issueReportGrant(tx, deps, {
+        actor,
+        reportId: id,
+        recipientNote: body.recipient_note,
+        recipientRef: body.recipient_ref,
+        requestId: c.get('requestId'),
+      });
+      const payload = {
+        grant: toReportGrant(issued.grant, deps.now()),
+        token: issued.token,
+        url: issued.url,
+      };
+      // Stored against the idempotency key so a retried request returns the same link rather
+      // than minting a second one — two live links where the operator meant one.
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 201,
+        responseBody: payload,
+      });
+      return { status: 201, body: payload };
+    });
+    return c.json(created.body as object, 201);
+  });
+
+  v1.post('/report-grants/:id/revoke', requireRole('reviewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const body = parse(RevokeReportGrantSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { id, ...body });
+    const result = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'revokeReportGrant', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const existing = await getReportGrant(tx, id);
+      if (!existing) throw new ApiProblem('NOT_FOUND', 'No such grant in this workspace.');
+      const report = await getReport(tx, existing.report_id);
+      const scan = report ? await getScan(tx, report.scan_id) : null;
+      if (scan) assertVenture(actor, scan.venture_id);
+      const revoked = await revokeGrant(tx, deps, {
+        actor,
+        grantId: id,
+        reason: body.reason,
+        requestId: c.get('requestId'),
+      });
+      const projected = toReportGrant(revoked, deps.now());
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 200,
+        responseBody: projected,
+      });
+      return { status: 200, body: projected };
+    });
+    return c.json(result.body as object, 200);
+  });
+
   /* ------------------------------------------------------ public intake */
 
   /**
@@ -1279,6 +1368,24 @@ export function createApp(deps: AppDependencies) {
       throw new ApiProblem('NOT_FOUND', 'No such request.');
     }
     return c.json(toPublicIntakeRequest(request, null, null));
+  });
+
+  /**
+   * Read a report through a protected link.
+   *
+   * The whole of the authorization is the token. There is no session, no membership and no
+   * role, and the shape that comes back names what may leave rather than removing what may
+   * not — so a column added to `oe.reports` later cannot ride out through here.
+   */
+  publicApi.get('/reports/:token', async (c) => {
+    const delivered = await readDeliveredReport(
+      deps,
+      c.req.param('token') ?? '',
+      c.get('requestId'),
+    );
+    // A shared link is a document, not a page to be indexed or embedded.
+    c.header('x-robots-tag', 'noindex, nofollow, noarchive');
+    return c.json(toDeliveredReport(delivered.report, delivered.grant));
   });
 
   app.route('/public', publicApi);

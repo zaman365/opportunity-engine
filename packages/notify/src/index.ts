@@ -11,7 +11,7 @@
  * fixture data.
  */
 
-import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 export type DeliveryKind = 'recorded_local_only' | 'not_configured' | 'sent';
 
@@ -138,4 +138,29 @@ export function opaqueKey(secret: string, namespace: string, value: string): str
     .update(SEPARATOR)
     .update(value.trim().toLowerCase())
     .digest('hex');
+}
+
+/* --------------------------------------------------------- access tokens */
+
+/**
+ * A bearer token for a protected link.
+ *
+ * 32 random bytes, base64url, so it carries no personal data and needs no encoding in a URL.
+ * Unlike the six-digit verification code, the entropy here IS the defence: a link is not
+ * attempt-limited in any useful way — an attacker can try as many as they like against a
+ * public endpoint — so it has to be infeasible to guess rather than merely slow.
+ */
+export function newAccessToken(): string {
+  return randomBytes(32).toString('base64url');
+}
+
+/**
+ * Keyed hash of an access token, for storage and lookup.
+ *
+ * The same construction as `hashCode`, named separately because the two must never share a
+ * call site: one hashes something a person retypes, the other something a machine carries,
+ * and confusing them would put a six-digit code where a 256-bit one was expected.
+ */
+export function hashToken(secret: string, audience: string, token: string): Buffer {
+  return createHmac('sha256', secret).update(audience).update(SEPARATOR).update(token).digest();
 }

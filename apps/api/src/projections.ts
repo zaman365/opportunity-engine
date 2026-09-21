@@ -13,6 +13,8 @@ import type {
   PriorityScore,
   PublicIntakeRequest,
   Report,
+  ReportGrant,
+  DeliveredReport,
   Review,
   Scan,
   ScanStep,
@@ -30,6 +32,7 @@ import type {
   OfferPrerequisiteRow,
   OfferRow,
   OpportunityRow,
+  ReportGrantRow,
   ReportRow,
   ReviewRow,
   ScanRow,
@@ -423,5 +426,52 @@ export function toIntakeChannel(row: IntakeChannelRow): IntakeChannel {
     purpose_version: row.purpose_version,
     allowed_detectors: row.allowed_detectors,
     daily_request_limit: row.daily_request_limit,
+  };
+}
+
+/**
+ * A grant as an operator sees it.
+ *
+ * `state` is derived rather than stored, so a grant that has simply run out of time reads as
+ * `expired` without anybody having to run a sweep for the list to be true.
+ */
+export function toReportGrant(row: ReportGrantRow, now: Date): ReportGrant {
+  return {
+    id: row.id,
+    report_id: row.report_id,
+    report_version: row.report_version,
+    recipient_note: row.recipient_note,
+    expires_at: row.expires_at,
+    revoked_at: row.revoked_at,
+    revoke_reason: row.revoke_reason,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    state:
+      row.revoked_at !== null
+        ? 'revoked'
+        : Date.parse(row.expires_at) <= now.getTime()
+          ? 'expired'
+          : 'live',
+  };
+}
+
+/**
+ * What a link holder reads.
+ *
+ * Built by naming the fields that may leave rather than by removing the ones that may not: an
+ * allowlist cannot be defeated by a column added to `oe.reports` later, and a denylist can.
+ * Absent on purpose: account id, scan id, evidence ids, artifact URLs, reviewer identity,
+ * internal state and the report's own id.
+ */
+export function toDeliveredReport(report: ReportRow, grant: ReportGrantRow): DeliveredReport {
+  return {
+    report_version: report.version,
+    language: report.language,
+    published_at: report.published_at,
+    // Told plainly, so the reader knows the link will stop working and roughly when.
+    expires_at: grant.expires_at,
+    // The body was rendered once, at publication, from the exact reviewed finding versions and
+    // hashed. It is served as it was written; nothing here re-renders it from live rows.
+    body: (report.body ?? {}) as Record<string, unknown>,
   };
 }

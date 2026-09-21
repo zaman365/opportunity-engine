@@ -1820,3 +1820,115 @@ export async function sweepRateLimits(tx: QueryExecutor, before: string): Promis
   );
   return result.rows[0]?.sweep_rate_limits ?? 0;
 }
+
+/* ------------------------------------------------------- report delivery */
+
+export interface ReportGrantRow {
+  id: string;
+  tenant_id: string;
+  report_id: string;
+  report_version: number;
+  audience: string;
+  recipient_note: string;
+  expires_at: string;
+  revoked_at: string | null;
+  revoke_reason: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+const GRANT_COLUMNS = `id, tenant_id, report_id, report_version, audience, recipient_note,
+  revoke_reason, created_by,
+  to_char(expires_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS expires_at,
+  to_char(revoked_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS revoked_at,
+  to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at`;
+
+export async function insertReportGrant(
+  tx: QueryExecutor,
+  input: {
+    id: string;
+    reportId: string;
+    reportVersion: number;
+    tokenHash: Buffer;
+    recipientHash: Buffer;
+    recipientNote: string;
+    expiresAt: string;
+    createdBy: string;
+  },
+): Promise<ReportGrantRow> {
+  const result = await tx.query<ReportGrantRow>(
+    `INSERT INTO oe.report_grants
+       (tenant_id, id, report_id, report_version, token_hash, audience, recipient_hash,
+        recipient_note, expires_at, created_by)
+     VALUES (oe.tenant_context(), $1, $2, $3, $4, 'report_access', $5, $6, $7::timestamptz, $8)
+     RETURNING ${GRANT_COLUMNS}`,
+    [
+      input.id,
+      input.reportId,
+      input.reportVersion,
+      input.tokenHash,
+      input.recipientHash,
+      input.recipientNote,
+      input.expiresAt,
+      input.createdBy,
+    ],
+  );
+  return result.rows[0]!;
+}
+
+/**
+ * Resolve a token to the grant it opens.
+ *
+ * Runs on the identity connection with no tenant context: the tenant is what this answers.
+ * Migration 0012's policy is narrower than the lookup — it returns nothing for a revoked or
+ * expired grant — so an expired link and a token that never existed are indistinguishable
+ * here, before any code gets the chance to tell them apart.
+ */
+export async function resolveReportGrant(
+  tx: QueryExecutor,
+  tokenHash: Buffer,
+): Promise<ReportGrantRow | null> {
+  const result = await tx.query<ReportGrantRow>(
+    `SELECT ${GRANT_COLUMNS} FROM oe.report_grants WHERE token_hash = $1`,
+    [tokenHash],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function listReportGrants(
+  tx: QueryExecutor,
+  reportId: string,
+): Promise<ReportGrantRow[]> {
+  const result = await tx.query<ReportGrantRow>(
+    `SELECT ${GRANT_COLUMNS} FROM oe.report_grants
+      WHERE report_id = $1 ORDER BY created_at DESC`,
+    [reportId],
+  );
+  return result.rows;
+}
+
+export async function getReportGrant(
+  tx: QueryExecutor,
+  id: string,
+): Promise<ReportGrantRow | null> {
+  const result = await tx.query<ReportGrantRow>(
+    `SELECT ${GRANT_COLUMNS} FROM oe.report_grants WHERE id = $1`,
+    [id],
+  );
+  return result.rows[0] ?? null;
+}
+
+/** Revocation takes effect on the next read. There is no session to expire and none to wait for. */
+export async function revokeReportGrant(
+  tx: QueryExecutor,
+  input: { id: string; reason: string; revokedBy: string; at: string },
+): Promise<ReportGrantRow | null> {
+  const result = await tx.query<ReportGrantRow>(
+    `UPDATE oe.report_grants
+        SET revoked_at = $4::timestamptz, revoke_reason = $2, revoked_by = $3
+      WHERE id = $1 AND revoked_at IS NULL
+      RETURNING ${GRANT_COLUMNS}`,
+    [input.id, input.reason, input.revokedBy, input.at],
+  );
+  return result.rows[0] ?? null;
+}
