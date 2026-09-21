@@ -93,11 +93,21 @@ export function evaluateImportantLink(input: LinkDetectorInput): LinkDetectorRes
   ) {
     return unknown('insufficient_independent_captures');
   }
-  if (obs.some((o) => o.complete !== true || o.challenge !== false || o.loginWall !== false || o.soft404 !== false)) {
+  if (
+    obs.some(
+      (o) =>
+        o.complete !== true ||
+        o.challenge !== false ||
+        o.loginWall !== false ||
+        o.soft404 !== false,
+    )
+  ) {
     return unknown('incomplete_or_ambiguous_capture');
   }
   if (
-    obs.some((o) => o.target !== input.target || typeof o.contextKey !== 'string' || !o.contextKey.trim()) ||
+    obs.some(
+      (o) => o.target !== input.target || typeof o.contextKey !== 'string' || !o.contextKey.trim(),
+    ) ||
     new Set(obs.map((o) => o.contextKey)).size !== 1
   ) {
     return unknown('noncomparable_context');

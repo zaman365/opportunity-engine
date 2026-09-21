@@ -1,7 +1,14 @@
 import { Link } from 'react-router-dom';
 import type { Scans } from '@oe/contracts';
 import { useResource } from '../api/hooks.ts';
-import { Chip, EmptyState, ErrorPanel, Loading, Money, Timestamp } from '../components/primitives.tsx';
+import {
+  Chip,
+  EmptyState,
+  ErrorPanel,
+  Loading,
+  Money,
+  Timestamp,
+} from '../components/primitives.tsx';
 import { scanTone } from '../components/panels.tsx';
 
 /** Scan records: what ran, what it covered and what it cost. */
@@ -62,13 +69,21 @@ export function ScansRoute() {
                 </span>
                 <span className="score">
                   <b>
-                    <Money currency={scan.cost.settled.currency} amountMicro={scan.cost.settled.amount_micro} />
+                    <Money
+                      currency={scan.cost.settled.currency}
+                      amountMicro={scan.cost.settled.amount_micro}
+                    />
                   </b>
                   spent of{' '}
-                  <Money currency={scan.cost.cap.currency} amountMicro={scan.cost.cap.amount_micro} />
+                  <Money
+                    currency={scan.cost.cap.currency}
+                    amountMicro={scan.cost.cap.amount_micro}
+                  />
                 </span>
                 <span className="score">
-                  <b>{scan.finding_ids.length} finding{scan.finding_ids.length === 1 ? '' : 's'}</b>
+                  <b>
+                    {scan.finding_ids.length} finding{scan.finding_ids.length === 1 ? '' : 's'}
+                  </b>
                   <Timestamp value={scan.updated_at} />
                 </span>
               </li>

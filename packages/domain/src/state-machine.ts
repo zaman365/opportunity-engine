@@ -38,10 +38,7 @@ export const MACHINES = {
 export type MachineKind = keyof typeof MACHINES;
 
 export type TransitionErrorCode =
-  | 'INVALID_STATE'
-  | 'INVALID_VERSION'
-  | 'VERSION_CONFLICT'
-  | 'INVALID_TRANSITION';
+  'INVALID_STATE' | 'INVALID_VERSION' | 'VERSION_CONFLICT' | 'INVALID_TRANSITION';
 
 export class TransitionError extends Error {
   constructor(

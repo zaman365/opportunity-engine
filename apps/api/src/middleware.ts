@@ -58,7 +58,9 @@ export function authenticate(deps: AppDependencies): MiddlewareHandler<AppEnv> {
     // the untrusted tenant assertion AGENTS.md forbids.
     const membership = memberships[0]!;
     // The accounting currency lives on the tenant row, which the identity role cannot read.
-    const ledgerCurrency = await deps.db.withTenant(membership.tenantId, (tx) => getLedgerCurrency(tx));
+    const ledgerCurrency = await deps.db.withTenant(membership.tenantId, (tx) =>
+      getLedgerCurrency(tx),
+    );
     if (!ledgerCurrency) {
       throw new ApiProblem('MEMBERSHIP_REQUIRED', 'This workspace is not fully configured.');
     }
@@ -73,7 +75,10 @@ export function csrfGuard(deps: AppDependencies): MiddlewareHandler<AppEnv> {
     const method = c.req.method.toUpperCase();
     if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return next();
     if (!originAllowed(c.req.raw, deps.config.appOrigin)) {
-      throw new ApiProblem('ORIGIN_NOT_ALLOWED', 'This request did not come from the application origin.');
+      throw new ApiProblem(
+        'ORIGIN_NOT_ALLOWED',
+        'This request did not come from the application origin.',
+      );
     }
     const actor = c.get('actor');
     if (!deps.csrf.verify(actor.identity, c.req.header('x-csrf-token') ?? null)) {
@@ -87,7 +92,9 @@ export function csrfGuard(deps: AppDependencies): MiddlewareHandler<AppEnv> {
 }
 
 /** Enforce the minimum role the OpenAPI operation declares. */
-export function requireRole(required: 'viewer' | 'operator' | 'reviewer' | 'owner'): MiddlewareHandler<AppEnv> {
+export function requireRole(
+  required: 'viewer' | 'operator' | 'reviewer' | 'owner',
+): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const { membership } = c.get('actor');
     if (!hasRole(membership.role, required)) {

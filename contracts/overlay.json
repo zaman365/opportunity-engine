@@ -1,0 +1,98 @@
+{
+  "$comment": "M2 additions to the build kit's M1 OpenAPI document. See contracts/README.md.",
+  "base": "opportunity-engine-build-kit/contracts/openapi.json",
+  "version": "2.1.0",
+  "changes": [
+    {
+      "op": "set",
+      "pointer": "/info/version",
+      "value": "2.1.0",
+      "why": "The served contract is the kit's M1 document plus these changes; it needs its own version so a client can tell them apart."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/description",
+      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. Implemented detectors: MF-LINK-01, MF-ASSET-01. Contract only; an operation appearing here is not a claim that a deployment serves it.",
+      "why": "A reader landing on the generated file should know it is generated, and from what."
+    },
+    {
+      "op": "set",
+      "pointer": "/components/schemas/CreateScan/properties/detectors",
+      "value": {
+        "type": "array",
+        "items": {
+          "enum": ["MF-LINK-01", "MF-ASSET-01"]
+        },
+        "minItems": 1,
+        "maxItems": 2,
+        "uniqueItems": true
+      },
+      "why": "MF-ASSET-01 is implemented in M2, so a scan may request it, and may request both. The enum stays an allowlist: the four detectors that are specified but not implemented remain unrequestable. Widening only \u2014 every payload the M1 schema accepted is still accepted."
+    },
+    {
+      "op": "set",
+      "pointer": "/paths/~1v1~1scans/post/description",
+      "value": "Minimum role: operator. Phase: M1-M2. Membership, purpose, object and budget checks also apply. Detectors are limited to the implemented set. Contract only; not a claim this endpoint exists.",
+      "why": "The operation now admits two detectors; its description should say so rather than implying the M1 pack."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/Evidence/properties/observation",
+      "value": {
+        "type": "object",
+        "description": "What the collector recorded about this observation: status, role classification, rendered outcome, timing. Only fields this system produced; never page content or scraped text.",
+        "additionalProperties": true
+      },
+      "why": "MF-ASSET-01 turns on facts the M1 Evidence shape had nowhere to carry: how an image was classified, and whether it actually painted. A reviewer cannot judge the claim without them, so they belong on the wire rather than only in the database."
+    },
+    {
+      "op": "set",
+      "pointer": "/components/schemas/Evidence/required",
+      "value": [
+        "id",
+        "scan_id",
+        "asset_id",
+        "source_url",
+        "final_url",
+        "kind",
+        "sha256",
+        "conditions",
+        "observation",
+        "http_status",
+        "complete",
+        "expires_at",
+        "content_available",
+        "redacted"
+      ],
+      "why": "Required rather than optional: an observation with no recorded detail is not evidence. This narrows a *response* schema, which is safe in a way narrowing a request schema would not be \u2014 the server always populates the field, and a client that ignores it is unaffected. generated-contract.test.ts enforces that distinction."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/Session/properties/implemented_detectors",
+      "value": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minItems": 1,
+        "description": "Detectors this deployment actually runs. The operator displays this rather than a constant compiled into its bundle, so the interface cannot claim a capability the server does not have."
+      },
+      "why": "The workspace banner states which detectors are enabled. Deriving that from a value bundled into the client would let a stale bundle advertise a detector the server does not run; asking the server removes the possibility."
+    },
+    {
+      "op": "set",
+      "pointer": "/components/schemas/Session/required",
+      "value": [
+        "subject",
+        "active_tenant_id",
+        "role",
+        "venture_ids",
+        "csrf_token",
+        "environment",
+        "implemented_detectors"
+      ],
+      "why": "Required rather than optional: a session that does not say what the server runs would let the interface fall back to a guess. This narrows a response schema, which is safe \u2014 the server always populates it."
+    }
+  ]
+}

@@ -20,7 +20,7 @@ export interface AppConfig {
   migrationDatabaseUrl: string | null;
   ledgerCurrency: string;
   liveSpendLimitMicro: string;
-  capture: { adapter: CaptureAdapterKind; fixtureOrigin: string | null; liveEnabled: boolean };
+  capture: { adapter: CaptureAdapterKind; fixtureOrigins: string[]; liveEnabled: boolean };
   evidence: { store: EvidenceStoreKind; localDir: string | null; bucket: string | null };
   features: {
     publicIntake: boolean;
@@ -51,9 +51,7 @@ function bool(env: Env, key: string, problems: string[], fallback = false): bool
 function isLoopbackOrigin(origin: string): boolean {
   try {
     const url = new URL(origin);
-    return (
-      url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]'
-    );
+    return url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
   } catch {
     return false;
   }
@@ -123,7 +121,8 @@ export function loadConfig(env: Env): AppConfig {
   }
 
   const databaseUrl = env.DATABASE_URL ?? '';
-  if (!databaseUrl) problems.push('DATABASE_URL is required; there is no in-memory fallback store.');
+  if (!databaseUrl)
+    problems.push('DATABASE_URL is required; there is no in-memory fallback store.');
   const migrationDatabaseUrl = env.MIGRATION_DATABASE_URL ?? '';
   if (migrationDatabaseUrl && migrationDatabaseUrl === databaseUrl) {
     problems.push(
@@ -133,7 +132,9 @@ export function loadConfig(env: Env): AppConfig {
 
   const ledgerCurrency = env.LEDGER_CURRENCY ?? '';
   if (!/^[A-Z]{3}$/.test(ledgerCurrency)) {
-    problems.push(`LEDGER_CURRENCY must be a three-letter uppercase code (got ${JSON.stringify(ledgerCurrency)}).`);
+    problems.push(
+      `LEDGER_CURRENCY must be a three-letter uppercase code (got ${JSON.stringify(ledgerCurrency)}).`,
+    );
   }
   const liveSpendLimitMicro = env.LIVE_SPEND_LIMIT_MICRO ?? '0';
   if (!/^(0|[1-9][0-9]{0,14})$/.test(liveSpendLimitMicro)) {
@@ -142,22 +143,34 @@ export function loadConfig(env: Env): AppConfig {
 
   const adapter = (env.CAPTURE_ADAPTER ?? 'local_fixture') as CaptureAdapterKind;
   if (adapter !== 'local_fixture' && adapter !== 'browser_run') {
-    problems.push(`CAPTURE_ADAPTER must be local_fixture | browser_run (got ${JSON.stringify(env.CAPTURE_ADAPTER)}).`);
+    problems.push(
+      `CAPTURE_ADAPTER must be local_fixture | browser_run (got ${JSON.stringify(env.CAPTURE_ADAPTER)}).`,
+    );
   }
   const liveCaptureEnabled = bool(env, 'LIVE_CAPTURE_ENABLED', problems, false);
-  const fixtureOrigin = env.FIXTURE_ORIGIN ?? '';
+  // One or more comma-separated loopback origins: the kit's fixture site plus this
+  // repository's M2 fixtures. Every one of them is still checked for loopback.
+  const fixtureOrigins = (env.FIXTURE_ORIGIN ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
   if (adapter === 'local_fixture') {
     if (deployed) {
       problems.push(
         `CAPTURE_ADAPTER=local_fixture is rejected when APP_ENV=${environment}. Fixtures never run in a deployed environment.`,
       );
     }
-    if (!fixtureOrigin) problems.push('FIXTURE_ORIGIN is required for CAPTURE_ADAPTER=local_fixture.');
-    else if (!isLoopbackOrigin(fixtureOrigin)) {
-      problems.push(`FIXTURE_ORIGIN must be loopback (got ${fixtureOrigin}).`);
+    if (fixtureOrigins.length === 0) {
+      problems.push('FIXTURE_ORIGIN is required for CAPTURE_ADAPTER=local_fixture.');
+    }
+    for (const origin of fixtureOrigins) {
+      if (!isLoopbackOrigin(origin))
+        problems.push(`FIXTURE_ORIGIN must be loopback (got ${origin}).`);
     }
     if (liveCaptureEnabled) {
-      problems.push('LIVE_CAPTURE_ENABLED=true is incompatible with CAPTURE_ADAPTER=local_fixture.');
+      problems.push(
+        'LIVE_CAPTURE_ENABLED=true is incompatible with CAPTURE_ADAPTER=local_fixture.',
+      );
     }
   }
   if (adapter === 'browser_run' && liveCaptureEnabled && !env.BROWSER_RUN_ENDPOINT) {
@@ -168,14 +181,17 @@ export function loadConfig(env: Env): AppConfig {
 
   const store = (env.EVIDENCE_STORE ?? 'local_fs') as EvidenceStoreKind;
   if (store !== 'local_fs' && store !== 'r2') {
-    problems.push(`EVIDENCE_STORE must be local_fs | r2 (got ${JSON.stringify(env.EVIDENCE_STORE)}).`);
+    problems.push(
+      `EVIDENCE_STORE must be local_fs | r2 (got ${JSON.stringify(env.EVIDENCE_STORE)}).`,
+    );
   }
   if (store === 'local_fs' && deployed) {
     problems.push(
       `EVIDENCE_STORE=local_fs is rejected when APP_ENV=${environment}. Deployed evidence uses a private EU-jurisdiction bucket.`,
     );
   }
-  if (store === 'r2' && !env.R2_BUCKET) problems.push('R2_BUCKET is required when EVIDENCE_STORE=r2.');
+  if (store === 'r2' && !env.R2_BUCKET)
+    problems.push('R2_BUCKET is required when EVIDENCE_STORE=r2.');
 
   const features = {
     publicIntake: bool(env, 'PUBLIC_INTAKE_ENABLED', problems, false),
@@ -207,7 +223,7 @@ export function loadConfig(env: Env): AppConfig {
     liveSpendLimitMicro,
     capture: {
       adapter,
-      fixtureOrigin: adapter === 'local_fixture' ? fixtureOrigin : null,
+      fixtureOrigins: adapter === 'local_fixture' ? fixtureOrigins : [],
       liveEnabled: liveCaptureEnabled,
     },
     evidence: {

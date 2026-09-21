@@ -62,7 +62,9 @@ describe('configuration', () => {
       ACCESS_AUDIENCE: 'aud',
       ACCESS_JWKS_URL: 'https://team.cloudflareaccess.com/cdn-cgi/access/certs',
     });
-    expect(problems.some((p) => p.includes('CAPTURE_ADAPTER=local_fixture is rejected'))).toBe(true);
+    expect(problems.some((p) => p.includes('CAPTURE_ADAPTER=local_fixture is rejected'))).toBe(
+      true,
+    );
     expect(problems.some((p) => p.includes('EVIDENCE_STORE=local_fs is rejected'))).toBe(true);
   });
 

@@ -99,11 +99,7 @@ export interface CommandOptions {
   idempotencyKey: string;
 }
 
-export async function command<T>(
-  path: string,
-  body: unknown,
-  options: CommandOptions,
-): Promise<T> {
+export async function command<T>(path: string, body: unknown, options: CommandOptions): Promise<T> {
   if (!session) await loadSession();
   const headers = baseHeaders();
   headers.set('content-type', 'application/json');

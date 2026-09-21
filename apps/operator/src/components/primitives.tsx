@@ -76,7 +76,11 @@ export function Loading({ label, lines = 3 }: { label: string; lines?: number })
         <div
           key={index}
           className="skeleton"
-          style={{ height: index === 0 ? 28 : 16, marginBottom: 12, width: index === 0 ? '46%' : '100%' }}
+          style={{
+            height: index === 0 ? 28 : 16,
+            marginBottom: 12,
+            width: index === 0 ? '46%' : '100%',
+          }}
           aria-hidden="true"
         />
       ))}
@@ -90,13 +94,19 @@ export function Loading({ label, lines = 3 }: { label: string; lines?: number })
  * A network failure is reported as unknown rather than as a failure, because the request may
  * well have been admitted.
  */
-export function ErrorPanel({ error, onRetry }: { error: ApiError | NetworkError; onRetry?: () => void }) {
+export function ErrorPanel({
+  error,
+  onRetry,
+}: {
+  error: ApiError | NetworkError;
+  onRetry?: () => void;
+}) {
   if (error instanceof NetworkError) {
     return (
       <Notice tone="attention" title="The request did not reach the server">
         <p>
-          Its outcome is unknown. Reload before retrying so a request that was already
-          accepted is not repeated.
+          Its outcome is unknown. Reload before retrying so a request that was already accepted is
+          not repeated.
         </p>
         {onRetry ? (
           <p style={{ marginTop: 8 }}>

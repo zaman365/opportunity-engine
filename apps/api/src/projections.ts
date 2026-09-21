@@ -107,6 +107,7 @@ export function toEvidence(row: EvidenceRow, contentAvailable: boolean): Evidenc
     kind: row.kind,
     sha256: row.sha256,
     conditions,
+    observation: row.observation,
     http_status: row.http_status,
     complete: row.complete,
     expires_at: row.expires_at,

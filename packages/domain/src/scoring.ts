@@ -139,7 +139,8 @@ export function checkActionReadiness(input: ReadinessInput): {
   if (!input || !['publish_report', 'contact', 'change'].includes(input.action)) {
     throw new TypeError('A supported action is required.');
   }
-  if (!['A', 'B', 'C'].includes(input.evidenceGrade)) throw new TypeError('Invalid evidence grade.');
+  if (!['A', 'B', 'C'].includes(input.evidenceGrade))
+    throw new TypeError('Invalid evidence grade.');
   for (const key of ['evidenceFresh', 'humanApproved', 'budgetAvailable'] as const) {
     if (typeof input[key] !== 'boolean') throw new TypeError(`${key} must be boolean.`);
   }

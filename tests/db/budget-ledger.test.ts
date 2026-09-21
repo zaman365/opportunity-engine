@@ -47,7 +47,13 @@ async function makeScan(tx: QueryExecutor): Promise<string> {
        state, version, expected_unique_pages, requested_by)
      VALUES (oe.tenant_context(), $1, $2, $3, $4, 'https://atelier-nord.test/product',
        'queued', 1, 2, $5)`,
-    [id, LOCAL_FIXTURE.accountA, LOCAL_FIXTURE.ventureA, LOCAL_FIXTURE.authorizationA, LOCAL_FIXTURE.operatorA],
+    [
+      id,
+      LOCAL_FIXTURE.accountA,
+      LOCAL_FIXTURE.ventureA,
+      LOCAL_FIXTURE.authorizationA,
+      LOCAL_FIXTURE.operatorA,
+    ],
   );
   return id;
 }
@@ -78,7 +84,12 @@ beforeEach(async () => {
   await db.withTenant(TENANT, async (tx) => {
     const budgets = await listBudgets(tx);
     for (const budget of budgets.filter((b) => b.scope_kind !== 'scan')) {
-      if (budget.paused) await setBudgetPaused(tx, { budgetId: budget.id, expectedVersion: budget.version, paused: false });
+      if (budget.paused)
+        await setBudgetPaused(tx, {
+          budgetId: budget.id,
+          expectedVersion: budget.version,
+          paused: false,
+        });
     }
   });
 });
@@ -116,7 +127,9 @@ describe('hierarchical reservation', () => {
     ).rejects.toMatchObject({ code: 'MISSING_BUDGET' });
 
     const totals = await db.withTenant(TENANT, (tx) => listBudgets(tx));
-    expect(totals.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro).toBe('0');
+    expect(
+      totals.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro,
+    ).toBe('0');
   });
 
   it('rejects a caller that substitutes an unrelated cap', async () => {
@@ -179,7 +192,9 @@ describe('hierarchical reservation', () => {
       }),
     );
     const budgets = await db.withTenant(TENANT, (tx) => listBudgets(tx));
-    expect(budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro).toBe('1000');
+    expect(
+      budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro,
+    ).toBe('1000');
   });
 
   it('refuses a currency the cap does not use', async () => {
@@ -228,27 +243,57 @@ describe('idempotency', () => {
     const { scanId, budgetIds } = await scanWithCap('1000000');
     const key = `op:${scanId}`;
     const first = await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '500', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '500',
+        budgetIds,
+      }),
     );
     const second = await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '500', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '500',
+        budgetIds,
+      }),
     );
     expect(second.replayed).toBe(true);
     expect(second.reservationId).toBe(first.reservationId);
     const budgets = await db.withTenant(TENANT, (tx) => listBudgets(tx));
     // The amount is reserved once, not twice.
-    expect(budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro).toBe('500');
+    expect(
+      budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro,
+    ).toBe('500');
   });
 
   it('rejects the same key with a different amount', async () => {
     const { scanId, budgetIds } = await scanWithCap('1000000');
     const key = `op:${scanId}`;
     await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '500', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '500',
+        budgetIds,
+      }),
     );
     await expect(
       db.withTenant(TENANT, (tx) =>
-        reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '900', budgetIds }),
+        reserveBudget(tx, {
+          scanId,
+          operationKey: key,
+          requestHash: HASH,
+          currency: 'USD',
+          amountMicro: '900',
+          budgetIds,
+        }),
       ),
     ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
   });
@@ -257,7 +302,14 @@ describe('idempotency', () => {
     const { scanId, budgetIds } = await scanWithCap('1000000');
     const key = `op:${scanId}`;
     await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '500', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '500',
+        budgetIds,
+      }),
     );
     await expect(
       db.withTenant(TENANT, (tx) =>
@@ -278,8 +330,10 @@ describe('concurrency at the cap', () => {
   it('admits only one of two simultaneous reservations that would both fit alone', async () => {
     // The scan cap is the binding constraint; the seeded tenant and venture caps are wide.
     const { scanId, budgetIds } = await scanWithCap('100');
-    const scanBudgetId = await db.withTenant(TENANT, async (tx) =>
-      (await listBudgets(tx)).find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.id,
+    const scanBudgetId = await db.withTenant(
+      TENANT,
+      async (tx) =>
+        (await listBudgets(tx)).find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.id,
     );
 
     const attempt = (key: string) =>
@@ -312,8 +366,10 @@ describe('concurrency at the cap', () => {
 
   it('keeps the cap invariant across many parallel attempts', async () => {
     const { scanId, budgetIds } = await scanWithCap('500');
-    const scanBudgetId = await db.withTenant(TENANT, async (tx) =>
-      (await listBudgets(tx)).find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.id,
+    const scanBudgetId = await db.withTenant(
+      TENANT,
+      async (tx) =>
+        (await listBudgets(tx)).find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.id,
     );
 
     const attempts = Array.from({ length: 12 }, (_, i) =>
@@ -357,11 +413,14 @@ describe('concurrency at the cap', () => {
     ).rejects.toThrow('deliberate failure');
 
     const budgets = await db.withTenant(TENANT, (tx) => listBudgets(tx));
-    expect(budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro).toBe('0');
+    expect(
+      budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro,
+    ).toBe('0');
     const reservations = await db.withTenant(TENANT, (tx) =>
-      tx.query<{ n: number }>("SELECT count(*)::int AS n FROM oe.reservations WHERE operation_key = $1", [
-        `rollback:${scanId}`,
-      ]),
+      tx.query<{ n: number }>(
+        'SELECT count(*)::int AS n FROM oe.reservations WHERE operation_key = $1',
+        [`rollback:${scanId}`],
+      ),
     );
     expect(reservations.rows[0]!.n).toBe(0);
   });
@@ -372,7 +431,14 @@ describe('settlement', () => {
     const { scanId, budgetIds } = await scanWithCap('1000000');
     const key = `settle:${scanId}`;
     await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '800', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '800',
+        budgetIds,
+      }),
     );
     const first = await db.withTenant(TENANT, (tx) =>
       settleReservation(tx, { operationKey: key, actualMicro: '300', providerRequestId: 'prov-1' }),
@@ -390,14 +456,23 @@ describe('settlement', () => {
     );
     expect(replay.replayed).toBe(true);
     const after = await db.withTenant(TENANT, (tx) => listBudgets(tx));
-    expect(after.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.settled_micro).toBe('300');
+    expect(after.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.settled_micro).toBe(
+      '300',
+    );
   });
 
   it('rejects a second settlement with a different amount', async () => {
     const { scanId, budgetIds } = await scanWithCap('1000000');
     const key = `settle2:${scanId}`;
     await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '800', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '800',
+        budgetIds,
+      }),
     );
     await db.withTenant(TENANT, (tx) =>
       settleReservation(tx, { operationKey: key, actualMicro: '300', providerRequestId: null }),
@@ -413,16 +488,29 @@ describe('settlement', () => {
     const { scanId, budgetIds } = await scanWithCap('1000000');
     const key = `overrun:${scanId}`;
     await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '100', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '100',
+        budgetIds,
+      }),
     );
     const result = await db.withTenant(TENANT, (tx) =>
-      settleReservation(tx, { operationKey: key, actualMicro: '750', providerRequestId: 'prov-over' }),
+      settleReservation(tx, {
+        operationKey: key,
+        actualMicro: '750',
+        providerRequestId: 'prov-over',
+      }),
     );
     expect(result.overrun).toBe(true);
 
     const budgets = await db.withTenant(TENANT, (tx) => listBudgets(tx));
     // The real cost is recorded, not discarded to keep the invariant looking clean.
-    expect(budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.settled_micro).toBe('750');
+    expect(
+      budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.settled_micro,
+    ).toBe('750');
     // Every covering scope stops admitting new work, not only the one that overran.
     for (const id of budgetIds) {
       expect(budgets.find((b) => b.id === id)!.paused).toBe(true);
@@ -433,7 +521,14 @@ describe('settlement', () => {
     const { scanId, budgetIds } = await scanWithCap('200');
     const key = `resume:${scanId}`;
     await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '100', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '100',
+        budgetIds,
+      }),
     );
     await db.withTenant(TENANT, (tx) =>
       settleReservation(tx, { operationKey: key, actualMicro: '900', providerRequestId: null }),
@@ -443,7 +538,11 @@ describe('settlement', () => {
     );
     await expect(
       db.withTenant(TENANT, (tx) =>
-        setBudgetPaused(tx, { budgetId: scanBudget.id, expectedVersion: scanBudget.version, paused: false }),
+        setBudgetPaused(tx, {
+          budgetId: scanBudget.id,
+          expectedVersion: scanBudget.version,
+          paused: false,
+        }),
       ),
     ).rejects.toMatchObject({ code: 'OVERRUN_NOT_RECONCILED' });
   });
@@ -452,21 +551,36 @@ describe('settlement', () => {
     const { scanId, budgetIds } = await scanWithCap('1000000');
     const key = `uncertain:${scanId}`;
     await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '600', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '600',
+        budgetIds,
+      }),
     );
     await db.withTenant(TENANT, (tx) => markReservationUncertain(tx, key));
 
     const budgets = await db.withTenant(TENANT, (tx) => listBudgets(tx));
-    expect(budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro).toBe('600');
+    expect(
+      budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro,
+    ).toBe('600');
 
     // A cancellation cannot release it: a timeout is not proof of zero charge.
     await expect(
-      db.withTenant(TENANT, (tx) => releaseReservation(tx, { operationKey: key, confirmedNoCharge: false })),
+      db.withTenant(TENANT, (tx) =>
+        releaseReservation(tx, { operationKey: key, confirmedNoCharge: false }),
+      ),
     ).rejects.toMatchObject({ code: 'RECONCILIATION_REQUIRED' });
 
     // Reconciliation with the provider settles it for real.
     await db.withTenant(TENANT, (tx) =>
-      settleReservation(tx, { operationKey: key, actualMicro: '120', providerRequestId: 'prov-recon' }),
+      settleReservation(tx, {
+        operationKey: key,
+        actualMicro: '120',
+        providerRequestId: 'prov-recon',
+      }),
     );
     const after = await db.withTenant(TENANT, (tx) => listBudgets(tx));
     const scanBudget = after.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!;
@@ -478,13 +592,22 @@ describe('settlement', () => {
     const { scanId, budgetIds } = await scanWithCap('1000000');
     const key = `release:${scanId}`;
     await db.withTenant(TENANT, (tx) =>
-      reserveBudget(tx, { scanId, operationKey: key, requestHash: HASH, currency: 'USD', amountMicro: '450', budgetIds }),
+      reserveBudget(tx, {
+        scanId,
+        operationKey: key,
+        requestHash: HASH,
+        currency: 'USD',
+        amountMicro: '450',
+        budgetIds,
+      }),
     );
     await db.withTenant(TENANT, (tx) =>
       releaseReservation(tx, { operationKey: key, confirmedNoCharge: true }),
     );
     const budgets = await db.withTenant(TENANT, (tx) => listBudgets(tx));
-    expect(budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro).toBe('0');
+    expect(
+      budgets.find((b) => b.scope_kind === 'scan' && b.scope_id === scanId)!.reserved_micro,
+    ).toBe('0');
 
     await expect(
       db.withTenant(TENANT, (tx) =>

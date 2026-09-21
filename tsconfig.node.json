@@ -9,6 +9,7 @@
     "apps/api/**/*.ts",
     "workers/**/*.ts",
     "scripts/**/*.ts",
+    "scripts/**/*.d.mts",
     "tests/**/*.ts",
     "vitest.config.ts",
     "eslint.config.js"

@@ -15,7 +15,10 @@ import pg from 'pg';
 export type Row = object;
 
 export interface QueryExecutor {
-  query<T extends Row = Record<string, unknown>>(text: string, values?: readonly unknown[]): Promise<{ rows: T[]; rowCount: number }>;
+  query<T extends Row = Record<string, unknown>>(
+    text: string,
+    values?: readonly unknown[],
+  ): Promise<{ rows: T[]; rowCount: number }>;
 }
 
 /** Postgres error codes the application maps to specific API problems. */
@@ -110,7 +113,9 @@ export class Database {
     }
     const client = await this.pool.connect();
     try {
-      await client.query(`BEGIN ISOLATION LEVEL ${(options.isolation ?? 'read committed').toUpperCase()}`);
+      await client.query(
+        `BEGIN ISOLATION LEVEL ${(options.isolation ?? 'read committed').toUpperCase()}`,
+      );
       await client.query('SELECT set_config($1, $2, true)', ['oe.tenant_id', tenantId]);
       const result = await fn(client as unknown as QueryExecutor);
       await client.query('COMMIT');
@@ -131,7 +136,10 @@ export class Database {
   async withTenantRetry<T>(
     tenantId: string,
     fn: (tx: QueryExecutor) => Promise<T>,
-    options: { attempts?: number; isolation?: 'read committed' | 'repeatable read' | 'serializable' } = {},
+    options: {
+      attempts?: number;
+      isolation?: 'read committed' | 'repeatable read' | 'serializable';
+    } = {},
   ): Promise<T> {
     const attempts = options.attempts ?? 3;
     let lastError: unknown;
@@ -142,7 +150,8 @@ export class Database {
       } catch (error) {
         lastError = error;
         const code = isPgError(error) ? error.code : undefined;
-        if (code !== PG_ERROR.SERIALIZATION_FAILURE && code !== PG_ERROR.DEADLOCK_DETECTED) throw error;
+        if (code !== PG_ERROR.SERIALIZATION_FAILURE && code !== PG_ERROR.DEADLOCK_DETECTED)
+          throw error;
         await new Promise((resolve) => setTimeout(resolve, attempt * 15));
       }
     }

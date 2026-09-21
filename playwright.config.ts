@@ -25,13 +25,25 @@ export default defineConfig({
     video: 'off',
   },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 960 } } },
-    { name: 'narrow', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } } },
+    {
+      name: 'desktop',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 960 } },
+    },
+    {
+      name: 'narrow',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } },
+    },
   ],
   webServer: [
     {
       command: 'npm run fixtures',
       url: 'http://127.0.0.1:4179/product',
+      reuseExistingServer: true,
+      timeout: 30_000,
+    },
+    {
+      command: 'npm run fixtures:m2',
+      url: 'http://127.0.0.1:4180/product-healthy',
       reuseExistingServer: true,
       timeout: 30_000,
     },

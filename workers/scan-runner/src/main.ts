@@ -22,11 +22,17 @@ import { ScanRunner } from './runner.ts';
 
 loadDotEnv();
 const config = loadConfig(process.env as Record<string, string | undefined>);
-const db = new Database({ connectionString: config.databaseUrl, applicationName: 'oe-scan-runner' });
+const db = new Database({
+  connectionString: config.databaseUrl,
+  applicationName: 'oe-scan-runner',
+});
 
 const capture =
   config.capture.adapter === 'local_fixture'
-    ? new LocalFixtureCaptureProvider(config.capture.fixtureOrigin!, await createPlaywrightRenderer())
+    ? new LocalFixtureCaptureProvider(
+        config.capture.fixtureOrigins,
+        await createPlaywrightRenderer(),
+      )
     : new BrowserRunCaptureProvider({
         endpoint: process.env.BROWSER_RUN_ENDPOINT ?? null,
         egressProofRecorded: process.env.BROWSER_RUN_EGRESS_PROOF === 'recorded',
@@ -39,7 +45,7 @@ const evidence =
 
 const targetPolicy =
   config.capture.adapter === 'local_fixture'
-    ? createFixtureTargetPolicy(config.capture.fixtureOrigin!)
+    ? createFixtureTargetPolicy(config.capture.fixtureOrigins)
     : productionTargetPolicy;
 
 const runner = new ScanRunner({ db, capture, targetPolicy, evidence, now: () => new Date() });
@@ -60,7 +66,9 @@ const healthPort = Number(process.env.RUNNER_HEALTH_PORT ?? 4175);
 const health = createServer((request, response) => {
   if (request.url === '/health') {
     response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ status: 'healthy', capture: capture.kind, configured: capture.configured }));
+    response.end(
+      JSON.stringify({ status: 'healthy', capture: capture.kind, configured: capture.configured }),
+    );
     return;
   }
   response.writeHead(404).end();

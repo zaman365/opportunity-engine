@@ -19,8 +19,52 @@ export interface CaptureRequest {
   viewport: { width: number; height: number };
   locale: string;
   operationKey: string;
-  /** Hard ceilings; the adapter aborts rather than widening them. */
-  limits: { timeoutMs: number; maxBytes: number; maxHops: number };
+  /**
+   * Hard ceilings; the adapter aborts rather than widening them.
+   *
+   * `imageTimeoutMs` is the bounded lazy-load wait MF-ASSET-01 depends on: an image that has
+   * not arrived when it expires is recorded as pending, never as broken.
+   */
+  limits: {
+    timeoutMs: number;
+    maxBytes: number;
+    maxHops: number;
+    imageTimeoutMs: number;
+    maxImages: number;
+    maxImageBytes: number;
+  };
+}
+
+/**
+ * One image the page referenced, as this capture recorded it.
+ *
+ * Both halves of the MF-ASSET-01 proof live here: what the request returned, and whether the
+ * browser actually painted the result.
+ */
+export interface ImageCapture {
+  /** Absolute URL, resolved against the page. */
+  src: string;
+  /** The attribute's value, or null when absent. Drives classification. */
+  alt: string | null;
+  presentational: boolean;
+  insideMain: boolean;
+  role: 'product' | 'decorative' | 'unknown';
+  roleReason: string;
+  lazy: boolean;
+  /** HTTP status of the image request; null when nothing arrived. */
+  resourceStatus: number | null;
+  resourceByteLength: number | null;
+  resourceContentType: string | null;
+  /** The bounded wait expired with the request outstanding. */
+  timedOut: boolean;
+  /** Set when the image URL failed the capture policy and was never requested. */
+  policyDenied: string | null;
+  /** naturalWidth and naturalHeight both above zero in the rendered page. */
+  rendered: boolean;
+  renderedWidth: number;
+  renderedHeight: number;
+  /** Bytes, kept only when the response was a usable image within the size ceiling. */
+  body: Uint8Array | null;
 }
 
 export interface CaptureConditionsResult {
@@ -51,6 +95,8 @@ export interface PageObservation {
   contentType: string | null;
   /** Links the page exposes, already filtered to safe candidates by the adapter. */
   links: { text: string; href: string }[];
+  /** Images the page referenced, with their request and rendered outcomes. */
+  images: ImageCapture[];
   /** Raw page bytes, kept only when policy allows persisting the artifact. */
   body: Uint8Array | null;
   screenshot: { body: Uint8Array; contentType: string } | null;
@@ -59,7 +105,13 @@ export interface PageObservation {
 }
 
 export type CaptureOutcome =
-  | { status: 'captured'; observation: PageObservation; conditions: CaptureConditionsResult; providerRequestId: string; costMicro: string }
+  | {
+      status: 'captured';
+      observation: PageObservation;
+      conditions: CaptureConditionsResult;
+      providerRequestId: string;
+      costMicro: string;
+    }
   | { status: 'blocked'; reason: string; detail: string }
   | { status: 'not_configured'; reason: string; detail: string }
   | { status: 'retryable_error'; reason: string; detail: string }

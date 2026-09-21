@@ -49,8 +49,8 @@ export function QueueRoute({ session }: { session: Session }) {
         <div>
           <h1>Review queue</h1>
           <p>
-            What needs a decision next. Each case is one account, one supported observation
-            and the evidence recorded for it.
+            What needs a decision next. Each case is one account, one supported observation and the
+            evidence recorded for it.
           </p>
         </div>
         {session.role === 'viewer' ? null : (
@@ -82,7 +82,9 @@ export function QueueRoute({ session }: { session: Session }) {
         </div>
       </div>
 
-      {resource.status === 'loading' ? <Loading label="Loading the review queue" lines={5} /> : null}
+      {resource.status === 'loading' ? (
+        <Loading label="Loading the review queue" lines={5} />
+      ) : null}
       {resource.status === 'error' ? (
         <ErrorPanel error={resource.error} onRetry={resource.reload} />
       ) : null}
@@ -99,8 +101,8 @@ export function QueueRoute({ session }: { session: Session }) {
             )
           }
         >
-          A scan inspects one approved page and up to a few pages linked from it, then
-          records what it observed. Nothing appears here until a scan has run.
+          A scan inspects one approved page and up to a few pages linked from it, then records what
+          it observed. Nothing appears here until a scan has run.
         </EmptyState>
       ) : null}
 
@@ -122,8 +124,8 @@ export function QueueRoute({ session }: { session: Session }) {
           }
         >
           {resource.data.items.length} case{resource.data.items.length === 1 ? '' : 's'} exist in
-          this workspace, but none match “{debounced}” with the {FILTERS[filter].label.toLowerCase()}{' '}
-          filter.
+          this workspace, but none match “{debounced}” with the{' '}
+          {FILTERS[filter].label.toLowerCase()} filter.
         </EmptyState>
       ) : null}
 

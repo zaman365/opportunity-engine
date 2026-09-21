@@ -47,10 +47,14 @@ export const LOCAL_FIXTURE = {
 } as const;
 
 /**
- * The fixture site's own host. The production URL policy denies `.test` and loopback, which
- * is why the fixture transport is a separate test-only adapter rather than a relaxed policy.
+ * The fixture sites' own hosts: the kit's MF-LINK-01 site and this repository's MF-ASSET-01
+ * site. The production URL policy denies `.test` and loopback, which is why the fixture
+ * transport is a separate test-only adapter rather than a relaxed policy.
+ *
+ * Re-seeding converges the account's allowlist onto this list, so adding a fixture site does
+ * not require rebuilding the local database.
  */
-const FIXTURE_HOST = '127.0.0.1:4179';
+const FIXTURE_HOSTS = ['127.0.0.1:4179', '127.0.0.1:4180'];
 
 export async function seedLocal(connectionString: string): Promise<void> {
   const client = new pg.Client({ connectionString });
@@ -142,14 +146,16 @@ async function seedTenant(client: pg.Client, seed: TenantSeed): Promise<void> {
   await client.query(
     `INSERT INTO oe.accounts
        (tenant_id, id, venture_id, name, canonical_domain, approved_hosts, source_note)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (tenant_id, id) DO NOTHING`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (tenant_id, id) DO UPDATE
+       SET approved_hosts = EXCLUDED.approved_hosts, name = EXCLUDED.name`,
     [
       seed.tenantId,
       seed.accountId,
       seed.ventureId,
       seed.accountName,
       seed.domain,
-      [seed.domain, FIXTURE_HOST],
+      [seed.domain, ...FIXTURE_HOSTS],
       'Synthetic local fixture. Not a real merchant and not a record of any permission.',
     ],
   );

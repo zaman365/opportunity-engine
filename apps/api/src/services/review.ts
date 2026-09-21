@@ -33,7 +33,12 @@ export async function reviewFinding(
   const finding = await getFinding(tx, input.findingId);
   if (!finding) throw new ApiProblem('NOT_FOUND', 'No such finding in this workspace.');
 
-  const nextState = input.body.decision === 'confirm' ? 'confirmed' : input.body.decision === 'reject' ? 'rejected' : 'unknown';
+  const nextState =
+    input.body.decision === 'confirm'
+      ? 'confirmed'
+      : input.body.decision === 'reject'
+        ? 'rejected'
+        : 'unknown';
 
   // Shape guard first, so an illegal edge is reported as such rather than as a conflict.
   try {
@@ -127,7 +132,10 @@ async function assertConfirmable(
 ): Promise<void> {
   const links = await findingEvidenceIds(tx, finding.id);
   if (links.supports.length === 0) {
-    throw new ApiProblem('EVIDENCE_INCOMPLETE', 'This finding has no supporting evidence to confirm.');
+    throw new ApiProblem(
+      'EVIDENCE_INCOMPLETE',
+      'This finding has no supporting evidence to confirm.',
+    );
   }
   if (links.contradicts.length > 0) {
     throw new ApiProblem(
@@ -143,10 +151,16 @@ async function assertConfirmable(
   }
   const evidence = await listEvidenceByIds(tx, links.supports);
   if (evidence.length !== links.supports.length) {
-    throw new ApiProblem('EVIDENCE_INCOMPLETE', 'Some supporting evidence is no longer retrievable.');
+    throw new ApiProblem(
+      'EVIDENCE_INCOMPLETE',
+      'Some supporting evidence is no longer retrievable.',
+    );
   }
   if (evidence.some((row) => !row.complete)) {
-    throw new ApiProblem('EVIDENCE_INCOMPLETE', 'An incomplete capture cannot support a confirmed finding.');
+    throw new ApiProblem(
+      'EVIDENCE_INCOMPLETE',
+      'An incomplete capture cannot support a confirmed finding.',
+    );
   }
   const now = deps.now().getTime();
   if (evidence.some((row) => Date.parse(row.expires_at) <= now)) {

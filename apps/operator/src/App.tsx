@@ -75,7 +75,7 @@ export function App() {
             ? 'Local development · synthetic fixtures · no live scans'
             : `${session.environment} environment`}
         </span>
-        <span>MF-LINK-01 only · other detectors not enabled</span>
+        <span>{session.implemented_detectors.join(' · ')} · other detectors not implemented</span>
       </div>
 
       <header className="topbar">
@@ -162,11 +162,12 @@ function SignInHelp({ error }: { error: ApiError | NetworkError }) {
       {isAuth ? (
         <div style={{ marginTop: 'var(--s6)' }}>
           <p style={{ color: 'var(--ink-secondary)' }}>
-            This local build resolves identity from a fixture header. Pick one of the seeded
-            test identities; role and workspace still come from the database, not from this
-            choice.
+            This local build resolves identity from a fixture header. Pick one of the seeded test
+            identities; role and workspace still come from the database, not from this choice.
           </p>
-          <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s4)' }}>
+          <div
+            style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s4)' }}
+          >
             {subjects.map((subject) => (
               <button
                 key={subject}

@@ -67,7 +67,7 @@ export interface ReportBody {
 }
 
 const BASE_LIMITATIONS = [
-  'Only the pages and links listed under "inspected" were checked.',
+  'Only the pages, links and assets listed under "inspected" were checked.',
   'The effect on sales has not been measured.',
   'Private account configuration was not inspected.',
 ];
@@ -91,7 +91,10 @@ export async function createReport(
   const account = await getAccount(tx, input.body.account_id);
   if (!account) throw new ApiProblem('NOT_FOUND', 'No such account in this workspace.');
   if (!input.actor.membership.ventureIds.includes(account.venture_id)) {
-    throw new ApiProblem('VENTURE_NOT_ASSIGNED', 'This membership is not assigned to that venture.');
+    throw new ApiProblem(
+      'VENTURE_NOT_ASSIGNED',
+      'This membership is not assigned to that venture.',
+    );
   }
 
   const asOf = deps.now().toISOString();
@@ -99,7 +102,8 @@ export async function createReport(
 
   for (const ref of input.body.finding_versions) {
     const finding = await getFinding(tx, ref.finding_id);
-    if (!finding) throw new ApiProblem('NOT_FOUND', 'A referenced finding does not exist in this workspace.');
+    if (!finding)
+      throw new ApiProblem('NOT_FOUND', 'A referenced finding does not exist in this workspace.');
     if (finding.scan_id !== scan.id) {
       throw new ApiProblem('INVALID_REQUEST', 'A referenced finding belongs to a different scan.');
     }
@@ -126,7 +130,10 @@ export async function createReport(
     const links = await findingEvidenceIds(tx, finding.id);
     const evidence = await listEvidenceByIds(tx, links.supports);
     if (evidence.length === 0) {
-      throw new ApiProblem('EVIDENCE_INCOMPLETE', 'A referenced finding has no retrievable evidence.');
+      throw new ApiProblem(
+        'EVIDENCE_INCOMPLETE',
+        'A referenced finding has no retrievable evidence.',
+      );
     }
     confirmed.push({
       finding_id: finding.id,
@@ -158,7 +165,9 @@ export async function createReport(
 
   const partialReasons = Array.isArray(scan.reasons) ? scan.reasons.map(String) : [];
   const body: ReportBody = {
-    title: `${account.name} · inspected information links`,
+    // Neutral: one report can carry link findings, image findings, or neither, and the title
+    // must not describe a scope the scan did not have.
+    title: `${account.name} · inspected pages and assets`,
     scope_summary: input.body.scope_summary,
     as_of: asOf,
     language: input.body.language,
@@ -193,7 +202,9 @@ export async function createReport(
       limitations: body.limitations,
       as_of: asOf,
       reviewer_membership_id: input.actor.membership.membershipId,
-      detector_versions: [...new Set(confirmed.map((f) => `${f.detector_id}@${f.detector_version}`))],
+      detector_versions: [
+        ...new Set(confirmed.map((f) => `${f.detector_id}@${f.detector_version}`)),
+      ],
       scan_version_at_creation: scan.version,
     },
     body: body as unknown as Record<string, unknown>,

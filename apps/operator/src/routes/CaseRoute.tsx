@@ -49,9 +49,17 @@ export function CaseRoute({ session }: { session: Session }) {
     () => (timeline.data?.evidence ?? []).filter((item) => item.scan_id === scanId),
     [timeline.data, scanId],
   );
+  // The finding's own target leads the grid: for an image finding that is the image, for a
+  // link finding the destination page. Without it the reviewer has to hunt for the row the
+  // claim is about.
+  const focusUrl = useMemo(() => {
+    const cited = evidence.find((item) => finding?.evidence_ids.includes(item.id));
+    return cited?.source_url ?? null;
+  }, [evidence, finding]);
+
   const matrix = useMemo(
-    () => (scan.data ? buildMatrix(evidence, scan.data.target_url) : null),
-    [evidence, scan.data],
+    () => (scan.data ? buildMatrix(evidence, scan.data.target_url, focusUrl) : null),
+    [evidence, scan.data, focusUrl],
   );
 
   const references = useMemo(() => {
@@ -203,7 +211,8 @@ export function CaseRoute({ session }: { session: Session }) {
                 selectedEvidenceId={shown?.evidence.id ?? null}
                 onSelectEvidence={(evidenceId) => {
                   const item = evidence.find((e) => e.id === evidenceId);
-                  if (item) setSelected({ evidence: item, reference: references.get(item.id) ?? '' });
+                  if (item)
+                    setSelected({ evidence: item, reference: references.get(item.id) ?? '' });
                 }}
               />
 
@@ -223,8 +232,8 @@ export function CaseRoute({ session }: { session: Session }) {
           ) : (
             <Notice tone="unknown" title="No supported finding in this sample">
               <p>
-                The inspection completed without a supported defect in the pages it covered.
-                That is a result about this sample, not a statement about the whole store.
+                The inspection completed without a supported defect in the pages it covered. That is
+                a result about this sample, not a statement about the whole store.
               </p>
             </Notice>
           )}
@@ -266,7 +275,11 @@ function FindingPicker({
       <label htmlFor="finding-picker">
         Finding {findings.findIndex((f) => f.id === currentId) + 1} of {findings.length}
       </label>
-      <select id="finding-picker" value={currentId} onChange={(event) => onSelect(event.target.value)}>
+      <select
+        id="finding-picker"
+        value={currentId}
+        onChange={(event) => onSelect(event.target.value)}
+      >
         {findings.map((item) => (
           <option key={item.id} value={item.id}>
             {item.state} · v{item.version} · {new Date(item.captured_at).toLocaleString()}
@@ -274,8 +287,8 @@ function FindingPicker({
         ))}
       </select>
       <p className="help">
-        This account has several observations of the same root cause. Each is decided on its
-        own evidence.
+        This account has several observations of the same root cause. Each is decided on its own
+        evidence.
       </p>
     </div>
   );
@@ -344,8 +357,8 @@ function ConfirmedNext({
     <div className="seam">
       <Notice tone="confirmed" title="Confirmed by a reviewer">
         <p>
-          Recorded against version {finding.version} on{' '}
-          <Timestamp value={finding.reviewed_at} />. The report binds this exact version.
+          Recorded against version {finding.version} on <Timestamp value={finding.reviewed_at} />.
+          The report binds this exact version.
         </p>
       </Notice>
       {error ? <ErrorPanel error={error} /> : null}
@@ -360,14 +373,17 @@ function ConfirmedNext({
           data-variant="primary"
           onClick={compose}
           disabled={!canCompose || !scan || busy}
-          title={canCompose ? 'Compose a protected report from this confirmed finding.' : 'Requires the reviewer role.'}
+          title={
+            canCompose
+              ? 'Compose a protected report from this confirmed finding.'
+              : 'Requires the reviewer role.'
+          }
         >
           {busy ? 'Composing…' : 'Compose report'}
         </button>
       )}
       <p className="hint">
-        Creating a report does not send anything. External delivery is a separate, later
-        permission.
+        Creating a report does not send anything. External delivery is a separate, later permission.
       </p>
     </div>
   );

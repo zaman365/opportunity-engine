@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createApp } from '@oe/api';
-import { LocalFixtureCaptureProvider, createFixtureTargetPolicy, createPlaywrightRenderer } from '@oe/capture';
+import {
+  LocalFixtureCaptureProvider,
+  createFixtureTargetPolicy,
+  createPlaywrightRenderer,
+} from '@oe/capture';
 import { CsrfTokens, FixtureLocalIdentityProvider } from '../../apps/api/src/auth.ts';
 import type { AppDependencies } from '../../apps/api/src/context.ts';
 import { OutboxDispatcher, ScanRunner } from '@oe/scan-runner';
@@ -16,38 +20,54 @@ import { freshHarness, LOCAL_FIXTURE, type Harness } from './harness.ts';
  */
 
 const FIXTURE_ORIGIN = 'http://127.0.0.1:4179';
+/** The M2 product-image fixtures live on their own port; see fixtures/m2-server.mjs. */
+const M2_FIXTURE_ORIGIN = 'http://127.0.0.1:4180';
+const FIXTURE_ORIGINS = [FIXTURE_ORIGIN, M2_FIXTURE_ORIGIN];
 
 export interface ApiHarness extends Harness {
   deps: AppDependencies;
   app: ReturnType<typeof createApp>;
   runner: ScanRunner;
   dispatcher: OutboxDispatcher;
-  request(path: string, init?: RequestInit & { subject?: string; csrf?: boolean }): Promise<Response>;
+  request(
+    path: string,
+    init?: RequestInit & { subject?: string; csrf?: boolean },
+  ): Promise<Response>;
   json<T = unknown>(response: Response): Promise<T>;
   /** Drain the outbox until it is empty or the budget is exhausted. */
   drain(maxTicks?: number): Promise<void>;
   stop(): Promise<void>;
 }
 
-let fixtureServer: ChildProcess | null = null;
+const fixtureServers: ChildProcess[] = [];
+
+const SITES = [
+  {
+    script: 'opportunity-engine-build-kit/fixtures/server.mjs',
+    probe: `${FIXTURE_ORIGIN}/product`,
+  },
+  { script: 'fixtures/m2-server.mjs', probe: `${M2_FIXTURE_ORIGIN}/product-healthy` },
+];
 
 export async function startFixtureSite(): Promise<void> {
-  if (await fixtureReachable()) return;
-  fixtureServer = spawn('node', ['opportunity-engine-build-kit/fixtures/server.mjs'], {
-    stdio: 'ignore',
-    detached: false,
-  });
+  for (const site of SITES) {
+    if (await reachable(site.probe)) continue;
+    fixtureServers.push(spawn('node', [site.script], { stdio: 'ignore', detached: false }));
+  }
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
-    if (await fixtureReachable()) return;
+    const up = await Promise.all(SITES.map((site) => reachable(site.probe)));
+    if (up.every(Boolean)) return;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error('The local fixture site did not start. Run `npm run fixtures` manually.');
+  throw new Error(
+    'A local fixture site did not start. Run `npm run fixtures` and `npm run fixtures:m2`.',
+  );
 }
 
-async function fixtureReachable(): Promise<boolean> {
+async function reachable(url: string): Promise<boolean> {
   try {
-    const response = await fetch(`${FIXTURE_ORIGIN}/product`, { signal: AbortSignal.timeout(500) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(500) });
     return response.status === 200;
   } catch {
     return false;
@@ -55,8 +75,8 @@ async function fixtureReachable(): Promise<boolean> {
 }
 
 export function stopFixtureSite(): void {
-  fixtureServer?.kill('SIGTERM');
-  fixtureServer = null;
+  for (const server of fixtureServers) server.kill('SIGTERM');
+  fixtureServers.length = 0;
 }
 
 export async function createApiHarness(
@@ -67,7 +87,10 @@ export async function createApiHarness(
 
   const identity = new FixtureLocalIdentityProvider(base.config);
   const csrf = new CsrfTokens('local-test-secret');
-  const capture = new LocalFixtureCaptureProvider(FIXTURE_ORIGIN, await createPlaywrightRenderer());
+  const capture = new LocalFixtureCaptureProvider(
+    FIXTURE_ORIGINS,
+    await createPlaywrightRenderer(),
+  );
 
   const deps: AppDependencies = {
     config: base.config,
@@ -76,7 +99,7 @@ export async function createApiHarness(
     identity,
     csrf,
     capture,
-    targetPolicy: createFixtureTargetPolicy(FIXTURE_ORIGIN),
+    targetPolicy: createFixtureTargetPolicy(FIXTURE_ORIGINS),
     evidence: base.evidence,
     now: () => new Date(),
     newId: () => randomUUID(),
@@ -152,3 +175,4 @@ export function scanRequest(overrides: Record<string, unknown> = {}) {
 }
 
 export const FIXTURE_SITE_ORIGIN = FIXTURE_ORIGIN;
+export const M2_FIXTURE_SITE_ORIGIN = M2_FIXTURE_ORIGIN;

@@ -33,13 +33,19 @@ const SENSITIVE_QUERY_KEY =
  * parameters are still rejected. An operator therefore cannot point a local scan at an
  * arbitrary loopback service.
  */
-export function createFixtureTargetPolicy(fixtureOrigin: string): TargetPolicy {
-  const origin = new URL(fixtureOrigin);
-  const host = origin.hostname;
-  if (host !== '127.0.0.1' && host !== 'localhost' && host !== '[::1]') {
-    throw new Error('The fixture target policy only accepts a loopback origin.');
-  }
-  const expectedAuthority = origin.host.toLowerCase();
+export function createFixtureTargetPolicy(
+  fixtureOrigins: string | readonly string[],
+): TargetPolicy {
+  const list = typeof fixtureOrigins === 'string' ? [fixtureOrigins] : [...fixtureOrigins];
+  if (list.length === 0) throw new Error('At least one fixture origin is required.');
+  const origins = list.map((value) => {
+    const origin = new URL(value);
+    const host = origin.hostname;
+    if (host !== '127.0.0.1' && host !== 'localhost' && host !== '[::1]') {
+      throw new Error('The fixture target policy only accepts a loopback origin.');
+    }
+    return origin;
+  });
 
   return (raw, approvedHosts) => {
     // Control characters and raw spaces are rejected outright: they are how a URL gets
@@ -54,12 +60,14 @@ export function createFixtureTargetPolicy(fixtureOrigin: string): TargetPolicy {
     } catch {
       return { allowed: false, reason: 'invalid_url' };
     }
-    if (url.origin !== origin.origin) return { allowed: false, reason: 'host_not_approved' };
+    const origin = origins.find((candidate) => candidate.origin === url.origin);
+    if (!origin) return { allowed: false, reason: 'host_not_approved' };
     if (url.username || url.password) return { allowed: false, reason: 'embedded_credentials' };
 
     // The account allowlist still gates the target, using host:port for the fixture site.
+    const authority = origin.host.toLowerCase();
     const approved = approvedHosts.map((h) => String(h).toLowerCase().replace(/\.$/, ''));
-    if (!approved.includes(expectedAuthority)) return { allowed: false, reason: 'host_not_approved' };
+    if (!approved.includes(authority)) return { allowed: false, reason: 'host_not_approved' };
 
     if ([...url.searchParams.keys()].some((k) => SENSITIVE_QUERY_KEY.test(k))) {
       return { allowed: false, reason: 'sensitive_query' };
@@ -68,7 +76,7 @@ export function createFixtureTargetPolicy(fixtureOrigin: string): TargetPolicy {
       return { allowed: false, reason: 'potential_state_change' };
     }
     url.hash = '';
-    return { allowed: true, url: url.href, host: expectedAuthority, networkValidationRequired: true };
+    return { allowed: true, url: url.href, host: authority, networkValidationRequired: true };
   };
 }
 

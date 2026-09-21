@@ -38,17 +38,27 @@ function ipv4Verdict(address: string): AddressVerdict {
   if (a === 0) return { allowed: false, reason: 'unspecified_address', address };
   if (a === 127) return { allowed: false, reason: 'loopback_address', address };
   if (a === 10) return { allowed: false, reason: 'private_address', address };
-  if (a === 172 && b >= 16 && b <= 31) return { allowed: false, reason: 'private_address', address };
+  if (a === 172 && b >= 16 && b <= 31)
+    return { allowed: false, reason: 'private_address', address };
   if (a === 192 && b === 168) return { allowed: false, reason: 'private_address', address };
   // Cloud instance metadata, and the wider link-local block it sits in.
   if (a === 169 && b === 254) {
-    return { allowed: false, reason: c === 169 && d === 254 ? 'metadata_address' : 'link_local_address', address };
+    return {
+      allowed: false,
+      reason: c === 169 && d === 254 ? 'metadata_address' : 'link_local_address',
+      address,
+    };
   }
-  if (a === 100 && b >= 64 && b <= 127) return { allowed: false, reason: 'private_address', address };
-  if (a === 192 && b === 0 && (c === 0 || c === 2)) return { allowed: false, reason: 'reserved_address', address };
-  if (a === 198 && (b === 18 || b === 19)) return { allowed: false, reason: 'reserved_address', address };
-  if (a === 198 && b === 51 && c === 100) return { allowed: false, reason: 'reserved_address', address };
-  if (a === 203 && b === 0 && c === 113) return { allowed: false, reason: 'reserved_address', address };
+  if (a === 100 && b >= 64 && b <= 127)
+    return { allowed: false, reason: 'private_address', address };
+  if (a === 192 && b === 0 && (c === 0 || c === 2))
+    return { allowed: false, reason: 'reserved_address', address };
+  if (a === 198 && (b === 18 || b === 19))
+    return { allowed: false, reason: 'reserved_address', address };
+  if (a === 198 && b === 51 && c === 100)
+    return { allowed: false, reason: 'reserved_address', address };
+  if (a === 203 && b === 0 && c === 113)
+    return { allowed: false, reason: 'reserved_address', address };
   if (a >= 224 && a <= 239) return { allowed: false, reason: 'multicast_address', address };
   if (a >= 240) return { allowed: false, reason: 'reserved_address', address };
   return { allowed: true, address };
@@ -56,7 +66,7 @@ function ipv4Verdict(address: string): AddressVerdict {
 
 function ipv6Verdict(address: string): AddressVerdict {
   const lower = address.toLowerCase();
-  if (lower === '::' ) return { allowed: false, reason: 'unspecified_address', address };
+  if (lower === '::') return { allowed: false, reason: 'unspecified_address', address };
   if (lower === '::1') return { allowed: false, reason: 'loopback_address', address };
   // ::ffff:a.b.c.d and ::ffff:0:a.b.c.d smuggle an IPv4 destination past a naive check.
   const mapped = /^::ffff:(?:0:)?(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
@@ -64,7 +74,8 @@ function ipv6Verdict(address: string): AddressVerdict {
   if (/^fe[89ab]/.test(lower)) return { allowed: false, reason: 'link_local_address', address };
   if (/^f[cd]/.test(lower)) return { allowed: false, reason: 'private_address', address };
   if (/^ff/.test(lower)) return { allowed: false, reason: 'multicast_address', address };
-  if (lower.startsWith('64:ff9b:')) return { allowed: false, reason: 'mapped_ipv4_address', address };
+  if (lower.startsWith('64:ff9b:'))
+    return { allowed: false, reason: 'mapped_ipv4_address', address };
   if (lower.startsWith('100:')) return { allowed: false, reason: 'reserved_address', address };
   if (lower.startsWith('2001:db8')) return { allowed: false, reason: 'reserved_address', address };
   return { allowed: true, address };
@@ -92,7 +103,8 @@ export interface ResolutionVerdict {
  */
 export async function resolveAndClassify(
   hostname: string,
-  resolver: (host: string) => Promise<{ address: string }[]> = (host) => lookup(host, { all: true }),
+  resolver: (host: string) => Promise<{ address: string }[]> = (host) =>
+    lookup(host, { all: true }),
 ): Promise<ResolutionVerdict> {
   let answers: { address: string }[];
   try {

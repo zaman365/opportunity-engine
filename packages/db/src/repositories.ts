@@ -97,7 +97,14 @@ export async function insertAccount(
        (tenant_id, id, venture_id, name, canonical_domain, approved_hosts, source_note)
      VALUES (oe.tenant_context(), $1, $2, $3, $4, $5, $6)
      RETURNING ${ACCOUNT_COLUMNS}`,
-    [input.id, input.ventureId, input.name, input.canonicalDomain, input.approvedHosts, input.sourceNote],
+    [
+      input.id,
+      input.ventureId,
+      input.name,
+      input.canonicalDomain,
+      input.approvedHosts,
+      input.sourceNote,
+    ],
   );
   return result.rows[0]!;
 }
@@ -185,7 +192,10 @@ export async function insertAuthorization(
 export async function getUsableAuthorization(
   tx: QueryExecutor,
   input: { id: string; accountId: string; action: string; now: string },
-): Promise<{ row: AuthorizationRow | null; reason: 'ok' | 'not_found' | 'expired' | 'revoked' | 'action_mismatch' }> {
+): Promise<{
+  row: AuthorizationRow | null;
+  reason: 'ok' | 'not_found' | 'expired' | 'revoked' | 'action_mismatch';
+}> {
   const result = await tx.query<AuthorizationRow & { expired: boolean }>(
     `SELECT ${AUTHORIZATION_COLUMNS}, (expires_at <= $3::timestamptz) AS expired
        FROM oe.authorizations WHERE id = $1 AND account_id = $2`,
@@ -297,7 +307,9 @@ export async function insertScan(
 }
 
 export async function getScan(tx: QueryExecutor, id: string): Promise<ScanRow | null> {
-  const result = await tx.query<ScanRow>(`SELECT ${SCAN_COLUMNS} FROM oe.scans WHERE id = $1`, [id]);
+  const result = await tx.query<ScanRow>(`SELECT ${SCAN_COLUMNS} FROM oe.scans WHERE id = $1`, [
+    id,
+  ]);
   return result.rows[0] ?? null;
 }
 
@@ -376,7 +388,14 @@ export async function upsertScanStep(
            attempt = EXCLUDED.attempt,
            provider_request_id = COALESCE(EXCLUDED.provider_request_id, oe.scan_steps.provider_request_id),
            updated_at = now()`,
-    [input.id, input.scanId, input.stepKey, input.state, input.attempt, input.providerRequestId ?? null],
+    [
+      input.id,
+      input.scanId,
+      input.stepKey,
+      input.state,
+      input.attempt,
+      input.providerRequestId ?? null,
+    ],
   );
 }
 
@@ -415,7 +434,7 @@ export interface EvidenceRow {
   http_status: number | null;
   complete: boolean;
   redacted: boolean;
-  capture_role: 'source_page' | 'link_destination';
+  capture_role: 'source_page' | 'link_destination' | 'product_image';
   session_ordinal: number;
   context_key: string;
   captured_at: string;
@@ -480,7 +499,10 @@ export async function insertEvidence(
   return result.rows[0]!;
 }
 
-export async function listEvidenceForScan(tx: QueryExecutor, scanId: string): Promise<EvidenceRow[]> {
+export async function listEvidenceForScan(
+  tx: QueryExecutor,
+  scanId: string,
+): Promise<EvidenceRow[]> {
   const result = await tx.query<EvidenceRow>(
     `SELECT ${EVIDENCE_COLUMNS} FROM oe.evidence WHERE scan_id = $1
       ORDER BY capture_role, session_ordinal, captured_at`,
@@ -490,7 +512,10 @@ export async function listEvidenceForScan(tx: QueryExecutor, scanId: string): Pr
 }
 
 export async function getEvidence(tx: QueryExecutor, id: string): Promise<EvidenceRow | null> {
-  const result = await tx.query<EvidenceRow>(`SELECT ${EVIDENCE_COLUMNS} FROM oe.evidence WHERE id = $1`, [id]);
+  const result = await tx.query<EvidenceRow>(
+    `SELECT ${EVIDENCE_COLUMNS} FROM oe.evidence WHERE id = $1`,
+    [id],
+  );
   return result.rows[0] ?? null;
 }
 
@@ -586,7 +611,12 @@ export async function insertFinding(
 
 export async function linkFindingEvidence(
   tx: QueryExecutor,
-  input: { id: string; findingId: string; evidenceId: string; relationship: 'supports' | 'contradicts' },
+  input: {
+    id: string;
+    findingId: string;
+    evidenceId: string;
+    relationship: 'supports' | 'contradicts';
+  },
 ): Promise<void> {
   await tx.query(
     `INSERT INTO oe.finding_evidence (tenant_id, id, finding_id, evidence_id, relationship)
@@ -597,11 +627,17 @@ export async function linkFindingEvidence(
 }
 
 export async function getFinding(tx: QueryExecutor, id: string): Promise<FindingRow | null> {
-  const result = await tx.query<FindingRow>(`SELECT ${FINDING_COLUMNS} FROM oe.findings WHERE id = $1`, [id]);
+  const result = await tx.query<FindingRow>(
+    `SELECT ${FINDING_COLUMNS} FROM oe.findings WHERE id = $1`,
+    [id],
+  );
   return result.rows[0] ?? null;
 }
 
-export async function listFindingsForScan(tx: QueryExecutor, scanId: string): Promise<FindingRow[]> {
+export async function listFindingsForScan(
+  tx: QueryExecutor,
+  scanId: string,
+): Promise<FindingRow[]> {
   const result = await tx.query<FindingRow>(
     `SELECT ${FINDING_COLUMNS} FROM oe.findings WHERE scan_id = $1 ORDER BY captured_at, id`,
     [scanId],
@@ -619,7 +655,9 @@ export async function findingEvidenceIds(
   );
   return {
     supports: result.rows.filter((r) => r.relationship === 'supports').map((r) => r.evidence_id),
-    contradicts: result.rows.filter((r) => r.relationship === 'contradicts').map((r) => r.evidence_id),
+    contradicts: result.rows
+      .filter((r) => r.relationship === 'contradicts')
+      .map((r) => r.evidence_id),
   };
 }
 
@@ -661,7 +699,14 @@ export async function insertReview(
   await tx.query(
     `INSERT INTO oe.reviews (tenant_id, id, finding_id, finding_version, reviewer_id, decision, reason)
      VALUES (oe.tenant_context(), $1, $2, $3, $4, $5, $6)`,
-    [input.id, input.findingId, input.findingVersion, input.reviewerId, input.decision, input.reason],
+    [
+      input.id,
+      input.findingId,
+      input.findingVersion,
+      input.reviewerId,
+      input.decision,
+      input.reason,
+    ],
   );
 }
 
@@ -761,7 +806,9 @@ export async function updateOpportunity(
     [
       input.id,
       input.title ?? null,
-      input.priority === undefined || input.priority === null ? null : JSON.stringify(input.priority),
+      input.priority === undefined || input.priority === null
+        ? null
+        : JSON.stringify(input.priority),
       input.permissionState ?? null,
       input.nextAction ?? null,
     ],
@@ -918,7 +965,10 @@ export async function listReportFindings(
 }
 
 export async function getReport(tx: QueryExecutor, id: string): Promise<ReportRow | null> {
-  const result = await tx.query<ReportRow>(`SELECT ${REPORT_COLUMNS} FROM oe.reports WHERE id = $1`, [id]);
+  const result = await tx.query<ReportRow>(
+    `SELECT ${REPORT_COLUMNS} FROM oe.reports WHERE id = $1`,
+    [id],
+  );
   return result.rows[0] ?? null;
 }
 
@@ -991,7 +1041,12 @@ export async function claimIdempotencyKey(
     [input.id, input.actorId, input.operation, input.key, input.requestHash, input.expiresAt],
   );
   if (inserted.rows[0]) {
-    return { status: 'fresh', responseStatus: null, responseBody: null, recordId: inserted.rows[0].id };
+    return {
+      status: 'fresh',
+      responseStatus: null,
+      responseBody: null,
+      recordId: inserted.rows[0].id,
+    };
   }
   const existing = await tx.query<{
     id: string;
@@ -1186,6 +1241,8 @@ export interface VentureRow {
 }
 
 export async function listVentures(tx: QueryExecutor): Promise<VentureRow[]> {
-  const result = await tx.query<VentureRow>('SELECT id, slug, name, enabled FROM oe.ventures ORDER BY slug');
+  const result = await tx.query<VentureRow>(
+    'SELECT id, slug, name, enabled FROM oe.ventures ORDER BY slug',
+  );
   return result.rows;
 }

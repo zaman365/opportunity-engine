@@ -54,10 +54,7 @@ export function FindingNarrative({
 
       <section>
         <h3>02 What it may mean</h3>
-        <p>
-          A linked information page that does not load can interrupt a buying decision. That
-          is a reason to repair the link, not a measured effect on sales.
-        </p>
+        <p>{interpretationFor(finding.detector_id)}</p>
         <p style={{ marginTop: 'var(--s2)' }}>
           <Chip tone="unknown">commercial impact · {finding.commercial_impact}</Chip>
         </p>
@@ -77,8 +74,8 @@ export function FindingNarrative({
         <section>
           <h3>04 Contrary evidence</h3>
           <p>
-            Recorded observations that do not support this claim. A confirmation is blocked
-            until they are resolved.
+            Recorded observations that do not support this claim. A confirmation is blocked until
+            they are resolved.
           </p>
           <ul>
             {contrary.map((item) => (
@@ -99,6 +96,23 @@ export function FindingNarrative({
       ) : null}
     </div>
   );
+}
+
+/**
+ * The interpretation is the one place this screen says what an observation might mean, so it
+ * has to belong to the detector that produced it. A generic sentence here would attach a
+ * broken-link rationale to a broken-image finding, which is exactly the "interpretation
+ * drifting from observation" BUILD_SPEC.md §8 separates them to prevent.
+ */
+function interpretationFor(detectorId: string): string {
+  switch (detectorId) {
+    case 'MF-LINK-01':
+      return 'A linked information page that does not load can interrupt a buying decision. That is a reason to repair the link, not a measured effect on sales.';
+    case 'MF-ASSET-01':
+      return 'A product image that does not appear leaves a buyer without something they were meant to see. That is a reason to repair the asset, not a measured effect on sales.';
+    default:
+      return 'No interpretation has been written for this detector. Read the observation and its limits directly.';
+  }
 }
 
 export function findingTone(finding: Finding): { tone: Tone; label: string } {

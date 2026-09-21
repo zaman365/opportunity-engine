@@ -29,7 +29,14 @@ export function EvidenceStage({
     return (
       <div className="stage">
         <div className="stage-actions">
-          <h3 style={{ font: 'var(--text-micro)/1.4 var(--font-mono)', letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>
+          <h3
+            style={{
+              font: 'var(--text-micro)/1.4 var(--font-mono)',
+              letterSpacing: '0.09em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-muted)',
+            }}
+          >
             Artifact
           </h3>
         </div>
@@ -78,22 +85,22 @@ export function EvidenceStage({
               <strong>The stored artifact cannot be shown.</strong>
             </p>
             <p style={{ marginTop: 8 }}>{unavailableReason(evidence, expired, imageFailed)}</p>
-            <p style={{ marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-meta)' }}>
+            <p
+              style={{ marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-meta)' }}
+            >
               The recorded observation below is unaffected.
             </p>
           </div>
         )}
         <figcaption>
-          Recorded response to <code>{evidence.final_url}</code>. Synthetic local fixture —
-          not a capture of a real merchant.
+          Recorded response to <code>{evidence.final_url}</code>. Synthetic local fixture — not a
+          capture of a real merchant.
         </figcaption>
       </figure>
 
       <SourceStrip evidence={evidence} />
 
-      {zoomed ? (
-        <ArtifactViewer evidence={evidence} onClose={() => setZoomed(false)} />
-      ) : null}
+      {zoomed ? <ArtifactViewer evidence={evidence} onClose={() => setZoomed(false)} /> : null}
     </div>
   );
 }
@@ -181,7 +188,9 @@ function ArtifactViewer({ evidence, onClose }: { evidence: Evidence; onClose: ()
       }
       if (event.key === 'Tab') {
         // Two focusable stops only, so the trap is a simple wrap.
-        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>('button, [href], [tabindex="0"]');
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button, [href], [tabindex="0"]',
+        );
         if (!focusable || focusable.length === 0) return;
         const first = focusable[0]!;
         const last = focusable[focusable.length - 1]!;

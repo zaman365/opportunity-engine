@@ -8,7 +8,7 @@ DATA_MODEL.md requires resolving membership "through a separately permissioned i
 repository that only queries the cryptographically verified issuer/subject", and forbids
 granting the general runtime unrestricted membership reads. But `oe.memberships` has
 `FORCE ROW LEVEL SECURITY` with a `tenant_id = oe.tenant_context()` policy, and the tenant is
-the *answer* to the lookup, not an input — so with no context the table returns nothing.
+the _answer_ to the lookup, not an input — so with no context the table returns nothing.
 
 ## Decision
 

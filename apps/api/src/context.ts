@@ -48,6 +48,9 @@ export const ROLE_RANK: Record<MembershipRecord['role'], number> = {
   owner: 3,
 };
 
-export function hasRole(actual: MembershipRecord['role'], required: MembershipRecord['role']): boolean {
+export function hasRole(
+  actual: MembershipRecord['role'],
+  required: MembershipRecord['role'],
+): boolean {
   return ROLE_RANK[actual] >= ROLE_RANK[required];
 }

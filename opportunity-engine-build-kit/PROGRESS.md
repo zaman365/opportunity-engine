@@ -1,6 +1,6 @@
 # Progress
 
-**Kit version 2.0 · last session 21 September 2026**
+**Kit version 2.0 · last session 21 September 2026 (M2 slice 1)**
 
 ## Completed in this kit
 
@@ -17,12 +17,104 @@ VERIFICATION.md.
 | Live authentication/membership | **Partly** · Access JWT verification implemented (jose, pinned issuer/audience/algorithms) but never exercised against a real Access deployment. The local fixture identity is the only path actually run |
 | Production database/migrations | **Local only** · 8 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
 | Live public scan adapter | **Not implemented** · `BrowserRunCaptureProvider` runs the address policy then reports `not_configured`. No egress-boundary proof, no credentials |
+| Detectors | **2 of 6 implemented** · MF-LINK-01 and MF-ASSET-01, both with negative controls. MF-DATA-01, PDP-CONTENT-01, PDP-VISUAL-01 and PDP-MOBILE-01 are specified and unrequestable |
 | Persistent budget enforcement | **Implemented and tested** · SQL command functions, runtime holds `SELECT` only, concurrency asserted against real connections |
 | Human review and reports | **Implemented and tested** · versioned review with optimistic locking, immutable hash-bound report snapshot |
 | OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely |
 | Production deployment | **Not performed** · no cloud resource was created or contacted |
 
-## Session log · 21 September 2026
+## Session log · 21 September 2026 · M2 slice 1 · MF-ASSET-01
+
+**Agent:** Claude Opus 5 · **branch:** main · **milestone:** M2, first detector slice.
+
+### What was built
+
+MF-ASSET-01 end to end: new fixtures, subresource capture, a browser-measured rendered check,
+the detector, its evidence model, the contract extension, and the workbench changes to show it.
+
+The rule requires **both halves** of the proof `contracts/detectors.json` specifies — a
+resource failure *and* a rendered failure — agreeing across two independent comparable
+sessions. Each declared abstention (`blocked`, `pending_lazy_load`, `decorative_image`,
+`variant_changed`) has a fixture route and a test. Rationale in
+[ADR-017](../docs/adr/ADR-017-asset-detector.md).
+
+Images are subresources: they never change the page denominator. Each one is its own evidence
+row so a finding can cite the exact observation it rests on.
+
+### Contract handling
+
+The kit's `contracts/openapi.json` stays byte-identical. `contracts/overlay.json` states each
+M2 change as one pointer assignment with a reason; `scripts/build-contract.mjs` generates the
+served document. Tests prove regeneration is deterministic, every M1 operation and role
+survives, and request schemas only widen while response schemas may narrow.
+[ADR-018](../docs/adr/ADR-018-contract-overlay.md).
+
+### Commands run and actual results
+
+| Command | Result |
+|---|---|
+| `npm run kit:test` | 114 tests passed; 849 structural checks; 22 API operations |
+| `npm run typecheck` | Clean across node, web and e2e projects |
+| `npm run lint` | Clean |
+| `npm run format:check` | Clean — the repository is now formatted, so the gate is real |
+| `npm run contract:check` | `contracts/openapi.json` matches the overlay |
+| `npm run build` | Operator bundle built |
+| `npm run test:unit` | **119 passed** (86 → 119; 33 new for MF-ASSET-01) |
+| `npm run test:contract` | **48 passed** (29 → 48; 19 new for the generated contract) |
+| `npm run test:db` | **38 passed** |
+| `npm run test:integration` | **64 passed** (51 → 64; 13 new for MF-ASSET-01) |
+| `npm run test:e2e` | **21 passed, 7 skipped** (17 → 21) |
+
+### Fixture matrix and what each proves
+
+| Route | Verdict | Proves |
+|---|---|---|
+| `product-broken-image` | candidate, grade A, HTTP 404 | known positive |
+| `product-empty-image` | candidate, 200 with empty body | request succeeded, nothing rendered |
+| `product-healthy` | no finding | negative control |
+| `product-lazy` | no finding, "still loading when the bounded wait expired" | a slow image is not a broken one |
+| `product-decorative-broken` | no finding, 1 of 2 classified product | a decorative failure is not a product defect |
+| `product-variant` | no finding, "different product state between checks" | two states are not comparable |
+
+### Bugs found and fixed during this slice
+
+Four were truthfulness bugs rather than polish, and three of the four were caught by a test or
+a rendered screen rather than by reading the code:
+
+1. **The renderer injected markup with `setContent`**, leaving the document at `about:blank`,
+   where root-relative image paths resolve to nothing. Every image read as unrendered, which
+   would have turned every healthy page into a false positive. It now navigates to the real
+   URL with the response fulfilled from recorded bytes.
+2. **The interpretation paragraph was written for a broken link** and shown on image findings.
+3. **The banner still claimed MF-LINK-01 was the only detector.** The list now comes from the
+   server via the session, so a stale bundle cannot advertise a capability a deployment lacks.
+4. **Importing the detector list from `@oe/domain` pulled `node:net` into the browser bundle**
+   and broke every page at runtime. An ESLint rule now forbids server-only imports in anything
+   the bundle ships.
+
+Also: an off-by-one in the `<main>` range check placed an image written immediately after
+`<main>` outside the content area — that is, a page's primary product image. Found by a unit
+test written before the fixture that would have hidden it behind whitespace.
+
+### Blocked, unchanged from the last session
+
+Live capture, cloud resources, deployment, payments, outreach and the remaining four detectors.
+`/api/ready` names the missing bindings. Nothing cloud-shaped is mocked or marked complete.
+
+### Next smallest complete task
+
+**MF-DATA-01** — structured product facts conflicting with displayed facts. It reuses the page
+capture unchanged and needs one new extraction step (JSON-LD plus the visible price), with
+abstentions for `variant_unknown`, `multi_currency`, `aggregate_offer` and
+`unavailable_variant_context`. The fixture set needs a matched-variant positive, a
+multi-currency abstention and a healthy control.
+
+Before that, one thing is worth doing first: **the offer catalog is still unwired.** Two
+detectors now produce findings and nothing maps a confirmed finding to an eligible SKU. M2's
+task file puts catalog matching alongside the detectors, and doing it after two detectors
+rather than after six keeps the mapping honest while the evidence is still fresh.
+
+## Session log · 21 September 2026 · M0 and M1
 
 **Agent:** Claude Opus 5 · **branch:** main · **milestone:** M0 complete, M1 complete against
 local fixtures.

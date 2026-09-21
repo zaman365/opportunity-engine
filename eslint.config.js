@@ -15,9 +15,23 @@ export default tseslint.config(
     ],
   },
   {
-    // Node scripts and configs run outside the browser.
-    files: ['scripts/**/*.{js,mjs,ts}', '*.config.{js,ts}', 'eslint.config.js'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+    // Node scripts, fixture servers and configs run outside the browser.
+    files: [
+      'scripts/**/*.{js,mjs,ts}',
+      'fixtures/**/*.mjs',
+      '*.config.{js,ts}',
+      'eslint.config.js',
+    ],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+      },
+    },
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -36,9 +50,32 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/operator/**/*.{ts,tsx}'],
+    // The operator's own build config runs in Node, so it is exempt from the browser rules
+    // that apply to everything the bundle ships.
+    files: ['apps/operator/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
-    rules: reactHooks.configs.recommended.rules,
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      // The operator is a browser bundle. @oe/domain, @oe/db and @oe/capture reach for
+      // node:net, node:crypto and pg; importing one pulls a Node builtin into the client and
+      // breaks at runtime, not at build time. Anything the UI needs from the server comes
+      // over the wire through @oe/contracts.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@oe/domain',
+              message: 'Server-only. Take the value from the API response instead.',
+            },
+            { name: '@oe/db', message: 'Server-only.' },
+            { name: '@oe/capture', message: 'Server-only.' },
+            { name: '@oe/evidence', message: 'Server-only.' },
+          ],
+          patterns: ['node:*'],
+        },
+      ],
+    },
   },
   {
     files: ['**/*.test.ts', '**/*.test.tsx', 'tests/**/*.ts'],

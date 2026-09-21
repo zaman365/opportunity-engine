@@ -7,9 +7,18 @@ import {
   productionTargetPolicy,
 } from '@oe/capture';
 import { Database, loadDotEnv } from '@oe/db';
-import { LocalFsEvidenceStore, UnconfiguredR2EvidenceStore, type EvidenceStore } from '@oe/evidence';
+import {
+  LocalFsEvidenceStore,
+  UnconfiguredR2EvidenceStore,
+  type EvidenceStore,
+} from '@oe/evidence';
 import { loadConfig, type AppConfig } from '@oe/domain';
-import { AccessJwtIdentityProvider, CsrfTokens, FixtureLocalIdentityProvider, type IdentityProvider } from './auth.ts';
+import {
+  AccessJwtIdentityProvider,
+  CsrfTokens,
+  FixtureLocalIdentityProvider,
+  type IdentityProvider,
+} from './auth.ts';
 import type { AppDependencies } from './context.ts';
 
 /**
@@ -43,7 +52,10 @@ export async function buildDependencies(
 
   const capture =
     config.capture.adapter === 'local_fixture'
-      ? new LocalFixtureCaptureProvider(config.capture.fixtureOrigin!, await createPlaywrightRenderer())
+      ? new LocalFixtureCaptureProvider(
+          config.capture.fixtureOrigins,
+          await createPlaywrightRenderer(),
+        )
       : new BrowserRunCaptureProvider({
           endpoint: env.BROWSER_RUN_ENDPOINT ?? null,
           // ADR-005: no egress proof has been recorded, so live capture stays blocked.
@@ -52,7 +64,7 @@ export async function buildDependencies(
 
   const targetPolicy =
     config.capture.adapter === 'local_fixture'
-      ? createFixtureTargetPolicy(config.capture.fixtureOrigin!)
+      ? createFixtureTargetPolicy(config.capture.fixtureOrigins)
       : productionTargetPolicy;
 
   const evidence: EvidenceStore =

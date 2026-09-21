@@ -34,18 +34,24 @@ export function SettingsRoute({ session }: { session: Session }) {
       <div className="panel">
         <h2>Cost limits</h2>
         <p style={{ color: 'var(--ink-secondary)', marginBottom: 'var(--s4)' }}>
-          Every chargeable step reserves against all applicable scopes before it starts.
-          Automatic top-ups are not implemented, and stopping work does not reverse cost a
-          provider has already incurred.
+          Every chargeable step reserves against all applicable scopes before it starts. Automatic
+          top-ups are not implemented, and stopping work does not reverse cost a provider has
+          already incurred.
         </p>
         {budgets.status === 'ready' ? (
           <>
             {/* Owner-controlled ceilings. Per-scan caps are created per admission and belong
                 to their scan, so they are summarised rather than listed row by row. */}
             <BudgetTable budgets={budgets.data.items.filter((b) => b.scope_kind !== 'scan')} />
-            <p style={{ marginTop: 'var(--s3)', fontSize: 'var(--text-meta)', color: 'var(--ink-secondary)' }}>
-              {budgets.data.items.filter((b) => b.scope_kind === 'scan').length} scan-scoped
-              limits exist. Each belongs to one scan and is shown on that scan's record.
+            <p
+              style={{
+                marginTop: 'var(--s3)',
+                fontSize: 'var(--text-meta)',
+                color: 'var(--ink-secondary)',
+              }}
+            >
+              {budgets.data.items.filter((b) => b.scope_kind === 'scan').length} scan-scoped limits
+              exist. Each belongs to one scan and is shown on that scan's record.
             </p>
           </>
         ) : budgets.status === 'error' ? (
@@ -54,7 +60,13 @@ export function SettingsRoute({ session }: { session: Session }) {
           <Loading label="Loading cost limits" lines={3} />
         )}
         {session.role !== 'owner' ? (
-          <p style={{ marginTop: 'var(--s4)', fontSize: 'var(--text-meta)', color: 'var(--ink-secondary)' }}>
+          <p
+            style={{
+              marginTop: 'var(--s4)',
+              fontSize: 'var(--text-meta)',
+              color: 'var(--ink-secondary)',
+            }}
+          >
             Changing a limit requires the owner role.
           </p>
         ) : null}
@@ -72,7 +84,9 @@ export function SettingsRoute({ session }: { session: Session }) {
             Public intake of customer-requested scans — a later milestone with its own abuse
             controls.
           </li>
-          <li>Commerce integrations — none is connected, and none can be enabled from this screen.</li>
+          <li>
+            Commerce integrations — none is connected, and none can be enabled from this screen.
+          </li>
           <li>Outbound messaging of any kind — deliberately absent, not merely switched off.</li>
           <li>Customer billing — the ledger here is internal cost control only.</li>
           <li>Detectors beyond MF-LINK-01 — specified, not implemented.</li>
@@ -120,15 +134,15 @@ function AdapterInventory() {
       {state.missing_bindings.length > 0 ? (
         <Notice tone="attention" title="Some bindings are not configured">
           <p>
-            {state.missing_bindings.join(', ')}. Requests that need them fail with a specific
-            reason rather than returning sample data.
+            {state.missing_bindings.join(', ')}. Requests that need them fail with a specific reason
+            rather than returning sample data.
           </p>
         </Notice>
       ) : (
         <Notice tone="confirmed" title="All required bindings are present">
           <p>
-            Readiness checks configuration only. It does not contact a provider or spend
-            money, so it cannot prove a live capture would succeed.
+            Readiness checks configuration only. It does not contact a provider or spend money, so
+            it cannot prove a live capture would succeed.
           </p>
         </Notice>
       )}

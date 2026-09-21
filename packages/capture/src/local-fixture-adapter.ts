@@ -1,5 +1,13 @@
 import { classifyLink } from '@oe/domain';
-import type { CaptureOutcome, CaptureProvider, CaptureRequest, PageObservation } from './port.ts';
+import type {
+  CaptureOutcome,
+  CaptureProvider,
+  CaptureRequest,
+  ImageCapture,
+  PageObservation,
+} from './port.ts';
+import { fetchImages, parseImages } from './image-capture.ts';
+import { createFixtureTargetPolicy, type TargetPolicy } from './target-policy.ts';
 
 /**
  * Test-only transport to the kit's loopback fixture site.
@@ -15,16 +23,31 @@ import type { CaptureOutcome, CaptureProvider, CaptureRequest, PageObservation }
 export class LocalFixtureCaptureProvider implements CaptureProvider {
   readonly kind = 'local_fixture' as const;
   readonly configured = true;
-  readonly #origin: URL;
+  readonly #origins: URL[];
   readonly #screenshot: ScreenshotRenderer | null;
+  readonly #imagePolicy: TargetPolicy;
 
-  constructor(fixtureOrigin: string, screenshot: ScreenshotRenderer | null = null) {
-    this.#origin = new URL(fixtureOrigin);
-    const host = this.#origin.hostname;
-    if (host !== '127.0.0.1' && host !== 'localhost' && host !== '[::1]') {
-      throw new Error('The fixture transport only connects to a loopback origin.');
-    }
+  /**
+   * One or more loopback fixture origins. M1 uses the kit's site; M2 adds its own, so the
+   * adapter takes a set rather than forcing a second provider instance. Still loopback only,
+   * and `loadConfig` still refuses to construct this outside APP_ENV=local.
+   */
+  constructor(
+    fixtureOrigins: string | readonly string[],
+    screenshot: ScreenshotRenderer | null = null,
+  ) {
+    const list = typeof fixtureOrigins === 'string' ? [fixtureOrigins] : [...fixtureOrigins];
+    if (list.length === 0) throw new Error('At least one fixture origin is required.');
+    this.#origins = list.map((origin) => {
+      const url = new URL(origin);
+      const host = url.hostname;
+      if (host !== '127.0.0.1' && host !== 'localhost' && host !== '[::1]') {
+        throw new Error('The fixture transport only connects to a loopback origin.');
+      }
+      return url;
+    });
     this.#screenshot = screenshot;
+    this.#imagePolicy = createFixtureTargetPolicy(list);
   }
 
   async capture(request: CaptureRequest): Promise<CaptureOutcome> {
@@ -34,11 +57,12 @@ export class LocalFixtureCaptureProvider implements CaptureProvider {
     } catch {
       return { status: 'permanent_error', reason: 'invalid_url', detail: 'Target is not a URL.' };
     }
-    if (target.origin !== this.#origin.origin) {
+    if (!this.#origins.some((origin) => origin.origin === target.origin)) {
       return {
         status: 'blocked',
         reason: 'not_a_fixture_target',
-        detail: 'The fixture transport refuses any origin other than the configured loopback fixture site.',
+        detail:
+          'The fixture transport refuses any origin other than a configured loopback fixture site.',
       };
     }
 
@@ -73,10 +97,31 @@ export class LocalFixtureCaptureProvider implements CaptureProvider {
     const html = new TextDecoder().decode(buffer);
     const observation = buildObservation(response, target, html, buffer);
 
+    // Request every referenced image under the same policy and the bounded wait, then render
+    // once from exactly those responses so the painted result matches what we recorded.
+    observation.images = await fetchImages(parseImages(html, target), {
+      approvedHosts: request.approvedHosts,
+      targetPolicy: this.#imagePolicy,
+      timeoutMs: request.limits.imageTimeoutMs,
+      maxImages: request.limits.maxImages,
+      maxBytes: request.limits.maxImageBytes,
+      locale: request.locale,
+    });
+
     if (this.#screenshot) {
-      const shot = await this.#screenshot.render(html, request.viewport);
-      if (shot.ok) observation.screenshot = { body: shot.body, contentType: 'image/png' };
-      else observation.screenshotUnavailableReason = shot.reason;
+      const shot = await this.#screenshot.render({
+        html,
+        pageUrl: target.href,
+        viewport: request.viewport,
+        images: observation.images,
+        settleMs: request.limits.imageTimeoutMs,
+      });
+      if (shot.ok) {
+        observation.screenshot = { body: shot.body, contentType: 'image/png' };
+        applyRenderedState(observation.images, shot.measured);
+      } else {
+        observation.screenshotUnavailableReason = shot.reason;
+      }
     } else {
       observation.screenshotUnavailableReason = 'no_renderer_configured';
     }
@@ -92,7 +137,9 @@ export class LocalFixtureCaptureProvider implements CaptureProvider {
         locale: request.locale,
         variant: extractVariant(html),
         consent_state: 'no_consent_layer_present',
-        browser_version: this.#screenshot ? this.#screenshot.describe() : 'http-only-fixture-transport',
+        browser_version: this.#screenshot
+          ? this.#screenshot.describe()
+          : 'http-only-fixture-transport',
         test_region: null,
       },
       providerRequestId: `fixture:${request.operationKey}`,
@@ -101,13 +148,50 @@ export class LocalFixtureCaptureProvider implements CaptureProvider {
   }
 }
 
-/** Anything that can turn fixture HTML into a PNG. Keeps Playwright out of the hot path. */
+/** Anything that can turn captured HTML into a PNG and report what painted. */
 export interface ScreenshotRenderer {
   describe(): string;
-  render(
-    html: string,
-    viewport: { width: number; height: number },
-  ): Promise<{ ok: true; body: Uint8Array } | { ok: false; reason: string }>;
+  render(request: RenderRequest): Promise<RenderResult>;
+}
+
+export interface RenderRequest {
+  html: string;
+  /** The page's real URL. Root-relative image paths resolve against it. */
+  pageUrl: string;
+  viewport: { width: number; height: number };
+  /** Only these responses may reach the page; everything else is aborted. */
+  images: ImageCapture[];
+  /** How long to let deferred images settle before measuring. */
+  settleMs: number;
+}
+
+export type RenderResult =
+  | {
+      ok: true;
+      body: Uint8Array;
+      /** Per-image painted state, as the browser reported it. */
+      measured: { src: string; rendered: boolean; renderedWidth: number; renderedHeight: number }[];
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Fold the browser's measurements back onto the recorded requests.
+ *
+ * An image the renderer never reported stays `rendered: false` with zero dimensions, which is
+ * the truthful record: it did not paint. The detector then needs resource evidence as well
+ * before it will assert anything.
+ */
+function applyRenderedState(
+  images: ImageCapture[],
+  measured: { src: string; rendered: boolean; renderedWidth: number; renderedHeight: number }[],
+): void {
+  for (const image of images) {
+    const match = measured.find((entry) => entry.src === image.src);
+    if (!match) continue;
+    image.rendered = match.rendered;
+    image.renderedWidth = match.renderedWidth;
+    image.renderedHeight = match.renderedHeight;
+  }
 }
 
 /**
@@ -121,8 +205,10 @@ export interface ScreenshotRenderer {
  */
 const SOFT_404 =
   /(page (is |was )?not (here|found)|page does ?n[o']?t exist|not found|nicht gefunden|seite existiert nicht|fehler 404)/i;
-const CHALLENGE = /(access (check|denied)|verify you are human|captcha|unusual traffic|rate limit)/i;
-const LOGIN_WALL = /(<input[^>]+type=["']password|sign in to continue|please log in|anmelden um fortzufahren)/i;
+const CHALLENGE =
+  /(access (check|denied)|verify you are human|captcha|unusual traffic|rate limit)/i;
+const LOGIN_WALL =
+  /(<input[^>]+type=["']password|sign in to continue|please log in|anmelden um fortzufahren)/i;
 
 function buildObservation(
   response: Response,
@@ -143,6 +229,7 @@ function buildObservation(
     bodyBytes: buffer.byteLength,
     contentType: response.headers.get('content-type'),
     links: extractLinks(html, target),
+    images: [],
     body: buffer,
     screenshot: null,
     screenshotUnavailableReason: null,
@@ -184,7 +271,8 @@ function extractLinks(html: string, base: URL): { text: string; href: string }[]
   while ((match = anchor.exec(html)) !== null) {
     const href = match[2]!;
     const text = stripTags(match[3]!).replace(/\s+/g, ' ').trim();
-    if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
+    if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:'))
+      continue;
     let resolved: string;
     try {
       resolved = new URL(href, base).href;

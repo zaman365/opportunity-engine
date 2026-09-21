@@ -36,11 +36,19 @@ describe('scoring parity', () => {
 
   it('rejects an omitted dimension rather than scoring it as zero', () => {
     // @ts-expect-error deliberately incomplete input
-    expect(() => scoreOpportunity({ fit: 1, need: 1, deliverability: 1, timing: 1 })).toThrow(TypeError);
+    expect(() => scoreOpportunity({ fit: 1, need: 1, deliverability: 1, timing: 1 })).toThrow(
+      TypeError,
+    );
   });
 
   it('reports an interval and coverage when an input is unknown', () => {
-    const score = scoreOpportunity({ fit: 0.9, need: 0.85, deliverability: 0.9, timing: null, value: 0.7 });
+    const score = scoreOpportunity({
+      fit: 0.9,
+      need: 0.85,
+      deliverability: 0.9,
+      timing: null,
+      value: 0.7,
+    });
     expect(score.pointScore).toBeNull();
     expect(score.rankable).toBe(false);
     expect(score.lowerBound).toBeLessThan(score.upperBound);
@@ -124,23 +132,40 @@ describe('state machine parity', () => {
   it('has the same edges as contracts/state-machines.json', () => {
     const contract = JSON.parse(
       readFileSync(
-        new URL('../../opportunity-engine-build-kit/contracts/state-machines.json', import.meta.url),
+        new URL(
+          '../../opportunity-engine-build-kit/contracts/state-machines.json',
+          import.meta.url,
+        ),
         'utf8',
       ),
     ).machines;
     expect(JSON.parse(JSON.stringify(MACHINES))).toEqual(contract);
-    expect(JSON.parse(JSON.stringify(MACHINES))).toEqual(JSON.parse(JSON.stringify(refState.MACHINES)));
+    expect(JSON.parse(JSON.stringify(MACHINES))).toEqual(
+      JSON.parse(JSON.stringify(refState.MACHINES)),
+    );
   });
 
   it('rejects a stale expected version', () => {
     expect(() =>
-      transition({ kind: 'finding', state: 'candidate', version: 3, expectedVersion: 2, next: 'confirmed' }),
+      transition({
+        kind: 'finding',
+        state: 'candidate',
+        version: 3,
+        expectedVersion: 2,
+        next: 'confirmed',
+      }),
     ).toThrowError(/Reload and re-review/);
   });
 
   it('rejects an edge the contract does not allow', () => {
     expect(() =>
-      transition({ kind: 'report', state: 'draft', version: 1, expectedVersion: 1, next: 'published' }),
+      transition({
+        kind: 'report',
+        state: 'draft',
+        version: 1,
+        expectedVersion: 1,
+        next: 'published',
+      }),
     ).toThrowError(/cannot transition/);
   });
 });
@@ -199,11 +224,17 @@ describe('MF-LINK-01 parity', () => {
     },
     'mismatched status': {
       ...base,
-      observations: [observation(), observation({ sessionId: 's2', evidenceId: 'e2', status: 410 })],
+      observations: [
+        observation(),
+        observation({ sessionId: 's2', evidenceId: 'e2', status: 410 }),
+      ],
     },
     'different variant context': {
       ...base,
-      observations: [observation(), observation({ sessionId: 's2', evidenceId: 'e2', contextKey: 'other' })],
+      observations: [
+        observation(),
+        observation({ sessionId: 's2', evidenceId: 'e2', contextKey: 'other' }),
+      ],
     },
     'stale capture': {
       ...base,

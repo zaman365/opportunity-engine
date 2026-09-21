@@ -67,7 +67,8 @@ export function ReportRoute({ session }: { session: Session }) {
   const resource = useResource<ReportPayload>(id ? `/reports/${id}` : null);
 
   if (resource.status === 'loading') return <Loading label="Loading the report" lines={6} />;
-  if (resource.status === 'error') return <ErrorPanel error={resource.error} onRetry={resource.reload} />;
+  if (resource.status === 'error')
+    return <ErrorPanel error={resource.error} onRetry={resource.reload} />;
 
   const report = resource.data;
 
@@ -90,12 +91,14 @@ export function ReportRoute({ session }: { session: Session }) {
         <div>
           <h1>Report</h1>
           <p>
-            A protected internal version. Nothing here is sent to a customer: external
-            delivery is a separate, later permission.
+            A protected internal version. Nothing here is sent to a customer: external delivery is a
+            separate, later permission.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
-          <Chip tone={report.state === 'published' ? 'confirmed' : 'attention'}>{report.state}</Chip>
+          <Chip tone={report.state === 'published' ? 'confirmed' : 'attention'}>
+            {report.state}
+          </Chip>
           <ReportActions report={report} session={session} onChanged={resource.reload} />
         </div>
       </div>
@@ -137,7 +140,11 @@ export function ReportRoute({ session }: { session: Session }) {
             </p>
           ) : (
             body.confirmed_findings.map((finding) => (
-              <div key={finding.finding_id} className="finding" style={{ marginBottom: 'var(--s8)' }}>
+              <div
+                key={finding.finding_id}
+                className="finding"
+                style={{ marginBottom: 'var(--s8)' }}
+              >
                 <p>{finding.claim}</p>
                 <p style={{ marginTop: 'var(--s3)', color: 'var(--ink-secondary)' }}>
                   Scope: {finding.scope}
@@ -171,10 +178,15 @@ export function ReportRoute({ session }: { session: Session }) {
                     ))}
                   </tbody>
                 </table>
-                <p style={{ marginTop: 'var(--s3)', fontSize: 'var(--text-meta)', color: 'var(--ink-muted)' }}>
+                <p
+                  style={{
+                    marginTop: 'var(--s3)',
+                    fontSize: 'var(--text-meta)',
+                    color: 'var(--ink-muted)',
+                  }}
+                >
                   Detector {finding.detector_id} v{finding.detector_version}, finding version{' '}
-                  {finding.version}. Times are shown in {localZone()}; the recorded values are
-                  UTC.
+                  {finding.version}. Times are shown in {localZone()}; the recorded values are UTC.
                 </p>
               </div>
             ))
@@ -204,7 +216,7 @@ export function ReportRoute({ session }: { session: Session }) {
           <p>
             {body.no_supported_defect
               ? 'No repair is proposed from this sample. A wider inspection can be authorised separately.'
-              : 'A scoped proposal can be requested for the specific link repair described above. Pricing and capacity are not set in this milestone.'}
+              : 'A scoped proposal can be requested for the specific repairs described above. Pricing and capacity are not set in this milestone.'}
           </p>
         </section>
       </article>

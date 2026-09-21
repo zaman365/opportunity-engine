@@ -11,7 +11,7 @@ import {
   ReviewFinding as ReviewFindingSchema,
   type Session,
 } from '@oe/contracts';
-import { missingBindings, transition, TransitionError } from '@oe/domain';
+import { IMPLEMENTED_DETECTORS, missingBindings, transition, TransitionError } from '@oe/domain';
 import {
   advanceReport,
   advanceScan,
@@ -93,19 +93,31 @@ export function createApp(deps: AppDependencies) {
     // message, no database constraint text reaches the client (SECURITY.md).
     console.error(`[${id}] unhandled`, error);
     return problemResponse(
-      new ApiProblem('DEPENDENCY_UNAVAILABLE', 'The request could not be completed. Quote the request ID.'),
+      new ApiProblem(
+        'DEPENDENCY_UNAVAILABLE',
+        'The request could not be completed. Quote the request ID.',
+      ),
       id,
     );
   });
 
   app.notFound((c) =>
-    problemResponse(new ApiProblem('NOT_FOUND', 'No such endpoint.'), c.get('requestId') ?? 'unknown'),
+    problemResponse(
+      new ApiProblem('NOT_FOUND', 'No such endpoint.'),
+      c.get('requestId') ?? 'unknown',
+    ),
   );
 
   /* ------------------------------------------------------------ health */
 
   // Liveness: the process answers. It says nothing about dependencies.
-  app.get('/api/health', (c) => c.json({ status: 'healthy' as const, environment: deps.config.environment, missing_bindings: [] }));
+  app.get('/api/health', (c) =>
+    c.json({
+      status: 'healthy' as const,
+      environment: deps.config.environment,
+      missing_bindings: [],
+    }),
+  );
 
   // Readiness: which bindings a request would need and does not have. No money is spent and
   // no provider is contacted to answer it.
@@ -136,6 +148,7 @@ export function createApp(deps: AppDependencies) {
       venture_ids: actor.membership.ventureIds,
       csrf_token: deps.csrf.issue(actor.identity),
       environment: deps.config.environment,
+      implemented_detectors: [...IMPLEMENTED_DETECTORS],
     };
     return c.json(session);
   });
@@ -165,7 +178,10 @@ export function createApp(deps: AppDependencies) {
     const body = parse(CreateAccount, await readJsonBody(c.req.raw));
     const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), body);
     if (!actor.membership.ventureIds.includes(body.venture_id)) {
-      throw new ApiProblem('VENTURE_NOT_ASSIGNED', 'This membership is not assigned to that venture.');
+      throw new ApiProblem(
+        'VENTURE_NOT_ASSIGNED',
+        'This membership is not assigned to that venture.',
+      );
     }
     // An approved host must be a real public hostname; the account row is the allowlist the
     // scan policy later trusts, so a bad value here would widen every future scan.
@@ -194,9 +210,16 @@ export function createApp(deps: AppDependencies) {
         objectId: row.id,
         objectVersion: row.version,
         requestId: c.get('requestId'),
-        detail: { canonical_domain: row.canonical_domain, approved_host_count: row.approved_hosts.length },
+        detail: {
+          canonical_domain: row.canonical_domain,
+          approved_host_count: row.approved_hosts.length,
+        },
       });
-      await completeIdempotencyKey(tx, { recordId: claim.recordId, responseStatus: 201, responseBody: account });
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 201,
+        responseBody: account,
+      });
       return { status: 201, body: account };
     });
     return c.json(created.body as object, 201);
@@ -206,7 +229,10 @@ export function createApp(deps: AppDependencies) {
     const actor = c.get('actor');
     const accountId = uuidParam(c.req.param('id'));
     const body = parse(AuthorizationInput, await readJsonBody(c.req.raw));
-    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { accountId, ...body });
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), {
+      accountId,
+      ...body,
+    });
     const expiresAt = Date.parse(body.expires_at);
     if (expiresAt <= deps.now().getTime()) {
       throw new ApiProblem('INVALID_REQUEST', 'An authorization must expire in the future.');
@@ -265,7 +291,8 @@ export function createApp(deps: AppDependencies) {
     });
     return c.json({
       items: result.items,
-      next_cursor: result.more && result.last ? encodeCursor(result.last.created_at, result.last.id) : null,
+      next_cursor:
+        result.more && result.last ? encodeCursor(result.last.created_at, result.last.id) : null,
     });
   });
 
@@ -357,10 +384,17 @@ export function createApp(deps: AppDependencies) {
         expectedVersion: body.expected_version,
         nextState: 'cancel_requested',
         // COPY.md: stopping new work does not undo cost already incurred.
-        reasons: [...(row.reasons ?? []).map(String), 'Cancellation requested by operator. In-flight provider cost may still settle.'],
+        reasons: [
+          ...(row.reasons ?? []).map(String),
+          'Cancellation requested by operator. In-flight provider cost may still settle.',
+        ],
         cancelRequestedAt: deps.now().toISOString(),
       });
-      if (!updated) throw new ApiProblem('VERSION_CONFLICT', 'The scan changed since it was read. Reload and retry.');
+      if (!updated)
+        throw new ApiProblem(
+          'VERSION_CONFLICT',
+          'The scan changed since it was read. Reload and retry.',
+        );
       await insertAuditEvent(tx, {
         id: deps.newId(),
         actorSubject: actor.identity.subject,
@@ -372,7 +406,11 @@ export function createApp(deps: AppDependencies) {
         detail: { from_state: row.state },
       });
       const scan = await projectScan(tx, deps, updated);
-      await completeIdempotencyKey(tx, { recordId: claim.recordId, responseStatus: 202, responseBody: scan });
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 202,
+        responseBody: scan,
+      });
       return { status: 202, body: scan };
     });
     return c.json(result.body as object, 202);
@@ -406,10 +444,16 @@ export function createApp(deps: AppDependencies) {
       return row;
     });
     if (found.redacted) {
-      throw new ApiProblem('NOT_FOUND', 'This artifact was redacted and its bytes are no longer available.');
+      throw new ApiProblem(
+        'NOT_FOUND',
+        'This artifact was redacted and its bytes are no longer available.',
+      );
     }
     if (Date.parse(found.expires_at) <= deps.now().getTime()) {
-      throw new ApiProblem('NOT_FOUND', 'This artifact passed its retention date and is no longer stored.');
+      throw new ApiProblem(
+        'NOT_FOUND',
+        'This artifact passed its retention date and is no longer stored.',
+      );
     }
     if (!found.object_key) {
       throw new ApiProblem('NOT_FOUND', 'No artifact was stored for this observation.');
@@ -423,7 +467,9 @@ export function createApp(deps: AppDependencies) {
       headers: {
         // Raster only. An HTML artifact is never served into the operator origin
         // (SECURITY.md); it downloads as an inert attachment instead.
-        'content-type': object.contentType.startsWith('image/') ? object.contentType : 'application/octet-stream',
+        'content-type': object.contentType.startsWith('image/')
+          ? object.contentType
+          : 'application/octet-stream',
         'content-disposition': object.contentType.startsWith('image/') ? 'inline' : 'attachment',
         'cache-control': 'private, no-store',
         'x-content-type-options': 'nosniff',
@@ -454,7 +500,8 @@ export function createApp(deps: AppDependencies) {
     });
     return c.json({
       items: result.items,
-      next_cursor: result.more && result.last ? encodeCursor(result.last.updated_at, result.last.id) : null,
+      next_cursor:
+        result.more && result.last ? encodeCursor(result.last.updated_at, result.last.id) : null,
     });
   });
 
@@ -473,7 +520,8 @@ export function createApp(deps: AppDependencies) {
         const finding = await getFinding(tx, findingId);
         if (!finding) continue;
         const links = await findingEvidenceIds(tx, finding.id);
-        for (const evidenceId of [...links.supports, ...links.contradicts]) evidenceIds.add(evidenceId);
+        for (const evidenceId of [...links.supports, ...links.contradicts])
+          evidenceIds.add(evidenceId);
         findings.push(toFinding(finding, links.supports, links.contradicts));
       }
       const evidence = await listEvidenceByIds(tx, [...evidenceIds]);
@@ -532,7 +580,11 @@ export function createApp(deps: AppDependencies) {
       });
       const links = await findingEvidenceIds(tx, updated.id);
       const projected = toFinding(updated, links.supports, links.contradicts);
-      await completeIdempotencyKey(tx, { recordId: claim.recordId, responseStatus: 200, responseBody: projected });
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 200,
+        responseBody: projected,
+      });
       return { status: 200, body: projected };
     });
     return c.json(result.body as object, 200);
@@ -550,7 +602,11 @@ export function createApp(deps: AppDependencies) {
       const created = await createReport(tx, deps, { actor, body, requestId: c.get('requestId') });
       const bound = await listReportFindings(tx, created.row.id);
       const report = toReport(created.row, bound);
-      await completeIdempotencyKey(tx, { recordId: claim.recordId, responseStatus: 201, responseBody: report });
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 201,
+        responseBody: report,
+      });
       return { status: 201, body: report };
     });
     return c.json(result.body as object, 201);
@@ -584,7 +640,11 @@ export function createApp(deps: AppDependencies) {
       const actor = c.get('actor');
       const id = uuidParam(c.req.param('id'));
       const body = parse(ExpectedVersion, await readJsonBody(c.req.raw));
-      const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { id, path, ...body });
+      const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), {
+        id,
+        path,
+        ...body,
+      });
       const result = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
         const claim = await claimOrReplay(tx, deps, actor, `report.${path}`, key, requestHash);
         if (claim.replay) return claim.replay;
@@ -617,7 +677,10 @@ export function createApp(deps: AppDependencies) {
           ...(next === 'revoked' ? { revokeReason: 'Revoked by reviewer.' } : {}),
         });
         if (!updated) {
-          throw new ApiProblem('VERSION_CONFLICT', 'The report changed since it was read. Reload and retry.');
+          throw new ApiProblem(
+            'VERSION_CONFLICT',
+            'The report changed since it was read. Reload and retry.',
+          );
         }
         await insertAuditEvent(tx, {
           id: deps.newId(),
@@ -630,7 +693,11 @@ export function createApp(deps: AppDependencies) {
           detail: { from_state: row.state, to_state: next, body_sha256: updated.body_sha256 },
         });
         const report = toReport(updated, bound);
-        await completeIdempotencyKey(tx, { recordId: claim.recordId, responseStatus: 200, responseBody: report });
+        await completeIdempotencyKey(tx, {
+          recordId: claim.recordId,
+          responseStatus: 200,
+          responseBody: report,
+        });
         return { status: 200, body: report };
       });
       return c.json(result.body as object, 200);
@@ -669,10 +736,18 @@ export function createApp(deps: AppDependencies) {
         objectId: id,
         objectVersion: updated.version,
         requestId: c.get('requestId'),
-        detail: { limit_micro: updated.limit_micro, currency: updated.currency, reason: body.reason },
+        detail: {
+          limit_micro: updated.limit_micro,
+          currency: updated.currency,
+          reason: body.reason,
+        },
       });
       const budget = toBudget(updated);
-      await completeIdempotencyKey(tx, { recordId: claim.recordId, responseStatus: 200, responseBody: budget });
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 200,
+        responseBody: budget,
+      });
       return { status: 200, body: budget };
     });
     return c.json(result.body as object, 200);
@@ -704,7 +779,11 @@ export function createApp(deps: AppDependencies) {
         detail: { reason: body.reason },
       });
       const budget = toBudget(updated);
-      await completeIdempotencyKey(tx, { recordId: claim.recordId, responseStatus: 200, responseBody: budget });
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 200,
+        responseBody: budget,
+      });
       return { status: 200, body: budget };
     });
     return c.json(result.body as object, 200);
@@ -776,7 +855,10 @@ export function createApp(deps: AppDependencies) {
 
 /* ----------------------------------------------------------- helpers */
 
-function parse<T>(schema: { safeParse: (value: unknown) => { success: boolean; data?: T; error?: unknown } }, value: unknown): T {
+function parse<T>(
+  schema: { safeParse: (value: unknown) => { success: boolean; data?: T; error?: unknown } },
+  value: unknown,
+): T {
   const result = schema.safeParse(value);
   if (!result.success || result.data === undefined) {
     throw new ApiProblem('INVALID_REQUEST', describeZodError(result.error));
@@ -825,14 +907,25 @@ function listParams(limitRaw: string | undefined, cursorRaw: string | undefined)
  */
 function assertVenture(actor: RequestActor, ventureId: string): void {
   if (!actor.membership.ventureIds.includes(ventureId)) {
-    throw new ApiProblem('VENTURE_NOT_ASSIGNED', 'This membership is not assigned to that venture.');
+    throw new ApiProblem(
+      'VENTURE_NOT_ASSIGNED',
+      'This membership is not assigned to that venture.',
+    );
   }
 }
 
-function transitionProblem(error: unknown, from: string, to: string, currentVersion: number): ApiProblem {
+function transitionProblem(
+  error: unknown,
+  from: string,
+  to: string,
+  currentVersion: number,
+): ApiProblem {
   if (error instanceof TransitionError) {
     if (error.code === 'VERSION_CONFLICT') {
-      return new ApiProblem('VERSION_CONFLICT', `This record is now at version ${currentVersion}. Reload and retry.`);
+      return new ApiProblem(
+        'VERSION_CONFLICT',
+        `This record is now at version ${currentVersion}. Reload and retry.`,
+      );
     }
     return new ApiProblem('INVALID_TRANSITION', `A ${from} record cannot become ${to}.`);
   }
@@ -870,7 +963,10 @@ async function claimOrReplay(
         'An earlier request with this Idempotency-Key has not finished. Retry in a moment.',
       );
     }
-    return { recordId: claim.recordId, replay: { status: claim.responseStatus, body: claim.responseBody } };
+    return {
+      recordId: claim.recordId,
+      replay: { status: claim.responseStatus, body: claim.responseBody },
+    };
   }
   return { recordId: claim.recordId, replay: null };
 }

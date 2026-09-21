@@ -22,7 +22,8 @@ function looksLikeSoft404(html: string): boolean {
 
 describe('prominent text extraction', () => {
   it('reads the title and headings, not the whole body', () => {
-    const html = '<title>Shop</title><h1>Everyday overshirt</h1><p>Body copy about page not found.</p>';
+    const html =
+      '<title>Shop</title><h1>Everyday overshirt</h1><p>Body copy about page not found.</p>';
     const text = prominentText(html);
     expect(text).toContain('Shop');
     expect(text).toContain('Everyday overshirt');

@@ -113,7 +113,9 @@ describe('session and membership', () => {
 
 describe('admission safety', () => {
   it('refuses a host the account has not approved', async () => {
-    const { response } = await admitScan({ target_url: 'https://not-approved.example.com/product' });
+    const { response } = await admitScan({
+      target_url: 'https://not-approved.example.com/product',
+    });
     expect(response.status).toBe(422);
     expect((await h.json<{ code: string }>(response)).code).toBe('TARGET_NOT_APPROVED');
   });
@@ -125,12 +127,15 @@ describe('admission safety', () => {
   });
 
   it('refuses a URL carrying a token-like query parameter', async () => {
-    const { response } = await admitScan({ target_url: `${FIXTURE_SITE_ORIGIN}/product?token=abc` });
+    const { response } = await admitScan({
+      target_url: `${FIXTURE_SITE_ORIGIN}/product?token=abc`,
+    });
     expect(response.status).toBe(422);
   });
 
-  it('refuses a detector outside the enabled pack', async () => {
-    const { response } = await admitScan({ detectors: ['MF-ASSET-01'] });
+  it('refuses a detector that is specified but not implemented', async () => {
+    // contracts/detectors.json specifies six detectors; this build implements two.
+    const { response } = await admitScan({ detectors: ['PDP-VISUAL-01'] });
     expect(response.status).toBe(422);
     expect((await h.json<{ code: string }>(response)).code).toBe('INVALID_REQUEST');
   });
@@ -244,9 +249,10 @@ describe('the complete journey', () => {
     expect(scan.coverage.captured_unique_pages).toBe(2);
     expect(scan.evidence_ids.length).toBeGreaterThanOrEqual(4);
 
-    const timeline = await h.json<{ evidence: Evidence[]; steps: { step_key: string; state: string }[] }>(
-      await h.request(`/api/v1/scans/${scanId}/timeline`),
-    );
+    const timeline = await h.json<{
+      evidence: Evidence[];
+      steps: { step_key: string; state: string }[];
+    }>(await h.request(`/api/v1/scans/${scanId}/timeline`));
     const destination = timeline.evidence.filter((e) => e.source_url.includes('/size-guide'));
     expect(destination).toHaveLength(2);
     // Two independent sessions, not one request recorded twice.
@@ -280,7 +286,9 @@ describe('the complete journey', () => {
   });
 
   it('serves the captured screenshot only through the tenant-scoped route', async () => {
-    const detail = await h.json<{ evidence: Evidence[] }>(await h.request(`/api/v1/findings/${findingId}`));
+    const detail = await h.json<{ evidence: Evidence[] }>(
+      await h.request(`/api/v1/findings/${findingId}`),
+    );
     const withArtifact = detail.evidence.find((e) => e.content_available);
     expect(withArtifact, 'the fixture capture produced no artifact').toBeDefined();
 
@@ -463,9 +471,13 @@ describe('the complete journey', () => {
   });
 
   it('shows the opportunity with an interval score, not a false point estimate', async () => {
-    const list = await h.json<{ items: { id: string; priority: { pointScore: number | null; unknown: string[] } | null; next_action: string }[] }>(
-      await h.request('/api/v1/opportunities'),
-    );
+    const list = await h.json<{
+      items: {
+        id: string;
+        priority: { pointScore: number | null; unknown: string[] } | null;
+        next_action: string;
+      }[];
+    }>(await h.request('/api/v1/opportunities'));
     expect(list.items.length).toBeGreaterThanOrEqual(1);
     const opportunity = list.items[0]!;
     expect(opportunity.priority!.pointScore).toBeNull();
@@ -482,7 +494,12 @@ describe('cross-tenant access through the API', () => {
            state, version, expected_unique_pages, requested_by)
          VALUES (oe.tenant_context(), gen_random_uuid(), $1, $2, $3, 'https://modewerk.test/p',
            'queued', 1, 2, $4) RETURNING id`,
-        [LOCAL_FIXTURE.accountB, LOCAL_FIXTURE.ventureB, LOCAL_FIXTURE.authorizationB, LOCAL_FIXTURE.ownerB],
+        [
+          LOCAL_FIXTURE.accountB,
+          LOCAL_FIXTURE.ventureB,
+          LOCAL_FIXTURE.authorizationB,
+          LOCAL_FIXTURE.ownerB,
+        ],
       );
       return result.rows[0]!.id;
     });
@@ -502,7 +519,9 @@ describe('cross-tenant access through the API', () => {
   it('never lists another tenant’s accounts or scans', async () => {
     const accounts = await h.json<{ items: { id: string }[] }>(await h.request('/api/v1/accounts'));
     expect(accounts.items.map((a) => a.id)).not.toContain(LOCAL_FIXTURE.accountB);
-    const scans = await h.json<{ items: { account_id: string }[] }>(await h.request('/api/v1/scans'));
+    const scans = await h.json<{ items: { account_id: string }[] }>(
+      await h.request('/api/v1/scans'),
+    );
     expect(scans.items.every((s) => s.account_id === LOCAL_FIXTURE.accountA)).toBe(true);
   });
 });

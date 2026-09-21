@@ -130,7 +130,11 @@ describe('permission and cost gates at execution time', () => {
       (await listBudgets(tx)).find((b) => b.scope_kind === 'tenant')!,
     );
     await h.db.withTenant(LOCAL_FIXTURE.tenantA, (tx) =>
-      setBudgetPaused(tx, { budgetId: tenantBudget.id, expectedVersion: tenantBudget.version, paused: true }),
+      setBudgetPaused(tx, {
+        budgetId: tenantBudget.id,
+        expectedVersion: tenantBudget.version,
+        paused: true,
+      }),
     );
     try {
       const response = await h.request('/api/v1/scans', {
@@ -142,15 +146,24 @@ describe('permission and cost gates at execution time', () => {
 
       // No scan row was created for a refused admission.
       const scans = await h.json<{ items: Scan[] }>(await h.request('/api/v1/scans'));
-      expect(scans.items.some((s) => s.state === 'queued' && s.coverage.captured_unique_pages === 0 && s.blocked_reason === null)).toBe(
-        scans.items.some((s) => s.state === 'queued'),
-      );
+      expect(
+        scans.items.some(
+          (s) =>
+            s.state === 'queued' &&
+            s.coverage.captured_unique_pages === 0 &&
+            s.blocked_reason === null,
+        ),
+      ).toBe(scans.items.some((s) => s.state === 'queued'));
     } finally {
       const paused = await h.db.withTenant(LOCAL_FIXTURE.tenantA, async (tx) =>
         (await listBudgets(tx)).find((b) => b.id === tenantBudget.id)!,
       );
       await h.db.withTenant(LOCAL_FIXTURE.tenantA, (tx) =>
-        setBudgetPaused(tx, { budgetId: paused.id, expectedVersion: paused.version, paused: false }),
+        setBudgetPaused(tx, {
+          budgetId: paused.id,
+          expectedVersion: paused.version,
+          paused: false,
+        }),
       );
     }
   });
@@ -173,7 +186,9 @@ describe('permission and cost gates at execution time', () => {
 });
 
 /** Run one statement batch as the migration role, for setup a runtime role cannot do. */
-async function withMigrationConnection(fn: (client: InstanceType<typeof import('pg').default.Client>) => Promise<void>) {
+async function withMigrationConnection(
+  fn: (client: InstanceType<typeof import('pg').default.Client>) => Promise<void>,
+) {
   const pg = (await import('pg')).default;
   const client = new pg.Client({ connectionString: process.env.MIGRATION_DATABASE_URL! });
   await client.connect();
@@ -329,7 +344,9 @@ describe('review integrity', () => {
         acknowledged_limitations: true,
       }),
     });
-    const detail = await h.json<{ finding: Finding }>(await h.request(`/api/v1/findings/${findingId}`));
+    const detail = await h.json<{ finding: Finding }>(
+      await h.request(`/api/v1/findings/${findingId}`),
+    );
     expect(detail.finding.state).toBe('rejected');
 
     // A rejected finding is terminal: it cannot be quietly revived.
@@ -354,7 +371,10 @@ describe('review integrity', () => {
     // on the migration connection because the runtime role deliberately cannot edit
     // captured_at — which is the point of the column grants.
     await withMigrationConnection(async (client) => {
-      await client.query('SELECT set_config($1, $2, true)', ['oe.tenant_id', LOCAL_FIXTURE.tenantA]);
+      await client.query('SELECT set_config($1, $2, true)', [
+        'oe.tenant_id',
+        LOCAL_FIXTURE.tenantA,
+      ]);
       await client.query(
         `UPDATE oe.evidence
             SET captured_at = now() - interval '40 days',
@@ -435,7 +455,11 @@ describe('unconfigured providers fail closed', () => {
     try {
       unconfigured.deps.config = {
         ...unconfigured.deps.config,
-        capture: { ...unconfigured.deps.config.capture, adapter: 'browser_run', liveEnabled: false },
+        capture: {
+          ...unconfigured.deps.config.capture,
+          adapter: 'browser_run',
+          liveEnabled: false,
+        },
       };
       const ready = await unconfigured.app.fetch(new Request('http://127.0.0.1:4173/api/ready'));
       expect(ready.status).toBe(503);
@@ -459,7 +483,14 @@ describe('unconfigured providers fail closed', () => {
       viewport: { width: 1280, height: 900 },
       locale: 'de-DE',
       operationKey: 'k',
-      limits: { timeoutMs: 1000, maxBytes: 1000, maxHops: 3 },
+      limits: {
+        timeoutMs: 1000,
+        maxBytes: 1000,
+        maxHops: 3,
+        imageTimeoutMs: 500,
+        maxImages: 4,
+        maxImageBytes: 1000,
+      },
     });
     expect(outcome.status).not.toBe('captured');
   });

@@ -15,7 +15,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@oe/contracts': fileURLToPath(new URL('../../packages/contracts/src/index.ts', import.meta.url)),
+      '@oe/contracts': fileURLToPath(
+        new URL('../../packages/contracts/src/index.ts', import.meta.url),
+      ),
     },
   },
   server: {

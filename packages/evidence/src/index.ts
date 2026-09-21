@@ -28,7 +28,10 @@ export interface EvidenceStore {
     contentType: string;
     body: Uint8Array;
   }): Promise<StoredObject>;
-  get(input: { tenantId: string; objectKey: string }): Promise<{ body: Uint8Array; contentType: string } | null>;
+  get(input: {
+    tenantId: string;
+    objectKey: string;
+  }): Promise<{ body: Uint8Array; contentType: string } | null>;
 }
 
 export function sha256Hex(body: Uint8Array): string {
@@ -91,7 +94,10 @@ export class LocalFsEvidenceStore implements EvidenceStore {
     };
   }
 
-  async get(input: { tenantId: string; objectKey: string }): Promise<{ body: Uint8Array; contentType: string } | null> {
+  async get(input: {
+    tenantId: string;
+    objectKey: string;
+  }): Promise<{ body: Uint8Array; contentType: string } | null> {
     // The caller's tenant must match the key's own prefix: a row from another tenant can
     // never be dereferenced even if its key somehow reached this code path.
     if (!input.objectKey.startsWith(`${input.tenantId}/`)) return null;
@@ -104,7 +110,8 @@ export class LocalFsEvidenceStore implements EvidenceStore {
     const body = await readFile(path);
     let contentType = 'application/octet-stream';
     try {
-      contentType = JSON.parse(await readFile(`${path}.meta.json`, 'utf8')).contentType ?? contentType;
+      contentType =
+        JSON.parse(await readFile(`${path}.meta.json`, 'utf8')).contentType ?? contentType;
     } catch {
       // Missing sidecar means an older object; the default type is still safe to serve.
     }

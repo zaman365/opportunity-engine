@@ -35,9 +35,12 @@ describe('address classification', () => {
     expect(verdict.reason).toBe(reason);
   });
 
-  it.each([['93.184.216.34'], ['2606:2800:220:1:248:1893:25c8:1946']])('allows public %s', (address) => {
-    expect(classifyAddress(address).allowed).toBe(true);
-  });
+  it.each([['93.184.216.34'], ['2606:2800:220:1:248:1893:25c8:1946']])(
+    'allows public %s',
+    (address) => {
+      expect(classifyAddress(address).allowed).toBe(true);
+    },
+  );
 
   it('allows 172.32.0.1, which is outside the private range', () => {
     expect(classifyAddress('172.32.0.1').allowed).toBe(true);
@@ -80,7 +83,9 @@ describe('redirect and subrequest hops', () => {
 
   it('rejects non-http schemes and credentials in a redirect target', () => {
     expect(checkHop('file:///etc/passwd', approved, 1).reason).toBe('scheme_not_allowed');
-    expect(checkHop('https://u:p@shop.example.com/', approved, 1).reason).toBe('credentials_in_url');
+    expect(checkHop('https://u:p@shop.example.com/', approved, 1).reason).toBe(
+      'credentials_in_url',
+    );
   });
 
   it('rejects an unexpected port', () => {
@@ -90,9 +95,9 @@ describe('redirect and subrequest hops', () => {
 
 describe('link classification', () => {
   it('accepts an informational size-guide link', () => {
-    expect(classifyLink('Find your fit — size guide', 'https://shop.example.com/size-guide').kind).toBe(
-      'important_information',
-    );
+    expect(
+      classifyLink('Find your fit — size guide', 'https://shop.example.com/size-guide').kind,
+    ).toBe('important_information');
   });
 
   it('refuses links whose path could change store state', () => {
@@ -110,7 +115,9 @@ describe('link classification', () => {
   });
 
   it('refuses a link with no visible text, since a reviewer could not judge it', () => {
-    expect(classifyLink('   ', 'https://shop.example.com/size-guide').reason).toBe('no_visible_link_text');
+    expect(classifyLink('   ', 'https://shop.example.com/size-guide').reason).toBe(
+      'no_visible_link_text',
+    );
   });
 
   it('accepts German informational wording', () => {

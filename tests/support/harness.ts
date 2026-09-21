@@ -59,7 +59,7 @@ export async function freshHarness(): Promise<Harness> {
     LEDGER_CURRENCY: 'USD',
     LIVE_SPEND_LIMIT_MICRO: '0',
     CAPTURE_ADAPTER: 'local_fixture',
-    FIXTURE_ORIGIN: process.env.FIXTURE_ORIGIN ?? 'http://127.0.0.1:4179',
+    FIXTURE_ORIGIN: process.env.FIXTURE_ORIGIN ?? 'http://127.0.0.1:4179,http://127.0.0.1:4180',
     EVIDENCE_STORE: 'local_fs',
     EVIDENCE_LOCAL_DIR: evidenceDir,
   });

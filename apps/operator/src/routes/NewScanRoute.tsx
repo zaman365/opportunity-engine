@@ -99,7 +99,8 @@ export function NewScanRoute({ session }: { session: Session }) {
   if (accounts.status === 'loading' || budgets.status === 'loading') {
     return <Loading label="Loading approved accounts and cost limits" lines={4} />;
   }
-  if (accounts.status === 'error') return <ErrorPanel error={accounts.error} onRetry={accounts.reload} />;
+  if (accounts.status === 'error')
+    return <ErrorPanel error={accounts.error} onRetry={accounts.reload} />;
 
   return (
     <>
@@ -177,8 +178,8 @@ export function NewScanRoute({ session }: { session: Session }) {
             onChange={(event) => setMaxPages(Number(event.target.value))}
           />
           <p className="help">
-            At most five unique pages. Re-checking a page in a second clean session does not
-            count twice.
+            At most five unique pages. Re-checking a page in a second clean session does not count
+            twice.
           </p>
         </div>
 
@@ -196,9 +197,8 @@ export function NewScanRoute({ session }: { session: Session }) {
             <span className="currency">{ledgerCurrency} micro-units</span>
           </div>
           <p className="help">
-            <Money currency={ledgerCurrency} amountMicro={capMicro || '0'} /> · this is a
-            ceiling you authorise, not a price. Workspace and venture limits still apply on
-            top of it.
+            <Money currency={ledgerCurrency} amountMicro={capMicro || '0'} /> · this is a ceiling
+            you authorise, not a price. Workspace and venture limits still apply on top of it.
           </p>
         </div>
 

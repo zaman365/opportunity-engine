@@ -33,7 +33,11 @@ afterAll(async () => {
 describe('runtime role', () => {
   it('is not a superuser and cannot bypass row-level security', async () => {
     const row = await db.withoutTenant(async (tx) => {
-      const result = await tx.query<{ usesuper: boolean; bypassrls: boolean; current_user: string }>(
+      const result = await tx.query<{
+        usesuper: boolean;
+        bypassrls: boolean;
+        current_user: string;
+      }>(
         `SELECT r.rolsuper AS usesuper, r.rolbypassrls AS bypassrls, current_user
            FROM pg_roles r WHERE r.rolname = current_user`,
       );
@@ -96,19 +100,23 @@ describe('runtime role', () => {
   it('cannot alter an evidence observation, only its retention metadata', async () => {
     await expect(
       db.withTenant(LOCAL_FIXTURE.tenantA, (tx) =>
-        tx.query("UPDATE oe.evidence SET http_status = 200"),
+        tx.query('UPDATE oe.evidence SET http_status = 200'),
       ),
     ).rejects.toMatchObject({ code: '42501' });
     // Redaction and expiry remain writable, which is what the deletion workflow needs.
     await expect(
-      db.withTenant(LOCAL_FIXTURE.tenantA, (tx) => tx.query('UPDATE oe.evidence SET redacted = true')),
+      db.withTenant(LOCAL_FIXTURE.tenantA, (tx) =>
+        tx.query('UPDATE oe.evidence SET redacted = true'),
+      ),
     ).resolves.toBeDefined();
   });
 });
 
 describe('cross-tenant access', () => {
   it('cannot read another tenant’s account even with its exact UUID', async () => {
-    const own = await db.withTenant(LOCAL_FIXTURE.tenantA, (tx) => getAccount(tx, LOCAL_FIXTURE.accountA));
+    const own = await db.withTenant(LOCAL_FIXTURE.tenantA, (tx) =>
+      getAccount(tx, LOCAL_FIXTURE.accountA),
+    );
     expect(own?.id).toBe(LOCAL_FIXTURE.accountA);
 
     const foreign = await db.withTenant(LOCAL_FIXTURE.tenantA, (tx) =>
@@ -158,7 +166,12 @@ describe('cross-tenant access', () => {
            state, version, expected_unique_pages, requested_by)
          VALUES (oe.tenant_context(), gen_random_uuid(), $1, $2, $3, 'https://modewerk.test/p',
            'queued', 1, 2, $4) RETURNING id`,
-        [LOCAL_FIXTURE.accountB, LOCAL_FIXTURE.ventureB, LOCAL_FIXTURE.authorizationB, LOCAL_FIXTURE.ownerB],
+        [
+          LOCAL_FIXTURE.accountB,
+          LOCAL_FIXTURE.ventureB,
+          LOCAL_FIXTURE.authorizationB,
+          LOCAL_FIXTURE.ownerB,
+        ],
       );
       const evidence = await tx.query<{ id: string }>(
         `INSERT INTO oe.evidence (tenant_id, id, scan_id, asset_id, kind, source_url, final_url,
@@ -177,7 +190,11 @@ describe('cross-tenant access', () => {
 
   it('lists only the caller’s own accounts', async () => {
     const rows = await db.withTenant(LOCAL_FIXTURE.tenantA, (tx) =>
-      listAccounts(tx, { ventureIds: [LOCAL_FIXTURE.ventureA, LOCAL_FIXTURE.ventureB], limit: 50, cursor: null }),
+      listAccounts(tx, {
+        ventureIds: [LOCAL_FIXTURE.ventureA, LOCAL_FIXTURE.ventureB],
+        limit: 50,
+        cursor: null,
+      }),
     );
     expect(rows.map((r) => r.id)).toContain(LOCAL_FIXTURE.accountA);
     expect(rows.map((r) => r.id)).not.toContain(LOCAL_FIXTURE.accountB);
@@ -201,7 +218,9 @@ describe('transaction-local tenant context', () => {
         const context = await tx.query<{ context: string | null }>(
           "SELECT nullif(current_setting('oe.tenant_id', true), '') AS context",
         );
-        const accounts = await tx.query<{ n: number }>('SELECT count(*)::int AS n FROM oe.accounts');
+        const accounts = await tx.query<{ n: number }>(
+          'SELECT count(*)::int AS n FROM oe.accounts',
+        );
         return { context: context.rows[0]!.context, accounts: accounts.rows[0]!.n };
       });
       expect(after.context).toBeNull();
@@ -229,7 +248,9 @@ describe('transaction-local tenant context', () => {
     ).rejects.toThrow('deliberate rollback');
 
     const rows = await db.withTenant(LOCAL_FIXTURE.tenantA, (tx) =>
-      tx.query<{ n: number }>("SELECT count(*)::int AS n FROM oe.audit_events WHERE action = 'test.rollback'"),
+      tx.query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM oe.audit_events WHERE action = 'test.rollback'",
+      ),
     );
     expect(rows.rows[0]!.n).toBe(0);
   });
@@ -265,7 +286,10 @@ describe('identity resolution', () => {
     });
     await migrationClient.connect();
     try {
-      await migrationClient.query('SELECT set_config($1, $2, false)', ['oe.tenant_id', LOCAL_FIXTURE.tenantA]);
+      await migrationClient.query('SELECT set_config($1, $2, false)', [
+        'oe.tenant_id',
+        LOCAL_FIXTURE.tenantA,
+      ]);
       await migrationClient.query('UPDATE oe.memberships SET active = false WHERE id = $1', [
         LOCAL_FIXTURE.viewerA,
       ]);
@@ -274,9 +298,9 @@ describe('identity resolution', () => {
       );
       expect(memberships).toEqual([]);
     } finally {
-      await migrationClient.query('UPDATE oe.memberships SET active = true WHERE id = $1', [
-        LOCAL_FIXTURE.viewerA,
-      ]).catch(() => undefined);
+      await migrationClient
+        .query('UPDATE oe.memberships SET active = true WHERE id = $1', [LOCAL_FIXTURE.viewerA])
+        .catch(() => undefined);
       await migrationClient.end();
     }
   });

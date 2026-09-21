@@ -42,7 +42,10 @@ function decodeSafe(value: string): string {
   }
 }
 
-export function preflightTarget(raw: string, allowedHosts: readonly string[] = []): PreflightResult {
+export function preflightTarget(
+  raw: string,
+  allowedHosts: readonly string[] = [],
+): PreflightResult {
   // Control characters and raw spaces are rejected outright: they are how a URL gets
   // split or smuggled past a parser, so matching them is the point of this expression.
   // eslint-disable-next-line no-control-regex
@@ -62,7 +65,10 @@ export function preflightTarget(raw: string, allowedHosts: readonly string[] = [
   const host = url.hostname.toLowerCase().replace(/\.$/, '');
   const bare = host.replace(/^\[|\]$/g, '');
   if (isIP(bare) || host.includes(':')) return { allowed: false, reason: 'ip_literal_denied' };
-  if (!host.includes('.') || /(^|\.)(localhost|local|internal|test|invalid|example|onion)$/.test(host)) {
+  if (
+    !host.includes('.') ||
+    /(^|\.)(localhost|local|internal|test|invalid|example|onion)$/.test(host)
+  ) {
     return { allowed: false, reason: 'nonpublic_hostname' };
   }
   if (
@@ -110,8 +116,11 @@ export function classifyLink(
   } catch {
     return { kind: 'unsupported', reason: 'unparsable_href' };
   }
-  if (STATE_CHANGE_PATH.test(path)) return { kind: 'unsupported', reason: 'potential_state_change' };
-  if (!INFORMATION_TEXT.test(label)) return { kind: 'unsupported', reason: 'link_text_not_informational' };
-  if (!INFORMATION_PATH.test(path)) return { kind: 'unsupported', reason: 'link_path_not_informational' };
+  if (STATE_CHANGE_PATH.test(path))
+    return { kind: 'unsupported', reason: 'potential_state_change' };
+  if (!INFORMATION_TEXT.test(label))
+    return { kind: 'unsupported', reason: 'link_text_not_informational' };
+  if (!INFORMATION_PATH.test(path))
+    return { kind: 'unsupported', reason: 'link_path_not_informational' };
   return { kind: 'important_information', reason: 'informational_text_and_path' };
 }

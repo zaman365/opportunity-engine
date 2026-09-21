@@ -9,7 +9,9 @@ import { z } from 'zod';
  */
 
 /** RFC 4122 shape check. The database still owns uniqueness and tenant scope. */
-export const Uuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+export const Uuid = z
+  .string()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 
 /** `date-time` in the contract: an RFC 3339 instant. Stored and compared in UTC. */
 export const DateTime = z.string().refine((value) => {
@@ -24,9 +26,7 @@ export const CurrencyCode = z.string().regex(/^[A-Z]{3}$/);
 /** Integer micro-units as a canonical decimal string. Never a JS number. */
 export const MicroAmount = z.string().regex(/^(0|[1-9][0-9]{0,14})$/);
 
-export const Money = z
-  .object({ currency: CurrencyCode, amount_micro: MicroAmount })
-  .strict();
+export const Money = z.object({ currency: CurrencyCode, amount_micro: MicroAmount }).strict();
 export type Money = z.infer<typeof Money>;
 
 export const Role = z.enum(['viewer', 'operator', 'reviewer', 'owner']);
@@ -57,9 +57,7 @@ export const Health = z
   .strict();
 export type Health = z.infer<typeof Health>;
 
-export const ExpectedVersion = z
-  .object({ expected_version: z.number().int().min(1) })
-  .strict();
+export const ExpectedVersion = z.object({ expected_version: z.number().int().min(1) }).strict();
 export type ExpectedVersion = z.infer<typeof ExpectedVersion>;
 
 /** Cursor pagination envelope shared by every list projection. */

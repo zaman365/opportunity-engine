@@ -49,7 +49,8 @@ export function CoverageSummary({ scan }: { scan: Scan }) {
  */
 export function BudgetSummary({ scan }: { scan: Scan }) {
   const { cap, settled, reserved, settlement_uncertain: uncertain } = scan.cost;
-  const remaining = BigInt(cap.amount_micro) - BigInt(settled.amount_micro) - BigInt(reserved.amount_micro);
+  const remaining =
+    BigInt(cap.amount_micro) - BigInt(settled.amount_micro) - BigInt(reserved.amount_micro);
   return (
     <div>
       <h3
@@ -94,9 +95,15 @@ export function BudgetSummary({ scan }: { scan: Scan }) {
         </div>
       </div>
       {uncertain ? (
-        <p style={{ marginTop: 'var(--s3)', fontSize: 'var(--text-meta)', color: 'var(--attention)' }}>
-          A provider result is unresolved. Its reserved amount stays committed until the
-          provider settles it.
+        <p
+          style={{
+            marginTop: 'var(--s3)',
+            fontSize: 'var(--text-meta)',
+            color: 'var(--attention)',
+          }}
+        >
+          A provider result is unresolved. Its reserved amount stays committed until the provider
+          settles it.
         </p>
       ) : null}
     </div>

@@ -5,15 +5,19 @@ import { describe, expect, it } from 'vitest';
 import { componentSchemas } from '@oe/contracts';
 
 /**
- * The OpenAPI document in the build kit is the authority; the Zod schemas are a mirror.
+ * The served OpenAPI document is the authority; the Zod schemas are a mirror of it.
  *
- * Each component schema is compiled with Ajv 2020 and fed the same payloads as its Zod
- * counterpart. Both must agree on every case, so a drift in either direction fails here
- * rather than in production.
+ * That document is generated from the build kit's handoff contract plus `contracts/overlay.json`
+ * — `generated-contract.test.ts` proves the generation is faithful and only widening. Here each
+ * component schema is compiled with Ajv 2020 and fed the same payloads as its Zod counterpart.
+ * Both must agree on every case, so a drift in either direction fails here rather than in
+ * production.
  */
 
 const kitRoot = new URL('../../opportunity-engine-build-kit/', import.meta.url);
-const spec = JSON.parse(readFileSync(new URL('contracts/openapi.json', kitRoot), 'utf8'));
+const spec = JSON.parse(
+  readFileSync(new URL('../../contracts/openapi.json', import.meta.url), 'utf8'),
+);
 
 // Ajv and ajv-formats publish CommonJS with a `default` interop wrapper; under NodeNext the
 // callable value sits one level down depending on how the bundler resolved it.
@@ -24,8 +28,9 @@ type AjvInstance = {
 const Ajv2020 = ((Ajv2020Module as { default?: unknown }).default ?? Ajv2020Module) as new (
   options: Record<string, unknown>,
 ) => AjvInstance;
-const addFormats = ((addFormatsModule as { default?: unknown }).default ??
-  addFormatsModule) as (ajv: AjvInstance) => void;
+const addFormats = ((addFormatsModule as { default?: unknown }).default ?? addFormatsModule) as (
+  ajv: AjvInstance,
+) => void;
 
 const ajv = new Ajv2020({ strict: false, allErrors: true });
 addFormats(ajv);
@@ -54,7 +59,9 @@ describe('supplied contract examples', () => {
   it.each(index.examples as { file: string; schema: keyof typeof componentSchemas }[])(
     '$file validates against $schema under both validators',
     ({ file, schema }) => {
-      const payload = JSON.parse(readFileSync(new URL(`contracts/examples/${file}`, kitRoot), 'utf8'));
+      const payload = JSON.parse(
+        readFileSync(new URL(`contracts/examples/${file}`, kitRoot), 'utf8'),
+      );
       expect(validator(schema)(payload), 'Ajv rejected a supplied example').toBe(true);
       expect(zodAccepts(schema, payload), 'Zod rejected a supplied example').toBe(true);
     },
@@ -79,7 +86,11 @@ const negatives: { schema: keyof typeof componentSchemas; why: string; value: un
     why: 'amount as a number loses precision',
     value: { currency: 'USD', amount_micro: 1000 },
   },
-  { schema: 'Money', why: 'non-canonical leading zero', value: { currency: 'USD', amount_micro: '0100' } },
+  {
+    schema: 'Money',
+    why: 'non-canonical leading zero',
+    value: { currency: 'USD', amount_micro: '0100' },
+  },
   { schema: 'Money', why: 'lowercase currency', value: { currency: 'usd', amount_micro: '1' } },
   {
     schema: 'Money',
@@ -101,21 +112,39 @@ const negatives: { schema: keyof typeof componentSchemas; why: string; value: un
   },
   {
     schema: 'CreateScan',
-    why: 'detector outside the enabled pack',
+    why: 'a detector that is specified but not implemented',
     value: {
       account_id: '00000000-0000-4000-8000-000000000001',
       venture_id: '00000000-0000-4000-8000-000000000002',
       target_url: 'https://shop.example.com/p',
       authorization_id: '00000000-0000-4000-8000-000000000003',
       max_unique_pages: 2,
-      detectors: ['MF-ASSET-01'],
+      detectors: ['PDP-VISUAL-01'],
+      max_cost: { currency: 'USD', amount_micro: '0' },
+    },
+  },
+  {
+    schema: 'CreateScan',
+    why: 'the same detector requested twice',
+    value: {
+      account_id: '00000000-0000-4000-8000-000000000001',
+      venture_id: '00000000-0000-4000-8000-000000000002',
+      target_url: 'https://shop.example.com/p',
+      authorization_id: '00000000-0000-4000-8000-000000000003',
+      max_unique_pages: 2,
+      detectors: ['MF-ASSET-01', 'MF-ASSET-01'],
       max_cost: { currency: 'USD', amount_micro: '0' },
     },
   },
   {
     schema: 'ReviewFinding',
     why: 'reason below the minimum length',
-    value: { expected_version: 1, decision: 'confirm', reason: 'ok', acknowledged_limitations: true },
+    value: {
+      expected_version: 1,
+      decision: 'confirm',
+      reason: 'ok',
+      acknowledged_limitations: true,
+    },
   },
   {
     schema: 'ReviewFinding',
@@ -211,7 +240,12 @@ const negatives: { schema: keyof typeof componentSchemas; why: string; value: un
       target_url: 'https://shop.example.com/p',
       created_at: '2026-09-21T08:00:00Z',
       updated_at: '2026-09-21T08:00:00Z',
-      coverage: { expected_unique_pages: 2, captured_unique_pages: 9, complete_checks: 0, reasons: [] },
+      coverage: {
+        expected_unique_pages: 2,
+        captured_unique_pages: 9,
+        complete_checks: 0,
+        reasons: [],
+      },
       cost: {
         cap: { currency: 'USD', amount_micro: '0' },
         settled: { currency: 'USD', amount_micro: '0' },

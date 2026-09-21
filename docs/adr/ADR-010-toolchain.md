@@ -13,21 +13,21 @@ lockfile, and forbids inventing versions.
 Every version below was read from the npm registry on 2026-09-21 and committed exactly, with
 `package-lock.json`. Node 22.19.0 is the local runtime; `engines` requires ≥22.16.
 
-| Package | Version | Note |
-|---|---|---|
-| typescript | 6.0.3 | Not 7.0.2, see below |
-| vite | 8.3.0 | with `@vitejs/plugin-react` 6.1.1 |
-| react / react-dom | 19.3.0 | |
-| react-router-dom | 7.18.4 | |
-| hono | 4.13.8 | with `@hono/node-server` 2.1.1 |
-| zod | 4.6.5 | |
-| drizzle-orm / drizzle-kit | 0.45.2 / 0.31.10 | declared; the M1 data access is parameterised SQL |
-| pg | 8.23.0 | |
-| jose | 6.2.12 | Access JWT verification |
-| vitest | 5.0.1 | |
-| @playwright/test | 1.63.0 | |
-| eslint / typescript-eslint | 10.11.0 / 8.70.0 | |
-| ajv / ajv-formats | 8.20.0 / 3.0.1 | contract conformance |
+| Package                    | Version          | Note                                              |
+| -------------------------- | ---------------- | ------------------------------------------------- |
+| typescript                 | 6.0.3            | Not 7.0.2, see below                              |
+| vite                       | 8.3.0            | with `@vitejs/plugin-react` 6.1.1                 |
+| react / react-dom          | 19.3.0           |                                                   |
+| react-router-dom           | 7.18.4           |                                                   |
+| hono                       | 4.13.8           | with `@hono/node-server` 2.1.1                    |
+| zod                        | 4.6.5            |                                                   |
+| drizzle-orm / drizzle-kit  | 0.45.2 / 0.31.10 | declared; the M1 data access is parameterised SQL |
+| pg                         | 8.23.0           |                                                   |
+| jose                       | 6.2.12           | Access JWT verification                           |
+| vitest                     | 5.0.1            |                                                   |
+| @playwright/test           | 1.63.0           |                                                   |
+| eslint / typescript-eslint | 10.11.0 / 8.70.0 |                                                   |
+| ajv / ajv-formats          | 8.20.0 / 3.0.1   | contract conformance                              |
 
 ## Why TypeScript 6.0.3 and not 7.0.2
 

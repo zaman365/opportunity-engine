@@ -33,7 +33,7 @@ not implemented.
 
 - **B · Document first.** Reads well and resembles the final report, which is its problem: the
   reproducibility that justifies the claim becomes a footnote, and comparing two sessions needs
-  scrolling. Kept as a study because the *report* surface does use exactly this shape, where it
+  scrolling. Kept as a study because the _report_ surface does use exactly this shape, where it
   is right.
 - **Copying the kit preview's composition.** Tabs above a single stage with no comparison view,
   and a serif editorial voice. AGENTS.md forbids adopting it as a template, and it answers a

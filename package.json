@@ -40,7 +40,11 @@
     "kit:test": "npm --prefix opportunity-engine-build-kit test",
     "kit:check": "npm --prefix opportunity-engine-build-kit run check:kit",
     "db:seed": "tsx scripts/seed-local.ts",
-    "db:reset": "node scripts/dev-postgres.mjs down --purge && npm run db:up && npm run db:migrate && npm run db:seed"
+    "db:reset": "node scripts/dev-postgres.mjs down --purge && npm run db:up && npm run db:migrate && npm run db:seed",
+    "fixtures:m2": "node fixtures/m2-server.mjs",
+    "contract:build": "node scripts/build-contract.mjs",
+    "contract:check": "node scripts/build-contract.mjs --check",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run contract:check && npm run build && npm run test:all"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

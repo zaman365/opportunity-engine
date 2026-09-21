@@ -21,6 +21,11 @@ export const Session = z
     venture_ids: z.array(Uuid),
     csrf_token: z.string().min(20),
     environment: Environment,
+    /**
+     * What this deployment actually runs. The operator renders this instead of a constant
+     * from its own bundle, so a stale client cannot advertise a detector the server lacks.
+     */
+    implemented_detectors: z.array(z.string().min(1)).min(1),
   })
   .strict();
 export type Session = z.infer<typeof Session>;
@@ -79,7 +84,12 @@ export const Authorization = z
   .strict();
 export type Authorization = z.infer<typeof Authorization>;
 
-export const DetectorId = z.literal('MF-LINK-01');
+/**
+ * Detectors this build implements. Mirrors `IMPLEMENTED_DETECTORS` in @oe/domain; a contract
+ * test asserts the two stay in step, so a detector cannot be requestable before it exists.
+ */
+export const DetectorId = z.enum(['MF-LINK-01', 'MF-ASSET-01']);
+export type DetectorId = z.infer<typeof DetectorId>;
 
 export const CreateScan = z
   .object({
@@ -88,7 +98,13 @@ export const CreateScan = z
     target_url: z.string().max(4096),
     authorization_id: Uuid,
     max_unique_pages: z.number().int().min(1).max(5),
-    detectors: z.array(DetectorId).min(1).max(1),
+    detectors: z
+      .array(DetectorId)
+      .min(1)
+      .max(2)
+      .refine((value) => new Set(value).size === value.length, {
+        message: 'detectors must be unique',
+      }),
     max_cost: Money,
   })
   .strict();
@@ -175,6 +191,11 @@ export const Evidence = z
     kind: EvidenceKind,
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     conditions: CaptureConditions,
+    /**
+     * What the collector recorded: status, classification, rendered outcome, timing. Only
+     * fields this system produced — never page content, and never scraped text.
+     */
+    observation: z.record(z.string(), z.unknown()),
     http_status: z.union([z.number().int().min(100).max(599), z.null()]),
     complete: z.boolean(),
     expires_at: DateTime,
@@ -229,16 +250,32 @@ const FindingShape = z
 export const Finding = FindingShape.superRefine((value, ctx) => {
   if (value.state !== 'confirmed') return;
   if (value.evidence_ids.length < 1) {
-    ctx.addIssue({ code: 'custom', path: ['evidence_ids'], message: 'confirmed finding needs evidence' });
+    ctx.addIssue({
+      code: 'custom',
+      path: ['evidence_ids'],
+      message: 'confirmed finding needs evidence',
+    });
   }
   if (value.reviewer_id === null) {
-    ctx.addIssue({ code: 'custom', path: ['reviewer_id'], message: 'confirmed finding needs a reviewer' });
+    ctx.addIssue({
+      code: 'custom',
+      path: ['reviewer_id'],
+      message: 'confirmed finding needs a reviewer',
+    });
   }
   if (value.reviewed_at === null) {
-    ctx.addIssue({ code: 'custom', path: ['reviewed_at'], message: 'confirmed finding needs a review time' });
+    ctx.addIssue({
+      code: 'custom',
+      path: ['reviewed_at'],
+      message: 'confirmed finding needs a review time',
+    });
   }
   if (value.evidence_grade !== 'A' && value.evidence_grade !== 'B') {
-    ctx.addIssue({ code: 'custom', path: ['evidence_grade'], message: 'confirmed finding needs grade A or B' });
+    ctx.addIssue({
+      code: 'custom',
+      path: ['evidence_grade'],
+      message: 'confirmed finding needs grade A or B',
+    });
   }
 });
 export type Finding = z.infer<typeof Finding>;
@@ -323,9 +360,7 @@ export const Opportunity = z
   .strict();
 export type Opportunity = z.infer<typeof Opportunity>;
 
-const FindingVersionRef = z
-  .object({ finding_id: Uuid, version: z.number().int().min(1) })
-  .strict();
+const FindingVersionRef = z.object({ finding_id: Uuid, version: z.number().int().min(1) }).strict();
 export type FindingVersionRef = z.infer<typeof FindingVersionRef>;
 
 export const ReportLanguage = z.enum(['en', 'de']);

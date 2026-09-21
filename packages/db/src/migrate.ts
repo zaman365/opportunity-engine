@@ -77,8 +77,14 @@ export async function migrate(options: MigrationOptions): Promise<AppliedMigrati
 
       await client.query('BEGIN');
       try {
-        await client.query('SELECT set_config($1, $2, true)', ['oe.runtime_role', options.runtimeRole]);
-        await client.query('SELECT set_config($1, $2, true)', ['oe.identity_role', options.identityRole]);
+        await client.query('SELECT set_config($1, $2, true)', [
+          'oe.runtime_role',
+          options.runtimeRole,
+        ]);
+        await client.query('SELECT set_config($1, $2, true)', [
+          'oe.identity_role',
+          options.identityRole,
+        ]);
         await client.query(migration.sql);
         await client.query(
           `INSERT INTO oe_meta.schema_migrations (version, checksum) VALUES ($1, $2)
@@ -119,7 +125,9 @@ export function migrationVersions(): string[] {
   return listMigrations().map((m) => m.version);
 }
 
-const isDirectRun = process.argv[1] && import.meta.url.endsWith(process.argv[1].replaceAll('\\', '/').split('/').at(-1)!);
+const isDirectRun =
+  process.argv[1] &&
+  import.meta.url.endsWith(process.argv[1].replaceAll('\\', '/').split('/').at(-1)!);
 if (isDirectRun) {
   const { loadDotEnv } = await import('./dotenv.ts');
   loadDotEnv();
@@ -135,5 +143,7 @@ if (isDirectRun) {
     log: (message) => process.stdout.write(`${message}\n`),
   });
   const changed = applied.filter((a) => a.applied).length;
-  process.stdout.write(`${changed} migration(s) applied, ${applied.length - changed} already present.\n`);
+  process.stdout.write(
+    `${changed} migration(s) applied, ${applied.length - changed} already present.\n`,
+  );
 }

@@ -19,7 +19,8 @@ const CASE = {
   domain: 'atelier-nord.test',
   title: 'Linked information page returns an error',
   claim: 'The linked information page returned HTTP 404 in 2 recorded checks.',
-  scope: 'One linked information page reached from the product page, checked in two recorded sessions.',
+  scope:
+    'One linked information page reached from the product page, checked in two recorded sessions.',
   limitations: [
     'Only the recorded link and conditions were tested.',
     'Store-wide scope and revenue impact are unknown.',
@@ -42,9 +43,9 @@ export function DesignStudiesRoute() {
         <div>
           <h1>Composition studies</h1>
           <p>
-            Two different compositions of the same review task, on identical content. A
-            design artifact, not a product surface: the data below is fictional and no
-            control does anything.
+            Two different compositions of the same review task, on identical content. A design
+            artifact, not a product surface: the data below is fictional and no control does
+            anything.
           </p>
         </div>
         <div className="filterset" role="group" aria-label="Select a study">
@@ -65,19 +66,18 @@ export function DesignStudiesRoute() {
           <div>
             <dt style={{ fontWeight: 600 }}>A · Agreement first (implemented)</dt>
             <dd style={{ margin: 0, color: 'var(--ink-secondary)' }}>
-              Leads with the grid of recorded observations, because the whole evidentiary
-              weight of this detector is that two independent checks agreed. The claim reads
-              as a consequence of the grid. Risk: a reviewer may treat the grid as the whole
-              story and skip the limits.
+              Leads with the grid of recorded observations, because the whole evidentiary weight of
+              this detector is that two independent checks agreed. The claim reads as a consequence
+              of the grid. Risk: a reviewer may treat the grid as the whole story and skip the
+              limits.
             </dd>
           </div>
           <div>
             <dt style={{ fontWeight: 600 }}>B · Document first (not implemented)</dt>
             <dd style={{ margin: 0, color: 'var(--ink-secondary)' }}>
-              Leads with the written assertion and treats the captures as citations beneath
-              it. Reads well and resembles the final report. Risk: the reproducibility that
-              justifies the claim becomes a footnote, and comparing two sessions needs
-              scrolling.
+              Leads with the written assertion and treats the captures as citations beneath it.
+              Reads well and resembles the final report. Risk: the reproducibility that justifies
+              the claim becomes a footnote, and comparing two sessions needs scrolling.
             </dd>
           </div>
         </dl>
@@ -115,7 +115,9 @@ function StudyA() {
                 <tr key={row}>
                   <th scope="row">{row}</th>
                   {[1, 2].map((session) => {
-                    const cell = CASE.observations.find((o) => o.row === row && o.session === session)!;
+                    const cell = CASE.observations.find(
+                      (o) => o.row === row && o.session === session,
+                    )!;
                     return (
                       <td key={session}>
                         <div className="cell" data-verdict={cell.status === 404 ? 'failure' : 'ok'}>
@@ -144,7 +146,9 @@ function StudyA() {
             <div className="unavailable" style={{ padding: 'var(--s16) var(--s4)' }}>
               <p>Capture placeholder — this study renders no real artifact.</p>
             </div>
-            <figcaption>Recorded response to the linked information page. Fictional study content.</figcaption>
+            <figcaption>
+              Recorded response to the linked information page. Fictional study content.
+            </figcaption>
           </figure>
         </div>
       </div>
@@ -199,14 +203,28 @@ function StudyB() {
       <p style={{ ...microLabel, marginBottom: 'var(--s3)' }}>
         {CASE.docket} · {CASE.detector}
       </p>
-      <h2 style={{ fontSize: 'var(--text-page)', letterSpacing: '-0.02em', lineHeight: 1.15, fontWeight: 620 }}>
+      <h2
+        style={{
+          fontSize: 'var(--text-page)',
+          letterSpacing: '-0.02em',
+          lineHeight: 1.15,
+          fontWeight: 620,
+        }}
+      >
         {CASE.claim}
       </h2>
       <p style={{ marginTop: 'var(--s4)', color: 'var(--ink-secondary)', maxWidth: '62ch' }}>
         {CASE.scope}
       </p>
 
-      <h3 style={{ ...microLabel, marginTop: 'var(--s8)', paddingBottom: 'var(--s2)', borderBottom: '1px solid var(--rule)' }}>
+      <h3
+        style={{
+          ...microLabel,
+          marginTop: 'var(--s8)',
+          paddingBottom: 'var(--s2)',
+          borderBottom: '1px solid var(--rule)',
+        }}
+      >
         Citations
       </h3>
       <ol style={{ margin: 'var(--s4) 0 0', paddingInlineStart: 'var(--s6)' }}>
@@ -235,16 +253,35 @@ function StudyB() {
         ))}
       </ol>
 
-      <h3 style={{ ...microLabel, marginTop: 'var(--s8)', paddingBottom: 'var(--s2)', borderBottom: '1px solid var(--rule)' }}>
+      <h3
+        style={{
+          ...microLabel,
+          marginTop: 'var(--s8)',
+          paddingBottom: 'var(--s2)',
+          borderBottom: '1px solid var(--rule)',
+        }}
+      >
         Limits
       </h3>
-      <ul style={{ margin: 'var(--s4) 0 0', paddingInlineStart: 'var(--s6)', color: 'var(--ink-secondary)' }}>
+      <ul
+        style={{
+          margin: 'var(--s4) 0 0',
+          paddingInlineStart: 'var(--s6)',
+          color: 'var(--ink-secondary)',
+        }}
+      >
         {CASE.limitations.map((limitation) => (
           <li key={limitation}>{limitation}</li>
         ))}
       </ul>
 
-      <div style={{ marginTop: 'var(--s8)', paddingTop: 'var(--s5)', borderTop: '2px solid var(--ink)' }}>
+      <div
+        style={{
+          marginTop: 'var(--s8)',
+          paddingTop: 'var(--s5)',
+          borderTop: '2px solid var(--ink)',
+        }}
+      >
         <div className="field">
           <label htmlFor="study-b-note">Reviewer note</label>
           <textarea id="study-b-note" placeholder="Study only — nothing is recorded." />

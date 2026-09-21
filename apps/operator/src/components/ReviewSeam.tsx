@@ -86,8 +86,8 @@ function ReviewSeamForm({
       <div className="seam">
         <Notice tone="blocked" title="This finding was rejected">
           <p>
-            Rejections are kept as audit history and cannot be reversed. A new scan can
-            supersede this finding with fresh evidence.
+            Rejections are kept as audit history and cannot be reversed. A new scan can supersede
+            this finding with fresh evidence.
           </p>
         </Notice>
       </div>
@@ -96,7 +96,10 @@ function ReviewSeamForm({
 
   return (
     <div className="seam">
-      <p className="hint" style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s3)' }}>
+      <p
+        className="hint"
+        style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--s3)' }}
+      >
         <span>Deciding on version {finding.version}</span>
         {reason.trim() ? <span aria-live="polite">Unsaved note</span> : null}
       </p>
@@ -104,12 +107,15 @@ function ReviewSeamForm({
       {conflictVersion !== null ? (
         <Notice tone="attention" title="This finding changed while you were reviewing">
           <p>
-            Your note is kept below. Reload the case, read the current evidence, then decide
-            again — the previous version cannot be approved retroactively.
+            Your note is kept below. Reload the case, read the current evidence, then decide again —
+            the previous version cannot be approved retroactively.
           </p>
         </Notice>
       ) : error ? (
-        <Notice tone={error instanceof NetworkError ? 'attention' : 'blocked'} title={errorTitle(error)}>
+        <Notice
+          tone={error instanceof NetworkError ? 'attention' : 'blocked'}
+          title={errorTitle(error)}
+        >
           <p>{error.message}</p>
         </Notice>
       ) : null}
@@ -125,12 +131,19 @@ function ReviewSeamForm({
           disabled={!canReview}
         />
         <p className="help" id="review-reason-help">
-          At least five characters. The note is stored with the decision and the exact
-          finding version.
+          At least five characters. The note is stored with the decision and the exact finding
+          version.
         </p>
       </div>
 
-      <label style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'flex-start', fontSize: 'var(--text-meta)' }}>
+      <label
+        style={{
+          display: 'flex',
+          gap: 'var(--s2)',
+          alignItems: 'flex-start',
+          fontSize: 'var(--text-meta)',
+        }}
+      >
         <input
           type="checkbox"
           checked={acknowledged}
@@ -174,8 +187,8 @@ function ReviewSeamForm({
 
       {!canReview ? (
         <p className="hint">
-          Your membership does not include the reviewer role, so you can read this case but
-          not decide it.
+          Your membership does not include the reviewer role, so you can read this case but not
+          decide it.
         </p>
       ) : null}
     </div>
@@ -189,7 +202,11 @@ function errorTitle(error: ApiError | NetworkError): string {
 }
 
 /** Every disabled action states its reason, per UI_SPEC.md's interaction invariants. */
-function confirmBlockedReason(canReview: boolean, reasonTooShort: boolean, acknowledged: boolean): string {
+function confirmBlockedReason(
+  canReview: boolean,
+  reasonTooShort: boolean,
+  acknowledged: boolean,
+): string {
   if (!canReview) return 'Requires the reviewer role.';
   if (reasonTooShort) return 'Write a note of at least five characters first.';
   if (!acknowledged) return 'Acknowledge the limits of this evidence first.';

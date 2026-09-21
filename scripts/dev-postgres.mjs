@@ -59,7 +59,8 @@ function isRunning() {
 }
 
 function credentials() {
-  if (!existsSync(credentialsFile)) throw new Error('Cluster credentials missing; run `npm run db:up`.');
+  if (!existsSync(credentialsFile))
+    throw new Error('Cluster credentials missing; run `npm run db:up`.');
   return JSON.parse(readFileSync(credentialsFile, 'utf8'));
 }
 
@@ -71,8 +72,10 @@ function up() {
     const superPassword = randomBytes(24).toString('base64url');
     writeFileSync(passwordFile, superPassword, { mode: 0o600 });
     must('initdb', [
-      '-D', dataDir,
-      '-U', SUPERUSER,
+      '-D',
+      dataDir,
+      '-U',
+      SUPERUSER,
       '--auth-local=scram-sha-256',
       '--auth-host=scram-sha-256',
       `--pwfile=${passwordFile}`,
@@ -101,20 +104,33 @@ function up() {
 
   if (!isRunning()) {
     must('pg_ctl', [
-      '-D', dataDir,
-      '-l', logFile,
-      '-o', `-p ${PORT} -k ${socketDir} -c listen_addresses=''`,
-      '-w', 'start',
+      '-D',
+      dataDir,
+      '-l',
+      logFile,
+      '-o',
+      `-p ${PORT} -k ${socketDir} -c listen_addresses=''`,
+      '-w',
+      'start',
     ]);
   }
 
   const creds = credentials();
   const superEnv = { ...BASE_ENV, PGPASSWORD: creds.superuser.password };
 
-  const exists = must('psql', [...psqlArgs('postgres', SUPERUSER), '-tAc',
-    `SELECT 1 FROM pg_database WHERE datname = '${DB}'`], { env: superEnv });
+  const exists = must(
+    'psql',
+    [
+      ...psqlArgs('postgres', SUPERUSER),
+      '-tAc',
+      `SELECT 1 FROM pg_database WHERE datname = '${DB}'`,
+    ],
+    { env: superEnv },
+  );
   if (!exists.stdout.trim()) {
-    must('psql', [...psqlArgs('postgres', SUPERUSER), '-c', `CREATE DATABASE ${DB}`], { env: superEnv });
+    must('psql', [...psqlArgs('postgres', SUPERUSER), '-c', `CREATE DATABASE ${DB}`], {
+      env: superEnv,
+    });
   }
 
   // Roles: migrate owns the schema; runtime and identity are deliberately weak.
@@ -143,10 +159,14 @@ function up() {
   `;
   must('psql', [...psqlArgs(DB, SUPERUSER), '-c', roleSql], { env: superEnv });
   // pgcrypto supplies gen_random_uuid() to the budget command functions.
-  must('psql', [...psqlArgs(DB, SUPERUSER), '-c', 'CREATE EXTENSION IF NOT EXISTS pgcrypto'], { env: superEnv });
+  must('psql', [...psqlArgs(DB, SUPERUSER), '-c', 'CREATE EXTENSION IF NOT EXISTS pgcrypto'], {
+    env: superEnv,
+  });
 
   writeEnvFile(creds);
-  const version = must('psql', [...psqlArgs(DB, SUPERUSER), '-tAc', 'SHOW server_version'], { env: superEnv });
+  const version = must('psql', [...psqlArgs(DB, SUPERUSER), '-tAc', 'SHOW server_version'], {
+    env: superEnv,
+  });
   process.stdout.write(
     `Disposable PostgreSQL ${version.stdout.trim()} ready on ${socketDir}:${PORT}/${DB}\n` +
       `Wrote connection strings to .env.local (gitignored). Stop with: npm run db:down\n`,
@@ -174,7 +194,7 @@ function writeEnvFile(creds) {
     'LEDGER_CURRENCY=USD',
     'LIVE_SPEND_LIMIT_MICRO=0',
     'CAPTURE_ADAPTER=local_fixture',
-    'FIXTURE_ORIGIN=http://127.0.0.1:4179',
+    'FIXTURE_ORIGIN=http://127.0.0.1:4179,http://127.0.0.1:4180',
     'LIVE_CAPTURE_ENABLED=false',
     'EVIDENCE_STORE=local_fs',
     'EVIDENCE_LOCAL_DIR=.local-evidence',

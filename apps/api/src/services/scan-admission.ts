@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { CreateScan } from '@oe/contracts';
-import { micro } from '@oe/domain';
+import { IMPLEMENTED_DETECTORS, micro } from '@oe/domain';
 import {
   claimIdempotencyKey,
   createBudget,
@@ -109,7 +109,10 @@ export async function admitScan(
 
   // 2 · Venture assignment, account, and the account's approved host policy.
   if (!actor.membership.ventureIds.includes(request.venture_id)) {
-    throw new ApiProblem('VENTURE_NOT_ASSIGNED', 'This membership is not assigned to that venture.');
+    throw new ApiProblem(
+      'VENTURE_NOT_ASSIGNED',
+      'This membership is not assigned to that venture.',
+    );
   }
   const account = await getAccount(tx, request.account_id);
   if (!account) {
@@ -138,7 +141,10 @@ export async function admitScan(
     throw new ApiProblem('NOT_FOUND', 'No such authorization for this account.');
   }
   if (authorization.reason === 'expired') {
-    throw new ApiProblem('AUTHORIZATION_EXPIRED', 'The scan authorization expired. An owner must renew it.');
+    throw new ApiProblem(
+      'AUTHORIZATION_EXPIRED',
+      'The scan authorization expired. An owner must renew it.',
+    );
   }
   if (authorization.reason === 'revoked') {
     throw new ApiProblem('AUTHORIZATION_REVOKED', 'The scan authorization was revoked.');
@@ -148,8 +154,14 @@ export async function admitScan(
   }
 
   // 4 · Detector phase and currency.
-  if (request.detectors.some((d) => d !== 'MF-LINK-01')) {
-    throw new ApiProblem('UNSUPPORTED_DETECTOR', 'Only MF-LINK-01 is enabled in this phase.');
+  const unsupported = request.detectors.filter(
+    (detector) => !(IMPLEMENTED_DETECTORS as readonly string[]).includes(detector),
+  );
+  if (unsupported.length > 0) {
+    throw new ApiProblem(
+      'UNSUPPORTED_DETECTOR',
+      `${unsupported.join(', ')} is specified but not implemented. This build runs ${IMPLEMENTED_DETECTORS.join(' and ')}.`,
+    );
   }
   if (request.max_cost.currency !== actor.membership.ledgerCurrency) {
     throw new ApiProblem(
@@ -186,7 +198,11 @@ export async function admitScan(
     workflowInstanceId: workflowInstanceId(actor.membership.tenantId, scanId),
   });
 
-  await ensureAsset(tx, { id: deps.newId(), accountId: request.account_id, canonicalUrl: preflight.url });
+  await ensureAsset(tx, {
+    id: deps.newId(),
+    accountId: request.account_id,
+    canonicalUrl: preflight.url,
+  });
 
   await createBudget(tx, {
     id: deps.newId(),
@@ -288,9 +304,15 @@ export function ledgerProblem(error: LedgerError): ApiProblem {
     case 'CURRENCY_MISMATCH':
       return new ApiProblem('CURRENCY_MISMATCH', 'The cost limit uses a different currency.');
     case 'IDEMPOTENCY_CONFLICT':
-      return new ApiProblem('IDEMPOTENCY_CONFLICT', 'The same operation key was reused with different cost input.');
+      return new ApiProblem(
+        'IDEMPOTENCY_CONFLICT',
+        'The same operation key was reused with different cost input.',
+      );
     case 'VERSION_CONFLICT':
-      return new ApiProblem('VERSION_CONFLICT', 'The cost limit changed since it was read. Reload and retry.');
+      return new ApiProblem(
+        'VERSION_CONFLICT',
+        'The cost limit changed since it was read. Reload and retry.',
+      );
     case 'OVERRUN_NOT_RECONCILED':
       return new ApiProblem(
         'BUDGET_PAUSED',

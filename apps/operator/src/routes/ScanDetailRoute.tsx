@@ -38,7 +38,7 @@ export function ScanDetailRoute({ session }: { session: Session }) {
   const record = scan.data;
   const tone = scanTone(record.state);
   const canCancel =
-    (session.role !== 'viewer') && ACTIVE.has(record.state) && record.state !== 'cancel_requested';
+    session.role !== 'viewer' && ACTIVE.has(record.state) && record.state !== 'cancel_requested';
 
   return (
     <>
@@ -48,7 +48,9 @@ export function ScanDetailRoute({ session }: { session: Session }) {
             <Link to="/scans">Scans</Link> / {record.id.slice(0, 8)}
           </p>
           <h1>Scan record</h1>
-          <p style={{ fontFamily: 'var(--font-mono)', overflowWrap: 'anywhere' }}>{record.target_url}</p>
+          <p style={{ fontFamily: 'var(--font-mono)', overflowWrap: 'anywhere' }}>
+            {record.target_url}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--s3)', alignItems: 'center', flexWrap: 'wrap' }}>
           <Chip tone={tone.tone}>{tone.label}</Chip>
@@ -60,8 +62,7 @@ export function ScanDetailRoute({ session }: { session: Session }) {
         <Notice tone="blocked" title="This scan did not complete">
           <p>{record.blocked_reason}</p>
           <p style={{ marginTop: 'var(--s2)' }}>
-            No finding was produced. A blocked inspection is not evidence that the page is
-            healthy.
+            No finding was produced. A blocked inspection is not evidence that the page is healthy.
           </p>
         </Notice>
       ) : null}
@@ -69,9 +70,9 @@ export function ScanDetailRoute({ session }: { session: Session }) {
       {record.state === 'partial' ? (
         <Notice tone="attention" title="Partial sample">
           <p>
-            {record.coverage.captured_unique_pages} of {record.coverage.expected_unique_pages}{' '}
-            pages were captured. A finding can still be reviewed if its own required evidence
-            is complete, and the report discloses the sample.
+            {record.coverage.captured_unique_pages} of {record.coverage.expected_unique_pages} pages
+            were captured. A finding can still be reviewed if its own required evidence is complete,
+            and the report discloses the sample.
           </p>
         </Notice>
       ) : null}
@@ -92,7 +93,9 @@ export function ScanDetailRoute({ session }: { session: Session }) {
         </div>
         <div className="panel">
           <h2 style={{ fontSize: 'var(--text-section)' }}>State</h2>
-          <dl style={{ margin: 0, display: 'grid', gap: 'var(--s3)', fontSize: 'var(--text-meta)' }}>
+          <dl
+            style={{ margin: 0, display: 'grid', gap: 'var(--s3)', fontSize: 'var(--text-meta)' }}
+          >
             <div>
               <dt style={{ color: 'var(--ink-muted)' }}>Version</dt>
               <dd style={{ margin: 0, fontFamily: 'var(--font-mono)' }}>{record.version}</dd>
@@ -134,9 +137,15 @@ export function ScanDetailRoute({ session }: { session: Session }) {
                 style={{ padding: 'var(--s3) 0', borderBottom: '1px solid var(--rule)' }}
               >
                 <p style={{ fontWeight: 560 }}>{finding.claim}</p>
-                <p style={{ marginTop: 'var(--s1)', fontSize: 'var(--text-meta)', color: 'var(--ink-secondary)' }}>
-                  {finding.detector_id} v{finding.detector_version} · state {finding.state} · version{' '}
-                  {finding.version}
+                <p
+                  style={{
+                    marginTop: 'var(--s1)',
+                    fontSize: 'var(--text-meta)',
+                    color: 'var(--ink-secondary)',
+                  }}
+                >
+                  {finding.detector_id} v{finding.detector_version} · state {finding.state} ·
+                  version {finding.version}
                 </p>
               </li>
             ))}
@@ -186,11 +195,17 @@ function CancelButton({ scan, onCancelled }: { scan: Scan; onCancelled: () => vo
     <div className="notice" data-tone="attention" style={{ maxWidth: 420 }}>
       <h3>Stop new work on this scan?</h3>
       <p style={{ fontSize: 'var(--text-meta)' }}>
-        No further pages will be requested. Provider cost already incurred stays recorded and
-        may still settle.
+        No further pages will be requested. Provider cost already incurred stays recorded and may
+        still settle.
       </p>
       <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
-        <button type="button" className="btn" data-variant="primary" onClick={cancel} disabled={busy}>
+        <button
+          type="button"
+          className="btn"
+          data-variant="primary"
+          onClick={cancel}
+          disabled={busy}
+        >
           {busy ? 'Stopping…' : 'Stop new work'}
         </button>
         <button type="button" className="btn" onClick={() => setConfirming(false)} disabled={busy}>

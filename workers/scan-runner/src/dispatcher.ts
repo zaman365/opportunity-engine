@@ -76,7 +76,9 @@ export class OutboxDispatcher {
     if (event.status === 'delivered') return true;
     if (event.event_type !== 'scan.admitted') {
       this.#log({ event: 'unsupported_event', event_type: event.event_type });
-      await this.#db.withTenant(tenantId, (tx) => markOutboxDelivered(tx, { id: outboxId, providerInstanceId: null }));
+      await this.#db.withTenant(tenantId, (tx) =>
+        markOutboxDelivered(tx, { id: outboxId, providerInstanceId: null }),
+      );
       return true;
     }
 
