@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   canAttemptVerification,
+  canonicalDetectorId,
   checkSubmission,
+  isImplementedDetector,
+  matchOffers,
+  sameDetector,
   judgeRateLimits,
   publicRequestState,
   rateLimitsFor,
@@ -271,5 +275,88 @@ describe('verification channels', () => {
     });
     expect(outcome).toMatchObject({ delivered: true, localCode: '424242' });
     expect(outcome.detail).toContain('sent to nobody');
+  });
+});
+
+/**
+ * The detector namespace, and what happens to the old spellings.
+ *
+ * The rename is only safe because nothing compares raw strings any more. These are the cases
+ * that would break silently if something did — a catalogue entry, a public form, or a finding
+ * written in one namespace meeting a comparison written in the other.
+ */
+describe('detector namespace', () => {
+  it('maps every venture-scoped spelling onto a Consistency Engine rule', () => {
+    expect(canonicalDetectorId('MF-LINK-01')).toBe('CE-LINK-01');
+    expect(canonicalDetectorId('MF-ASSET-01')).toBe('CE-ASSET-01');
+    expect(canonicalDetectorId('MF-DATA-01')).toBe('CE-DATA-01');
+    expect(canonicalDetectorId('PDP-CONTENT-01')).toBe('CE-CONTENT-01');
+    expect(canonicalDetectorId('PDP-VISUAL-01')).toBe('CE-VISUAL-01');
+    expect(canonicalDetectorId('PDP-MOBILE-01')).toBe('CE-MOBILE-01');
+    // Canonical in, canonical out.
+    expect(canonicalDetectorId('CE-LINK-01')).toBe('CE-LINK-01');
+    // And an id naming no rule stays unknown rather than being guessed at.
+    expect(canonicalDetectorId('XX-NOPE-01')).toBeNull();
+  });
+
+  it('treats the two spellings as one rule', () => {
+    expect(sameDetector('MF-LINK-01', 'CE-LINK-01')).toBe(true);
+    expect(sameDetector('CE-ASSET-01', 'MF-ASSET-01')).toBe(true);
+    expect(sameDetector('MF-LINK-01', 'MF-ASSET-01')).toBe(false);
+    expect(sameDetector('XX-NOPE-01', 'XX-NOPE-01')).toBe(false);
+  });
+
+  it('accepts either spelling for a rule this build runs, and neither for one it does not', () => {
+    for (const id of ['CE-LINK-01', 'CE-ASSET-01', 'MF-LINK-01', 'MF-ASSET-01']) {
+      expect(isImplementedDetector(id), id).toBe(true);
+    }
+    // Specified in contracts/detectors.json, not built, so not requestable under any name.
+    for (const id of ['CE-DATA-01', 'MF-DATA-01', 'CE-VISUAL-01', 'PDP-VISUAL-01']) {
+      expect(isImplementedDetector(id), id).toBe(false);
+    }
+  });
+
+  it('matches a catalogue entry written in the old namespace', () => {
+    // The kit's offer catalogue says `MF-LINK-01` and stays byte-identical. A finding produced
+    // today says `CE-LINK-01`. A scope that stopped matching because a namespace moved would
+    // route real work to manual quotation for no reason.
+    const result = matchOffers({
+      confirmedFindings: [{ id: 'f1', detectorId: 'CE-LINK-01', rootCauseKey: 'size-guide-404' }],
+      catalog: [
+        {
+          id: '00000000-0000-4000-8000-000000000001',
+          sku: 'MF-LINK-REPAIR',
+          version: 1,
+          promise: 'Repair one supported information-link root cause.',
+          detectorFamilies: ['MF-LINK-01'],
+          inclusions: [],
+          exclusions: [],
+          prerequisites: [],
+          acceptance: ['destination loads'],
+          currency: 'EUR',
+          priceMinor: '29000',
+          taxTreatment: 'net',
+          minEffortMinutes: 60,
+          maxEffortMinutes: 180,
+          enabled: true,
+        },
+      ],
+      satisfiedPrerequisites: [],
+      openCommitments: 0,
+      deliveryCapacity: 3,
+    });
+    expect(result.eligible).toHaveLength(1);
+  });
+
+  it('offers a check a form listed under the old namespace', () => {
+    const result = checkSubmission(
+      {
+        targetUrl: 'https://shop.example.com/p',
+        requestedDetectors: ['CE-LINK-01'],
+      },
+      { enabled: true, allowedDetectors: ['MF-LINK-01'] },
+      true,
+    );
+    expect(result.ok).toBe(true);
   });
 });

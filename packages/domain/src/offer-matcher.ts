@@ -10,6 +10,8 @@
  * failure.
  */
 
+import { sameDetector } from '@oe/contracts';
+
 export type OfferIneligibility =
   | 'no_confirmed_finding'
   | 'detector_not_supported_by_any_sku'
@@ -94,8 +96,12 @@ export function matchOffers(input: MatchInput): MatchResult {
   const eligible: EligibleOffer[] = [];
 
   for (const offer of input.catalog) {
+    // Compared canonically. A catalogue entry written against the handoff namespace
+    // (`MF-LINK-01`) and a finding produced under the engine's own (`CE-LINK-01`) name the
+    // same rule, and a scope that stopped matching because a namespace moved would silently
+    // route real work to manual quotation.
     const findings = input.confirmedFindings.filter((finding) =>
-      offer.detectorFamilies.includes(finding.detectorId),
+      offer.detectorFamilies.some((family) => sameDetector(family, finding.detectorId)),
     );
     if (findings.length === 0) {
       rejected.push({ sku: offer.sku, reason: 'detector_not_supported_by_any_sku' });

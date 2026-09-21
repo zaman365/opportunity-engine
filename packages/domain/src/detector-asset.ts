@@ -1,5 +1,8 @@
 /**
- * MF-ASSET-01 · product image fails to load.
+ * CE-ASSET-01 · product image fails to load.
+ *
+ * Named `MF-ASSET-01` in the handoff contract. The rule is unchanged; only the namespace is,
+ * and `@oe/contracts/detector-ids.ts` maps the old spelling onto this one.
  *
  * `contracts/detectors.json` fixes the bar: "Resource failure plus actual rendered-image
  * failure after bounded lazy-load wait", abstaining on `blocked`, `pending_lazy_load`,
@@ -8,12 +11,12 @@
  * Both halves are required. A failed request alone could still paint from cache; a blank
  * render alone could be a layout or format problem rather than a missing asset. Only the pair,
  * repeated across independent comparable sessions, supports a claim — and even then a reviewer
- * decides, exactly as for MF-LINK-01.
+ * decides, exactly as for CE-LINK-01.
  *
  * Deterministic: fetches nothing, renders nothing, approves nothing.
  */
 
-export const ASSET_DETECTOR_ID = 'MF-ASSET-01';
+export const ASSET_DETECTOR_ID = 'CE-ASSET-01';
 export const ASSET_DETECTOR_VERSION = '2.0.0';
 
 /**
@@ -24,8 +27,8 @@ export const ASSET_DETECTOR_VERSION = '2.0.0';
  * request contract all derive from this list, so a detector cannot be requested until it
  * exists.
  */
-export const IMPLEMENTED_DETECTORS = ['MF-LINK-01', 'MF-ASSET-01'] as const;
-export type ImplementedDetector = (typeof IMPLEMENTED_DETECTORS)[number];
+// `IMPLEMENTED_DETECTORS` now lives in @oe/contracts, because the browser bundle needs it and
+// may not import this package. Re-exported from the domain index so callers here are unchanged.
 
 export type ImageRole = 'product' | 'decorative' | 'unknown';
 

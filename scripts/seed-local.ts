@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { canonicalDetectorId } from '../packages/contracts/src/detector-ids.ts';
 import { mergeOfferCatalog, type MergedOffer } from '../packages/domain/src/offer-catalog.ts';
 import { loadDotEnv } from '../packages/db/src/dotenv.ts';
 
@@ -281,7 +282,7 @@ async function seedIntakeChannel(client: pg.Client, seed: TenantSeed): Promise<v
         'recorded sessions. We will tell you what we observed, not what it is worth. A person ' +
         'reviews every result before you see it. We use your address to send you this result ' +
         'and nothing else, and asking for a check does not sign you up for anything.',
-      ['MF-LINK-01', 'MF-ASSET-01'],
+      ['CE-LINK-01', 'CE-ASSET-01'],
       owner.id,
     ],
   );
@@ -348,7 +349,9 @@ async function seedOffers(client: pg.Client, seed: TenantSeed): Promise<void> {
         offer.sku,
         offer.version,
         offer.promise,
-        offer.detectorFamilies,
+        // The kit's catalogue names detectors in its own namespace and stays byte-identical;
+        // what this system writes down is the Consistency Engine id.
+        offer.detectorFamilies.map((family) => canonicalDetectorId(family) ?? family),
         JSON.stringify(offer.inclusions),
         JSON.stringify(offer.exclusions),
         JSON.stringify(offer.prerequisites),

@@ -9,6 +9,7 @@
  * website, and nothing in this file can produce authority to capture anything.
  */
 
+import { sameDetector } from '@oe/contracts';
 import { preflightAddress, type PreflightDenial } from './url-policy.ts';
 
 export type IntakeRefusal =
@@ -145,7 +146,10 @@ export function checkSubmission(
     return { ok: false, refusal: 'detector_not_offered' };
   }
   for (const detector of submission.requestedDetectors) {
-    if (!channel.allowedDetectors.includes(detector)) {
+    // Canonical comparison, so a channel configured under either namespace offers the same
+    // checks. A form that quietly stopped offering a check because an id was renamed would
+    // be a worse failure than refusing one.
+    if (!channel.allowedDetectors.some((allowed) => sameDetector(allowed, detector))) {
       return { ok: false, refusal: 'detector_not_offered' };
     }
   }

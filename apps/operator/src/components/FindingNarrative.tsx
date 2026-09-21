@@ -1,4 +1,4 @@
-import type { Evidence, Finding } from '@oe/contracts';
+import { canonicalDetectorId, type Evidence, type Finding } from '@oe/contracts';
 import { Chip, Timestamp, type Tone } from './primitives.tsx';
 
 /**
@@ -105,10 +105,12 @@ export function FindingNarrative({
  * drifting from observation" BUILD_SPEC.md §8 separates them to prevent.
  */
 function interpretationFor(detectorId: string): string {
-  switch (detectorId) {
-    case 'MF-LINK-01':
+  // Canonicalised first, so a finding recorded under the handoff namespace (`MF-LINK-01`)
+  // gets its own rationale rather than falling through to "none has been written".
+  switch (canonicalDetectorId(detectorId) ?? detectorId) {
+    case 'CE-LINK-01':
       return 'A linked information page that does not load can interrupt a buying decision. That is a reason to repair the link, not a measured effect on sales.';
-    case 'MF-ASSET-01':
+    case 'CE-ASSET-01':
       return 'A product image that does not appear leaves a buyer without something they were meant to see. That is a reason to repair the asset, not a measured effect on sales.';
     default:
       return 'No interpretation has been written for this detector. Read the observation and its limits directly.';

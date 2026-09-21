@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { canonicalDetectorId } from '@oe/contracts';
 import {
   aggregateNeed,
   checkActionReadiness,
@@ -170,7 +171,7 @@ describe('state machine parity', () => {
   });
 });
 
-describe('MF-LINK-01 parity', () => {
+describe('CE-LINK-01 parity', () => {
   const base = {
     linkKind: 'important_information',
     navigationApproved: true,
@@ -250,8 +251,49 @@ describe('MF-LINK-01 parity', () => {
     },
   };
 
+  /**
+   * Parity is on the rule, not on the namespace.
+   *
+   * The reference module emits the handoff's `MF-LINK-01`; this build emits the Consistency
+   * Engine's `CE-LINK-01` for the same rule at the same version. That difference is
+   * deliberate and mapped, so it is normalised here and asserted separately below — comparing
+   * the whole object verbatim would turn the rename into a permanent failing test, and
+   * deleting the assertion would lose the guarantee it exists for.
+   */
+  const normalise = (result: unknown): unknown => {
+    if (result === null || typeof result !== 'object') return result;
+    const copy = { ...(result as Record<string, unknown>) };
+    if (typeof copy['detector_id'] === 'string') {
+      copy['detector_id'] = canonicalDetectorId(copy['detector_id']) ?? copy['detector_id'];
+    }
+    return copy;
+  };
+
   it.each(Object.entries(cases))('matches the reference for %s', (_name, input) => {
-    expect(evaluateImportantLink(input as never)).toEqual(refDetector.evaluateImportantLink(input));
+    expect(normalise(evaluateImportantLink(input as never))).toEqual(
+      normalise(refDetector.evaluateImportantLink(input)),
+    );
+  });
+
+  it('differs from the reference in exactly one way: the detector namespace', () => {
+    const mine = evaluateImportantLink(cases['two independent 404s'] as never) as Record<
+      string,
+      unknown
+    >;
+    const reference = refDetector.evaluateImportantLink(cases['two independent 404s']) as Record<
+      string,
+      unknown
+    >;
+    expect(reference['detector_id']).toBe('MF-LINK-01');
+    expect(mine['detector_id']).toBe('CE-LINK-01');
+    expect(canonicalDetectorId(reference['detector_id'] as string)).toBe(mine['detector_id']);
+    // Same rule, same version. Only the name moved.
+    expect(mine['detector_version']).toBe(reference['detector_version']);
+    // And nothing else differs.
+    const differing = Object.keys(mine).filter(
+      (key) => JSON.stringify(mine[key]) !== JSON.stringify(reference[key]),
+    );
+    expect(differing).toEqual(['detector_id']);
   });
 
   it('only a repeated identical failure produces a candidate, and it still needs review', () => {

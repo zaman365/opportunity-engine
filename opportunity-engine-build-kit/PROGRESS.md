@@ -1,6 +1,16 @@
 # Progress
 
-**Kit version 2.0 · last session 21 September 2026 (M3 slice 1)**
+> **Superseded, 21 September 2026.** The owner set the product direction: this is the **Brand
+> Consistency Scanner**, powered by the **Consistency Engine** — not a multi-venture operating
+> platform. The authoritative documents now live in the repository:
+> `docs/product/PRODUCT.md`, `docs/roadmap/` (which supersedes `tasks/`) and `docs/optional/`
+> (Shopify, TREVV, venture adapters and agency SaaS, all deferred). Detectors moved to a `CE-`
+> namespace with the old spellings kept working. See `docs/adr/ADR-021-product-direction.md`.
+>
+> This kit is left byte-identical apart from this file, which it instructs agents to update,
+> so it stays the record of what the handoff actually said.
+
+**Kit version 2.0 · last session 21 September 2026 (M3 slice 1, then the direction change)**
 
 ## Completed in this kit
 
@@ -17,7 +27,7 @@ VERIFICATION.md.
 | Live authentication/membership | **Partly** · Access JWT verification implemented (jose, pinned issuer/audience/algorithms) but never exercised against a real Access deployment. The local fixture identity is the only path actually run |
 | Production database/migrations | **Local only** · 10 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
 | Live public scan adapter | **Not implemented** · `BrowserRunCaptureProvider` runs the address policy then reports `not_configured`. No egress-boundary proof, no credentials |
-| Detectors | **2 of 6 implemented** · MF-LINK-01 and MF-ASSET-01, both with negative controls. MF-DATA-01, PDP-CONTENT-01, PDP-VISUAL-01 and PDP-MOBILE-01 are specified and unrequestable |
+| Detectors | **2 of 6 implemented** · `CE-LINK-01` and `CE-ASSET-01` (accepted also under the handoff names `MF-LINK-01`, `MF-ASSET-01`), both with negative controls. The other four are specified and unrequestable under either namespace |
 | Persistent budget enforcement | **Implemented and tested** · SQL command functions, runtime holds `SELECT` only, concurrency asserted against real connections |
 | Human review and reports | **Implemented and tested** · versioned review with optimistic locking, immutable hash-bound report snapshot |
 | Requested intake | **Implemented and tested, local only** · public submission, four rate-limit windows, hashed single-use codes, host-bound tenant resolution. No adapter can reach a member of the public: the only working verification channel returns the code to the caller and refuses to construct outside `APP_ENV=local` |
@@ -26,6 +36,51 @@ VERIFICATION.md.
 | Commercial prices | **Provisional** · EUR 290 / EUR 190 net, approved in `config/offer-approvals.json`. **VAT treatment unconfirmed** and recorded as open in both approval notes |
 | OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely, now for a legal reason as well as a design one (`docs/legal/DACH_OUTREACH_STUDY.md`) |
 | Production deployment | **Not performed** · no cloud resource was created or contacted |
+
+## Session log · 21 September 2026 · product direction
+
+**Agent:** Claude Opus 5 · **branch:** main.
+
+The owner narrowed the product: **Brand Consistency Scanner**, powered by the **Consistency
+Engine**. Not TREVV, not a Shopify app, not LokalFix or MikroIT, not MarktFix-only or
+PDP-Studio-only, not a multi-venture operating system.
+
+### What changed
+
+- `docs/product/PRODUCT.md` — what this is and what it is not.
+- `docs/roadmap/` — seven milestones, superseding `tasks/`. M2 split into detectors and
+  offers; M3 refocused on public intake and report delivery; Shopify and TREVV removed from
+  the milestone set entirely.
+- `docs/optional/` — Shopify connector, TREVV handoff, future venture adapters, agency SaaS.
+  Each records the idea, the cost and the condition that would make it worth doing. Two of
+  them — mass crawling and data licensing — are recorded as contrary to the permission model
+  rather than merely deferred.
+- Detector namespace `CE-`, with `MF-`/`PDP-` kept working. Configuration normalised by
+  migration 0011; `oe.findings.detector_id` deliberately untouched, because a reviewer
+  confirmed that claim under that id and rewriting it would change what somebody signed.
+
+Rationale, including the two judgement calls, in `docs/adr/ADR-021-product-direction.md`.
+
+### One judgement call worth flagging
+
+The owner asked for `tasks/M3_CUSTOMER_AND_ENGAGEMENTS.md` to be renamed. This kit is
+integrity-recorded and its own AGENTS.md says to treat it as read-only, so the rename was done
+by writing the superseding milestone in `docs/roadmap/` and pointing at it from here, rather
+than by editing the kit and re-recording its hashes. The effect is the same — the milestone
+anybody works from is now `M3_PUBLIC_INTAKE_AND_REPORT_DELIVERY.md` — and what the handoff
+originally said is still recoverable. Rewriting inside the kit instead is a small change if
+that is preferred.
+
+### Commands run and actual results
+
+| Command | Result |
+|---|---|
+| `npm run verify` | Clean: typecheck, lint, format, contract, build, and all four suites |
+| `npm run test:unit` | **178 passed** (172 → 178; 5 new for the namespace mapping, 1 for parity) |
+| `npm run test:contract` | **52 passed** |
+| `npm run test:db` | **69 passed** |
+| `npm run test:integration` | **106 passed** |
+| `npm run test:e2e` | **25 passed, 7 skipped** |
 
 ## Session log · 21 September 2026 · M3 slice 1 · requested intake
 

@@ -1,12 +1,15 @@
 /**
- * MF-LINK-01 · narrow broken-information-link observation rule.
+ * CE-LINK-01 · narrow broken-information-link observation rule.
+ *
+ * Named `MF-LINK-01` in the handoff contract. The rule is unchanged; only the namespace is,
+ * and `@oe/contracts/detector-ids.ts` maps the old spelling onto this one.
  *
  * Deterministic. It fetches nothing and approves nothing: a `candidate` result still
  * requires a human reviewer bound to the finding version before it can reach a report.
  * Ported from `reference/detector-link.mjs`; parity is asserted in tests.
  */
 
-export const DETECTOR_ID = 'MF-LINK-01';
+export const DETECTOR_ID = 'CE-LINK-01';
 export const DETECTOR_VERSION = '2.0.0';
 
 export interface LinkObservation {

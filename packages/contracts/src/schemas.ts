@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ACCEPTED_DETECTOR_IDS } from './detector-ids.ts';
 import {
   CurrencyCode,
   DateTime,
@@ -85,11 +86,17 @@ export const Authorization = z
 export type Authorization = z.infer<typeof Authorization>;
 
 /**
- * Detectors this build implements. Mirrors `IMPLEMENTED_DETECTORS` in @oe/domain; a contract
- * test asserts the two stay in step, so a detector cannot be requestable before it exists.
+ * Detector spellings a caller may send.
+ *
+ * Both namespaces: the Consistency Engine's own `CE-` ids and the venture-scoped `MF-`/`PDP-`
+ * ones the handoff contract used. A client written against the handoff keeps working, because
+ * widening what is accepted can break nobody. See `detector-ids.ts` for the mapping and for
+ * why nothing already written down gets renamed.
  */
-export const DetectorId = z.enum(['MF-LINK-01', 'MF-ASSET-01']);
-export type DetectorId = z.infer<typeof DetectorId>;
+export const RequestedDetectorId = z.enum(
+  ACCEPTED_DETECTOR_IDS as unknown as [string, ...string[]],
+);
+export type RequestedDetectorId = z.infer<typeof RequestedDetectorId>;
 
 export const CreateScan = z
   .object({
@@ -99,7 +106,7 @@ export const CreateScan = z
     authorization_id: Uuid,
     max_unique_pages: z.number().int().min(1).max(5),
     detectors: z
-      .array(DetectorId)
+      .array(RequestedDetectorId)
       .min(1)
       .max(2)
       .refine((value) => new Set(value).size === value.length, {

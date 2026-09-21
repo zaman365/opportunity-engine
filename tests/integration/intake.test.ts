@@ -85,7 +85,7 @@ describe('the form a requester is shown', () => {
     expect(response.status).toBe(200);
     const form = await h.json<IntakeForm>(response);
     expect(form.host).toBe(CHANNEL_A);
-    expect(form.allowed_detectors).toEqual(['MF-LINK-01', 'MF-ASSET-01']);
+    expect(form.allowed_detectors).toEqual(['CE-LINK-01', 'CE-ASSET-01']);
     // The purpose text has to say what happens to the address and that a person reviews the
     // result. The length floor in the schema is a proxy for that; this asserts the substance.
     expect(form.purpose_text).toMatch(/person reviews every result/i);

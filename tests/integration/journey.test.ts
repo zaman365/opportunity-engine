@@ -264,7 +264,7 @@ describe('the complete journey', () => {
       expect(evidence.conditions.locale).toBe('de-DE');
       expect(evidence.sha256).toMatch(/^[a-f0-9]{64}$/);
     }
-    expect(timeline.steps.map((s) => s.step_key)).toContain('detect:MF-LINK-01');
+    expect(timeline.steps.map((s) => s.step_key)).toContain('detect:CE-LINK-01');
   });
 
   it('produces a candidate finding that is not yet a customer-facing claim', async () => {
@@ -276,7 +276,7 @@ describe('the complete journey', () => {
       await h.request(`/api/v1/findings/${findingId}`),
     );
     expect(detail.finding.state).toBe('candidate');
-    expect(detail.finding.detector_id).toBe('MF-LINK-01');
+    expect(detail.finding.detector_id).toBe('CE-LINK-01');
     expect(detail.finding.evidence_grade).toBe('A');
     expect(detail.finding.reviewer_id).toBeNull();
     expect(detail.finding.commercial_impact).toBe('hypothesis');

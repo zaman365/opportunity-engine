@@ -1,3 +1,15 @@
+// The detector namespace lives in @oe/contracts so the browser bundle can read it too.
+export {
+  ACCEPTED_DETECTOR_IDS,
+  canonicalDetectorId,
+  DETECTOR_IDS,
+  IMPLEMENTED_DETECTORS,
+  isImplementedDetector,
+  LEGACY_DETECTOR_IDS,
+  sameDetector,
+  type DetectorId,
+  type ImplementedDetector,
+} from '@oe/contracts';
 export * from './money.ts';
 export * from './scoring.ts';
 export * from './state-machine.ts';

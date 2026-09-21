@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 import type { CreateScan } from '@oe/contracts';
-import { IMPLEMENTED_DETECTORS, micro } from '@oe/domain';
+import {
+  canonicalDetectorId,
+  IMPLEMENTED_DETECTORS,
+  isImplementedDetector,
+  micro,
+} from '@oe/domain';
 import {
   claimIdempotencyKey,
   createBudget,
@@ -154,9 +159,14 @@ export async function admitScan(
   }
 
   // 4 · Detector phase and currency.
-  const unsupported = request.detectors.filter(
-    (detector) => !(IMPLEMENTED_DETECTORS as readonly string[]).includes(detector),
+  //
+  // Canonicalised on the way in, so what is stored on the scan — and later on every finding
+  // and every audit row — is the engine's own id whichever spelling the caller used. The
+  // request keeps whatever it sent; only what this system writes down is normalised.
+  const requestedDetectors = request.detectors.map(
+    (detector) => canonicalDetectorId(detector) ?? detector,
   );
+  const unsupported = request.detectors.filter((detector) => !isImplementedDetector(detector));
   if (unsupported.length > 0) {
     throw new ApiProblem(
       'UNSUPPORTED_DETECTOR',
@@ -193,7 +203,7 @@ export async function admitScan(
     authorizationId: request.authorization_id,
     targetUrl: preflight.url,
     expectedUniquePages: request.max_unique_pages,
-    detectors: [...request.detectors],
+    detectors: requestedDetectors,
     requestedBy: actor.membership.membershipId,
     workflowInstanceId: workflowInstanceId(actor.membership.tenantId, scanId),
   });
@@ -254,7 +264,7 @@ export async function admitScan(
       workflow_instance_id: scan.workflow_instance_id,
       target_url: preflight.url,
       max_unique_pages: request.max_unique_pages,
-      detectors: request.detectors,
+      detectors: requestedDetectors,
       approved_hosts: account.approved_hosts,
       operation_key: `scan:${scanId}:capture`,
     },

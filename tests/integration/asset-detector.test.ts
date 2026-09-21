@@ -54,7 +54,7 @@ async function runAssetScan(route: string): Promise<{ scan: Scan; timeline: Time
 }
 
 const assetFindings = (timeline: Timeline) =>
-  timeline.findings.filter((finding) => finding.detector_id === 'MF-ASSET-01');
+  timeline.findings.filter((finding) => finding.detector_id === 'CE-ASSET-01');
 
 describe('known positive', () => {
   it('records a candidate for a product image that 404s and does not paint', async () => {
@@ -177,16 +177,16 @@ describe('admission', () => {
     );
     // Both detectors ran; only the asset rule had something to say about this page.
     expect(timeline.steps.map((step) => step.step_key)).toEqual(
-      expect.arrayContaining(['detect:MF-LINK-01', 'detect:MF-ASSET-01']),
+      expect.arrayContaining(['detect:CE-LINK-01', 'detect:CE-ASSET-01']),
     );
     expect(assetFindings(timeline)).toHaveLength(1);
   });
 
   it('runs only the detector a scan was admitted with', async () => {
     const { timeline } = await runAssetScan('product-broken-image');
-    expect(timeline.steps.map((step) => step.step_key)).toContain('detect:MF-ASSET-01');
-    expect(timeline.steps.map((step) => step.step_key)).not.toContain('detect:MF-LINK-01');
-    expect(timeline.findings.every((finding) => finding.detector_id === 'MF-ASSET-01')).toBe(true);
+    expect(timeline.steps.map((step) => step.step_key)).toContain('detect:CE-ASSET-01');
+    expect(timeline.steps.map((step) => step.step_key)).not.toContain('detect:CE-LINK-01');
+    expect(timeline.findings.every((finding) => finding.detector_id === 'CE-ASSET-01')).toBe(true);
   });
 });
 
@@ -233,7 +233,7 @@ describe('review and report', () => {
       };
     }>(await h.request(`/api/v1/reports/${report.id}`));
     expect(payload.body.confirmed_findings).toHaveLength(1);
-    expect(payload.body.confirmed_findings[0]!.detector_id).toBe('MF-ASSET-01');
+    expect(payload.body.confirmed_findings[0]!.detector_id).toBe('CE-ASSET-01');
     expect(payload.body.confirmed_findings[0]!.observed_conditions).toHaveLength(2);
     // No invented commercial effect anywhere in the rendered body.
     expect(JSON.stringify(payload.body)).not.toMatch(

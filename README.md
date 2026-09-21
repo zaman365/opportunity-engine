@@ -1,12 +1,20 @@
-# Opportunity Engine
+# Brand Consistency Scanner
 
-An evidence-first diagnostic engine: it inspects an approved page, records what it actually
-observed, asks a person whether that evidence supports a claim, and turns confirmed claims into
-a protected report. It is not a prospecting tool and has no outbound channel of any kind.
+An evidence-first scanner for websites, product pages, landing pages and business pages: it
+inspects an approved page, records what it actually observed, asks a person whether that
+evidence supports a claim, and turns confirmed claims into a protected report. It is not a
+prospecting tool and has no outbound channel of any kind.
+
+The capability underneath is the **Consistency Engine** — capture, detectors, review, reports.
+[`docs/product/PRODUCT.md`](docs/product/PRODUCT.md) says what this is and what it is not;
+[`docs/roadmap`](docs/roadmap/) holds the milestones and supersedes the handoff kit's
+`tasks/`. The directory and git remote are still named `opportunity-engine`; renaming them is
+a separate, disruptive act and is the owner's to take.
 
 **Status: M0–M2 complete against local fixtures; M3 in progress.** 2 of 6 detectors
-implemented (MF-LINK-01, MF-ASSET-01), the offer catalogue in place, and requested intake
-open behind abuse controls. Nothing is deployed and nothing is sent: a drafted scope is an
+implemented (`CE-LINK-01`, `CE-ASSET-01`, still accepted under their handoff names
+`MF-LINK-01` and `MF-ASSET-01`), the offer catalogue in place, and requested intake open
+behind abuse controls. Nothing is deployed and nothing is sent: a drafted scope is an
 internal record, and no adapter can reach a member of the public. Live capture, cloud
 resources, payments and every integration remain unconfigured and fail closed. Read
 [`opportunity-engine-build-kit/PROGRESS.md`](opportunity-engine-build-kit/PROGRESS.md) for the
@@ -69,6 +77,9 @@ packages/contracts   Zod mirrors of the served contract
 contracts            overlay.json + the generated openapi.json the API serves
 fixtures             The M2 synthetic product-image site
 packages/domain      Scoring, money, state machine, URL policy, detectors, offer matching
+docs/product         What this product is, and what it is not
+docs/roadmap         Milestones. Supersedes the handoff kit's tasks/
+docs/optional        Deferred scope: Shopify, TREVV, venture adapters, agency SaaS
 config               Owner price approvals, separate from the kit's scope definition
 packages/db          Migrations, tenant-scoped client, repositories, ledger
 packages/capture     Capture port, egress guard, fixture and Browser Run adapters
@@ -92,7 +103,11 @@ opportunity-engine-build-kit/   The handoff. Treat as read-only input.
 - **Publish a claim no one reviewed.** A confirmation requires supporting evidence, no
   contradiction, unexpired artifacts and a reviewer bound to that exact finding version.
 - **Run a detector it has not implemented.** One list drives the request contract, admission
-  and the database constraint. The four specified-but-unbuilt detectors are unrequestable.
+  and the database constraint. The four specified-but-unbuilt detectors are unrequestable
+  under either namespace.
+- **Rewrite a claim somebody confirmed.** Renaming the detector namespace normalised
+  configuration and left `oe.findings.detector_id` alone: a reviewer confirmed that claim
+  under that id, and comparisons are canonical instead.
 - **Call a slow image a broken one.** MF-ASSET-01 needs a failed request _and_ a failed render,
   agreeing across two sessions; anything pending, decorative or served in a changed product
   state is an abstention, not a claim.

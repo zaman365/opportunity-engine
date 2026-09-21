@@ -1,7 +1,7 @@
 {
   "$comment": "M2 additions to the build kit's M1 OpenAPI document. See contracts/README.md.",
   "base": "opportunity-engine-build-kit/contracts/openapi.json",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "changes": [
     {
       "op": "set",
@@ -21,19 +21,19 @@
       "value": {
         "type": "array",
         "items": {
-          "enum": ["MF-LINK-01", "MF-ASSET-01"]
+          "enum": ["CE-LINK-01", "CE-ASSET-01", "MF-LINK-01", "MF-ASSET-01"]
         },
         "minItems": 1,
         "maxItems": 2,
         "uniqueItems": true
       },
-      "why": "MF-ASSET-01 is implemented in M2, so a scan may request it, and may request both. The enum stays an allowlist: the four detectors that are specified but not implemented remain unrequestable. Widening only \u2014 every payload the M1 schema accepted is still accepted."
+      "why": "The product is the Brand Consistency Scanner and the capability under it is the Consistency Engine, so the canonical detector namespace is CE-. The handoff's MF- spellings stay valid input: widening what is accepted can break no client, and narrowing it would break anyone still sending MF-LINK-01. contracts/openapi.json maps the two, and nothing already written down is renamed \u2014 a finding keeps the id it was confirmed under."
     },
     {
       "op": "set",
       "pointer": "/paths/~1v1~1scans/post/description",
-      "value": "Minimum role: operator. Phase: M1-M2. Membership, purpose, object and budget checks also apply. Detectors are limited to the implemented set. Contract only; not a claim this endpoint exists.",
-      "why": "The operation now admits two detectors; its description should say so rather than implying the M1 pack."
+      "value": "Minimum role: operator. Phase: M1-M2. Membership, purpose, object and budget checks also apply. Detectors are limited to the implemented set, and may be written in either the Consistency Engine namespace (CE-LINK-01, CE-ASSET-01) or the handoff's venture-scoped one (MF-LINK-01, MF-ASSET-01); what is recorded is always the CE- id. Contract only; not a claim this endpoint exists.",
+      "why": "The product is the Brand Consistency Scanner and the capability under it is the Consistency Engine, so the canonical detector namespace is CE-. The handoff's MF- spellings stay valid input: widening what is accepted can break no client, and narrowing it would break anyone still sending MF-LINK-01. contracts/openapi.json maps the two, and nothing already written down is renamed \u2014 a finding keeps the id it was confirmed under."
     },
     {
       "op": "add",
@@ -3439,6 +3439,18 @@
       "pointer": "/info/description",
       "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. Implemented detectors: MF-LINK-01, MF-ASSET-01. Adds the M2 offer catalogue and the M3 requested-intake surface. Operations under /public have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
       "why": "A reader needs to know that this document now describes two surfaces with different protections, not one."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/description",
+      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01 (accepted also as MF-LINK-01, MF-ASSET-01). Adds the M2 offer catalogue and the M3 requested-intake surface. Operations under /public have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
+      "why": "The served contract now belongs to a named product with a named capability under it, and the detector namespace it accepts has two spellings. A reader should learn both from the document itself rather than from a commit message."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/version",
+      "value": "2.4.0",
+      "why": "The detector enum widens and the description changes. Additive: every payload the previous version accepted is still accepted."
     }
   ]
 }
