@@ -1,0 +1,14 @@
+{
+  "account_id": "00000000-0000-4000-8000-000000000001",
+  "venture_id": "00000000-0000-4000-8000-000000000002",
+  "target_url": "https://atelier-nord.test/product",
+  "authorization_id": "00000000-0000-4000-8000-000000000003",
+  "max_unique_pages": 2,
+  "detectors": [
+    "MF-LINK-01"
+  ],
+  "max_cost": {
+    "currency": "USD",
+    "amount_micro": "0"
+  }
+}

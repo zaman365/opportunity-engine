@@ -1,0 +1,60 @@
+{
+  "name": "opportunity-engine",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Evidence-first diagnostic and delivery engine. Local development build; not a deployed application.",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "workspaces": [
+    "packages/contracts",
+    "packages/domain",
+    "packages/db",
+    "packages/capture",
+    "packages/evidence",
+    "apps/api",
+    "apps/operator",
+    "workers/scan-runner"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.e2e.json",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "build": "npm run typecheck && npm run build --workspace @oe/operator",
+    "test": "npm run test:unit && npm run test:contract",
+    "test:unit": "vitest run --project unit",
+    "test:contract": "vitest run --project contract",
+    "test:db": "vitest run --project db",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test:unit && npm run test:contract && npm run test:db && npm run test:integration",
+    "db:up": "node scripts/dev-postgres.mjs up",
+    "db:down": "node scripts/dev-postgres.mjs down",
+    "db:status": "node scripts/dev-postgres.mjs status",
+    "db:migrate": "tsx packages/db/src/migrate.ts",
+    "dev:api": "tsx watch apps/api/src/node-server.ts",
+    "dev:operator": "vite --config apps/operator/vite.config.ts",
+    "dev:runner": "tsx watch workers/scan-runner/src/main.ts",
+    "fixtures": "node opportunity-engine-build-kit/fixtures/server.mjs",
+    "kit:test": "npm --prefix opportunity-engine-build-kit test",
+    "kit:check": "npm --prefix opportunity-engine-build-kit run check:kit",
+    "db:seed": "tsx scripts/seed-local.ts",
+    "db:reset": "node scripts/dev-postgres.mjs down --purge && npm run db:up && npm run db:migrate && npm run db:seed"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.2",
+    "@vitest/coverage-v8": "5.0.1",
+    "@eslint/js": "10.0.1",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "eslint": "10.11.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "prettier": "3.9.8",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.1"
+  }
+}

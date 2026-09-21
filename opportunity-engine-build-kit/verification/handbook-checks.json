@@ -1,0 +1,70 @@
+{
+  "scope": "Self-contained handbook interactions; not application tests.",
+  "checks": [
+    {
+      "check": "46 embedded documents",
+      "passed": true
+    },
+    {
+      "check": "start document renders",
+      "passed": true
+    },
+    {
+      "check": "desktop no page overflow",
+      "passed": true
+    },
+    {
+      "check": "search empty state",
+      "passed": true
+    },
+    {
+      "check": "search reset",
+      "passed": true
+    },
+    {
+      "check": "design brief visible",
+      "passed": true
+    },
+    {
+      "check": "task filename search",
+      "passed": true
+    },
+    {
+      "check": "milestone document selectable",
+      "passed": true
+    },
+    {
+      "check": "embedded concept opens standalone",
+      "passed": true
+    },
+    {
+      "check": "no page overflow at 1024",
+      "passed": true
+    },
+    {
+      "check": "no page overflow at 768",
+      "passed": true
+    },
+    {
+      "check": "no page overflow at 390",
+      "passed": true
+    },
+    {
+      "check": "mobile nav opens",
+      "passed": true
+    },
+    {
+      "check": "mobile nav closes after selection",
+      "passed": true
+    },
+    {
+      "check": "no page overflow at 320",
+      "passed": true
+    },
+    {
+      "check": "no JS exceptions",
+      "passed": true
+    }
+  ],
+  "javascript_errors": []
+}

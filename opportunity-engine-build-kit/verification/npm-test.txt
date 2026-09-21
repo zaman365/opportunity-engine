@@ -1,0 +1,699 @@
+
+> opportunity-engine-build-kit@2.0.0 test
+> node --test reference/*.test.mjs && node scripts/check-kit.mjs
+
+TAP version 13
+# Subtest: reject noncanonical micro -1
+ok 1 - reject noncanonical micro -1
+  ---
+  duration_ms: 1.018716
+  type: 'test'
+  ...
+# Subtest: reject noncanonical micro 0.03
+ok 2 - reject noncanonical micro 0.03
+  ---
+  duration_ms: 0.122545
+  type: 'test'
+  ...
+# Subtest: reject noncanonical micro 01
+ok 3 - reject noncanonical micro 01
+  ---
+  duration_ms: 0.102394
+  type: 'test'
+  ...
+# Subtest: reject noncanonical micro 
+ok 4 - reject noncanonical micro 
+  ---
+  duration_ms: 0.073771
+  type: 'test'
+  ...
+# Subtest: reject noncanonical micro NaN
+ok 5 - reject noncanonical micro NaN
+  ---
+  duration_ms: 0.064847
+  type: 'test'
+  ...
+# Subtest: reject noncanonical micro 1e6
+ok 6 - reject noncanonical micro 1e6
+  ---
+  duration_ms: 0.055664
+  type: 'test'
+  ...
+# Subtest: reject noncanonical micro 1000000000000000
+ok 7 - reject noncanonical micro 1000000000000000
+  ---
+  duration_ms: 0.134883
+  type: 'test'
+  ...
+# Subtest: reject noncanonical micro 3
+ok 8 - reject noncanonical micro 3
+  ---
+  duration_ms: 0.064717
+  type: 'test'
+  ...
+# Subtest: reject noncanonical micro null
+ok 9 - reject noncanonical micro null
+  ---
+  duration_ms: 0.213893
+  type: 'test'
+  ...
+# Subtest: exact micro arithmetic has no floating-point error
+ok 10 - exact micro arithmetic has no floating-point error
+  ---
+  duration_ms: 0.388977
+  type: 'test'
+  ...
+# Subtest: balance can expose a negative overrun honestly
+ok 11 - balance can expose a negative overrun honestly
+  ---
+  duration_ms: 0.627557
+  type: 'test'
+  ...
+# Subtest: reservation applies to every scope, input is immutable
+ok 12 - reservation applies to every scope, input is immutable
+  ---
+  duration_ms: 0.496929
+  type: 'test'
+  ...
+# Subtest: repeated operation does not reserve again
+ok 13 - repeated operation does not reserve again
+  ---
+  duration_ms: 0.227453
+  type: 'test'
+  ...
+# Subtest: changed operation data conflicts
+ok 14 - changed operation data conflicts
+  ---
+  duration_ms: 0.427816
+  type: 'test'
+  ...
+# Subtest: omitted parent cap rejected
+ok 15 - omitted parent cap rejected
+  ---
+  duration_ms: 0.116927
+  type: 'test'
+  ...
+# Subtest: duplicate budget IDs rejected
+ok 16 - duplicate budget IDs rejected
+  ---
+  duration_ms: 0.077667
+  type: 'test'
+  ...
+# Subtest: missing known scope rejected
+ok 17 - missing known scope rejected
+  ---
+  duration_ms: 0.124548
+  type: 'test'
+  ...
+# Subtest: one parent paused blocks all work
+ok 18 - one parent paused blocks all work
+  ---
+  duration_ms: 0.122584
+  type: 'test'
+  ...
+# Subtest: currency mismatch cannot convert silently
+ok 19 - currency mismatch cannot convert silently
+  ---
+  duration_ms: 0.114403
+  type: 'test'
+  ...
+# Subtest: lowest cap blocks and leaves input untouched
+ok 20 - lowest cap blocks and leaves input untouched
+  ---
+  duration_ms: 0.148534
+  type: 'test'
+  ...
+# Subtest: sequential admissions account for existing reservations
+ok 21 - sequential admissions account for existing reservations
+  ---
+  duration_ms: 0.234924
+  type: 'test'
+  ...
+# Subtest: settle reduces whole reserve and adds only actual
+ok 22 - settle reduces whole reserve and adds only actual
+  ---
+  duration_ms: 0.265821
+  type: 'test'
+  ...
+# Subtest: settlement replay is no-op
+ok 23 - settlement replay is no-op
+  ---
+  duration_ms: 0.131518
+  type: 'test'
+  ...
+# Subtest: different settlement amount conflicts
+ok 24 - different settlement amount conflicts
+  ---
+  duration_ms: 0.156466
+  type: 'test'
+  ...
+# Subtest: unexpected actual overrun recorded and pauses all budgets
+ok 25 - unexpected actual overrun recorded and pauses all budgets
+  ---
+  duration_ms: 0.206922
+  type: 'test'
+  ...
+# Subtest: uncertain call retains its reservation
+ok 26 - uncertain call retains its reservation
+  ---
+  duration_ms: 0.131489
+  type: 'test'
+  ...
+# Subtest: cancellation alone cannot release unknown cost
+ok 27 - cancellation alone cannot release unknown cost
+  ---
+  duration_ms: 0.219341
+  type: 'test'
+  ...
+# Subtest: confirmed uncharged reservation releases without settled cost
+ok 28 - confirmed uncharged reservation releases without settled cost
+  ---
+  duration_ms: 0.135314
+  type: 'test'
+  ...
+# Subtest: uncertain cost can settle after reconciliation
+ok 29 - uncertain cost can settle after reconciliation
+  ---
+  duration_ms: 0.118239
+  type: 'test'
+  ...
+# Subtest: settled money cannot be released
+ok 30 - settled money cannot be released
+  ---
+  duration_ms: 0.173291
+  type: 'test'
+  ...
+# Subtest: released operation cannot settle
+ok 31 - released operation cannot settle
+  ---
+  duration_ms: 0.195394
+  type: 'test'
+  ...
+# Subtest: two comparable 404 observations create candidate, not confirmation
+ok 32 - two comparable 404 observations create candidate, not confirmation
+  ---
+  duration_ms: 0.987979
+  type: 'test'
+  ...
+# Subtest: two 410 checks create candidate
+ok 33 - two 410 checks create candidate
+  ---
+  duration_ms: 0.189676
+  type: 'test'
+  ...
+# Subtest: healthy checks produce no finding, not whole-site verdict
+ok 34 - healthy checks produce no finding, not whole-site verdict
+  ---
+  duration_ms: 0.147633
+  type: 'test'
+  ...
+# Subtest: challenge abstains
+ok 35 - challenge abstains
+  ---
+  duration_ms: 0.11287
+  type: 'test'
+  ...
+# Subtest: login wall abstains
+ok 36 - login wall abstains
+  ---
+  duration_ms: 0.149666
+  type: 'test'
+  ...
+# Subtest: soft 404 abstains
+ok 37 - soft 404 abstains
+  ---
+  duration_ms: 0.093721
+  type: 'test'
+  ...
+# Subtest: incomplete abstains
+ok 38 - incomplete abstains
+  ---
+  duration_ms: 0.160532
+  type: 'test'
+  ...
+# Subtest: contradictory healthy check abstains
+ok 39 - contradictory healthy check abstains
+  ---
+  duration_ms: 0.097387
+  type: 'test'
+  ...
+# Subtest: HTTP 500 not a confirmed missing page abstains
+ok 40 - HTTP 500 not a confirmed missing page abstains
+  ---
+  duration_ms: 0.515588
+  type: 'test'
+  ...
+# Subtest: same session abstains
+ok 41 - same session abstains
+  ---
+  duration_ms: 0.342838
+  type: 'test'
+  ...
+# Subtest: same artifact abstains
+ok 42 - same artifact abstains
+  ---
+  duration_ms: 0.143596
+  type: 'test'
+  ...
+# Subtest: variant mismatch abstains
+ok 43 - variant mismatch abstains
+  ---
+  duration_ms: 0.0862
+  type: 'test'
+  ...
+# Subtest: target mismatch abstains
+ok 44 - target mismatch abstains
+  ---
+  duration_ms: 0.073381
+  type: 'test'
+  ...
+# Subtest: stale abstains
+ok 45 - stale abstains
+  ---
+  duration_ms: 0.108323
+  type: 'test'
+  ...
+# Subtest: future abstains
+ok 46 - future abstains
+  ---
+  duration_ms: 0.155905
+  type: 'test'
+  ...
+# Subtest: unapproved abstains
+ok 47 - unapproved abstains
+  ---
+  duration_ms: 0.069855
+  type: 'test'
+  ...
+# Subtest: action link abstains
+ok 48 - action link abstains
+  ---
+  duration_ms: 0.05275
+  type: 'test'
+  ...
+# Subtest: missing second capture abstains
+ok 49 - missing second capture abstains
+  ---
+  duration_ms: 0.064246
+  type: 'test'
+  ...
+# Subtest: invalid timestamp abstains
+ok 50 - invalid timestamp abstains
+  ---
+  duration_ms: 0.050006
+  type: 'test'
+  ...
+# Subtest: worked priority example is 80.5, not a close probability
+ok 51 - worked priority example is 80.5, not a close probability
+  ---
+  duration_ms: 0.946628
+  type: 'test'
+  ...
+# Subtest: unknown timing yields interval and no point score
+ok 52 - unknown timing yields interval and no point score
+  ---
+  duration_ms: 0.205791
+  type: 'test'
+  ...
+# Subtest: all unknown inputs remain fully unknown
+ok 53 - all unknown inputs remain fully unknown
+  ---
+  duration_ms: 0.179591
+  type: 'test'
+  ...
+# Subtest: missing inputs must be explicit nulls
+ok 54 - missing inputs must be explicit nulls
+  ---
+  duration_ms: 0.408496
+  type: 'test'
+  ...
+# Subtest: reject unknown factor names
+ok 55 - reject unknown factor names
+  ---
+  duration_ms: 0.135314
+  type: 'test'
+  ...
+# Subtest: reject invalid dimension -0.1
+ok 56 - reject invalid dimension -0.1
+  ---
+  duration_ms: 0.118228
+  type: 'test'
+  ...
+# Subtest: reject invalid dimension 1.1
+ok 57 - reject invalid dimension 1.1
+  ---
+  duration_ms: 0.068273
+  type: 'test'
+  ...
+# Subtest: reject invalid dimension NaN
+ok 58 - reject invalid dimension NaN
+  ---
+  duration_ms: 0.071688
+  type: 'test'
+  ...
+# Subtest: reject invalid dimension Infinity
+ok 59 - reject invalid dimension Infinity
+  ---
+  duration_ms: 0.228365
+  type: 'test'
+  ...
+# Subtest: reject invalid dimension 0.5
+ok 60 - reject invalid dimension 0.5
+  ---
+  duration_ms: 0.304149
+  type: 'test'
+  ...
+# Subtest: reject invalid dimension undefined
+ok 61 - reject invalid dimension undefined
+  ---
+  duration_ms: 0.119851
+  type: 'test'
+  ...
+# Subtest: root cause deduplication prevents error-count inflation
+ok 62 - root cause deduplication prevents error-count inflation
+  ---
+  duration_ms: 1.009392
+  type: 'test'
+  ...
+# Subtest: aggregate top three independent root causes with cap
+ok 63 - aggregate top three independent root causes with cap
+  ---
+  duration_ms: 0.107092
+  type: 'test'
+  ...
+# Subtest: max severity per root cause is used
+ok 64 - max severity per root cause is used
+  ---
+  duration_ms: 0.061984
+  type: 'test'
+  ...
+# Subtest: empty supplied findings have zero observed need, not a whole-site healthy verdict
+ok 65 - empty supplied findings have zero observed need, not a whole-site healthy verdict
+  ---
+  duration_ms: 0.054773
+  type: 'test'
+  ...
+# Subtest: invalid finding root cause rejected
+ok 66 - invalid finding root cause rejected
+  ---
+  duration_ms: 0.126831
+  type: 'test'
+  ...
+# Subtest: invalid severity rejected
+ok 67 - invalid severity rejected
+  ---
+  duration_ms: 0.15917
+  type: 'test'
+  ...
+# Subtest: fully approved reference action is ready
+ok 68 - fully approved reference action is ready
+  ---
+  duration_ms: 0.244469
+  type: 'test'
+  ...
+# Subtest: unknown permission blocks even strong evidence
+ok 69 - unknown permission blocks even strong evidence
+  ---
+  duration_ms: 0.103696
+  type: 'test'
+  ...
+# Subtest: report permission never implies contact permission
+ok 70 - report permission never implies contact permission
+  ---
+  duration_ms: 0.150517
+  type: 'test'
+  ...
+# Subtest: expired permission blocks action
+ok 71 - expired permission blocks action
+  ---
+  duration_ms: 0.098308
+  type: 'test'
+  ...
+# Subtest: grade B is review-only
+ok 72 - grade B is review-only
+  ---
+  duration_ms: 0.110987
+  type: 'test'
+  ...
+# Subtest: stale evidence blocks
+ok 73 - stale evidence blocks
+  ---
+  duration_ms: 0.203277
+  type: 'test'
+  ...
+# Subtest: no approval blocks
+ok 74 - no approval blocks
+  ---
+  duration_ms: 0.139741
+  type: 'test'
+  ...
+# Subtest: no budget blocks
+ok 75 - no budget blocks
+  ---
+  duration_ms: 0.118068
+  type: 'test'
+  ...
+# Subtest: invalid date rejected
+ok 76 - invalid date rejected
+  ---
+  duration_ms: 0.118228
+  type: 'test'
+  ...
+# Subtest: five-order illustrative scenario matches blueprint
+ok 77 - five-order illustrative scenario matches blueprint
+  ---
+  duration_ms: 0.284359
+  type: 'test'
+  ...
+# Subtest: two-order scenario leaves only 85 before omitted costs
+ok 78 - two-order scenario leaves only 85 before omitted costs
+  ---
+  duration_ms: 0.190928
+  type: 'test'
+  ...
+# Subtest: amortized build cost changes break-even
+ok 79 - amortized build cost changes break-even
+  ---
+  duration_ms: 0.172169
+  type: 'test'
+  ...
+# Subtest: loss-making unit contribution has no positive break-even count
+ok 80 - loss-making unit contribution has no positive break-even count
+  ---
+  duration_ms: 0.134974
+  type: 'test'
+  ...
+# Subtest: reject negative or non-finite costs
+ok 81 - reject negative or non-finite costs
+  ---
+  duration_ms: 0.169395
+  type: 'test'
+  ...
+# Subtest: reject fractional orders
+ok 82 - reject fractional orders
+  ---
+  duration_ms: 0.148624
+  type: 'test'
+  ...
+# Subtest: scan: all declared transitions are legal
+ok 83 - scan: all declared transitions are legal
+  ---
+  duration_ms: 2.200008
+  type: 'test'
+  ...
+# Subtest: scan: undeclared transitions rejected
+ok 84 - scan: undeclared transitions rejected
+  ---
+  duration_ms: 1.005957
+  type: 'test'
+  ...
+# Subtest: finding: all declared transitions are legal
+ok 85 - finding: all declared transitions are legal
+  ---
+  duration_ms: 0.100521
+  type: 'test'
+  ...
+# Subtest: finding: undeclared transitions rejected
+ok 86 - finding: undeclared transitions rejected
+  ---
+  duration_ms: 0.165109
+  type: 'test'
+  ...
+# Subtest: report: all declared transitions are legal
+ok 87 - report: all declared transitions are legal
+  ---
+  duration_ms: 0.076435
+  type: 'test'
+  ...
+# Subtest: report: undeclared transitions rejected
+ok 88 - report: undeclared transitions rejected
+  ---
+  duration_ms: 0.208725
+  type: 'test'
+  ...
+# Subtest: stale human review cannot overwrite newer decision
+ok 89 - stale human review cannot overwrite newer decision
+  ---
+  duration_ms: 0.156456
+  type: 'test'
+  ...
+# Subtest: unknown machine rejected
+ok 90 - unknown machine rejected
+  ---
+  duration_ms: 0.103646
+  type: 'test'
+  ...
+# Subtest: versions must be positive integers
+ok 91 - versions must be positive integers
+  ---
+  duration_ms: 0.231139
+  type: 'test'
+  ...
+# Subtest: scan completion does not imply finding confirmation
+ok 92 - scan completion does not imply finding confirmation
+  ---
+  duration_ms: 0.336858
+  type: 'test'
+  ...
+# Subtest: approved public DNS target passes only preflight
+ok 93 - approved public DNS target passes only preflight
+  ---
+  duration_ms: 5.005409
+  type: 'test'
+  ...
+# Subtest: preflight denies http://merchant.example.com
+ok 94 - preflight denies http://merchant.example.com
+  ---
+  duration_ms: 0.219822
+  type: 'test'
+  ...
+# Subtest: preflight denies file:///etc/passwd
+ok 95 - preflight denies file:///etc/passwd
+  ---
+  duration_ms: 0.07978
+  type: 'test'
+  ...
+# Subtest: preflight denies https://localhost/
+ok 96 - preflight denies https://localhost/
+  ---
+  duration_ms: 0.864224
+  type: 'test'
+  ...
+# Subtest: preflight denies https://127.0.0.1/
+ok 97 - preflight denies https://127.0.0.1/
+  ---
+  duration_ms: 0.102485
+  type: 'test'
+  ...
+# Subtest: preflight denies https://[::1]/
+ok 98 - preflight denies https://[::1]/
+  ---
+  duration_ms: 0.085649
+  type: 'test'
+  ...
+# Subtest: preflight denies https://169.254.169.254/
+ok 99 - preflight denies https://169.254.169.254/
+  ---
+  duration_ms: 0.082094
+  type: 'test'
+  ...
+# Subtest: preflight denies https://2130706433/
+ok 100 - preflight denies https://2130706433/
+  ---
+  duration_ms: 0.060431
+  type: 'test'
+  ...
+# Subtest: preflight denies https://0x7f000001/
+ok 101 - preflight denies https://0x7f000001/
+  ---
+  duration_ms: 0.200101
+  type: 'test'
+  ...
+# Subtest: preflight denies https://10.0.0.1/
+ok 102 - preflight denies https://10.0.0.1/
+  ---
+  duration_ms: 0.27192
+  type: 'test'
+  ...
+# Subtest: preflight denies https://user:pass@merchant.example.com/
+ok 103 - preflight denies https://user:pass@merchant.example.com/
+  ---
+  duration_ms: 0.122365
+  type: 'test'
+  ...
+# Subtest: preflight denies https://merchant.example.com:444/
+ok 104 - preflight denies https://merchant.example.com:444/
+  ---
+  duration_ms: 0.076725
+  type: 'test'
+  ...
+# Subtest: preflight denies https://other.example.com/
+ok 105 - preflight denies https://other.example.com/
+  ---
+  duration_ms: 0.166952
+  type: 'test'
+  ...
+# Subtest: preflight denies https://merchant.example.com/?token=secret
+ok 106 - preflight denies https://merchant.example.com/?token=secret
+  ---
+  duration_ms: 0.277067
+  type: 'test'
+  ...
+# Subtest: preflight denies https://merchant.example.com/cart/add
+ok 107 - preflight denies https://merchant.example.com/cart/add
+  ---
+  duration_ms: 0.183637
+  type: 'test'
+  ...
+# Subtest: preflight denies https://merchant.example.com/logout
+ok 108 - preflight denies https://merchant.example.com/logout
+  ---
+  duration_ms: 0.070046
+  type: 'test'
+  ...
+# Subtest: preflight denies https://fixture.test/
+ok 109 - preflight denies https://fixture.test/
+  ---
+  duration_ms: 0.051688
+  type: 'test'
+  ...
+# Subtest: preflight denies https://merchant.example.com/a b
+ok 110 - preflight denies https://merchant.example.com/a b
+  ---
+  duration_ms: 0.03317
+  type: 'test'
+  ...
+# Subtest: preflight denies javascript:alert(1)
+ok 111 - preflight denies javascript:alert(1)
+  ---
+  duration_ms: 0.03369
+  type: 'test'
+  ...
+# Subtest: subdomain suffix attack is not approved
+ok 112 - subdomain suffix attack is not approved
+  ---
+  duration_ms: 0.078027
+  type: 'test'
+  ...
+# Subtest: query variant survives canonicalization
+ok 113 - query variant survives canonicalization
+  ---
+  duration_ms: 0.158028
+  type: 'test'
+  ...
+# Subtest: missing allowlist denies live target
+ok 114 - missing allowlist denies live target
+  ---
+  duration_ms: 0.078188
+  type: 'test'
+  ...
+1..114
+# tests 114
+# suites 0
+# pass 114
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 146.764582
+845 handoff structural checks passed; 22 API operations checked. Not an app readiness claim.

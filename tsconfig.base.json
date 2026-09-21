@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@oe/contracts": ["./packages/contracts/src/index.ts"],
+      "@oe/domain": ["./packages/domain/src/index.ts"],
+      "@oe/db": ["./packages/db/src/index.ts"],
+      "@oe/capture": ["./packages/capture/src/index.ts"],
+      "@oe/evidence": ["./packages/evidence/src/index.ts"],
+      "@oe/scan-runner": ["./workers/scan-runner/src/index.ts"],
+      "@oe/api": ["./apps/api/src/app.ts"]
+    }
+  }
+}

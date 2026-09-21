@@ -1,0 +1,53 @@
+{
+  "scope": "Loopback handoff server only; not application API routes.",
+  "checks": [
+    {
+      "check": "GET /",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "check": "GET /design",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "check": "GET /handbook",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "check": "GET /.env",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "check": "GET /__proto__",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "check": "GET /unknown",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "check": "POST /",
+      "expected": 405,
+      "actual": 405,
+      "passed": true
+    },
+    {
+      "check": "HEAD /",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    }
+  ]
+}

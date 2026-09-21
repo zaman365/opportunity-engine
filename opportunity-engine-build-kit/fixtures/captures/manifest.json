@@ -1,0 +1,141 @@
+{
+  "note": "Browser-rendered captures of original SYNTHETIC LOCAL fixture HTTP responses; status verified by local HTTP client. Browser navigation to loopback was blocked by the environment. No real merchant was scanned.",
+  "captures": [
+    {
+      "fixture": true,
+      "capture_id": "source-1",
+      "session_id": "isolated-browser-session-1",
+      "url": "http://127.0.0.1:4179/product",
+      "status": 200,
+      "capture_method": "browser-rendered original local HTTP response body; direct browser navigation unavailable in this environment",
+      "captured_at": "2026-09-21T09:29:40.130590+00:00",
+      "viewport": {
+        "width": 1100,
+        "height": 780
+      },
+      "locale": "en-US",
+      "browser_version": "144.0.7559.96",
+      "sha256": "bc96a68e8970d56f5ce0933abc0f9c0d016f62c447cea7a0842b37a4d5b501d7",
+      "artifact": "fixtures/captures/source-1.png"
+    },
+    {
+      "fixture": true,
+      "capture_id": "destination-1",
+      "session_id": "isolated-browser-session-1",
+      "url": "http://127.0.0.1:4179/size-guide",
+      "status": 404,
+      "capture_method": "browser-rendered original local HTTP response body; direct browser navigation unavailable in this environment",
+      "captured_at": "2026-09-21T09:29:40.187395+00:00",
+      "viewport": {
+        "width": 1100,
+        "height": 780
+      },
+      "locale": "en-US",
+      "browser_version": "144.0.7559.96",
+      "sha256": "220cb9c463ec14481242b90d8028238aaa875e916c83efe7bd333f750641692d",
+      "artifact": "fixtures/captures/destination-1.png"
+    },
+    {
+      "fixture": true,
+      "capture_id": "healthy-1",
+      "session_id": "isolated-browser-session-1",
+      "url": "http://127.0.0.1:4179/fit-guide",
+      "status": 200,
+      "capture_method": "browser-rendered original local HTTP response body; direct browser navigation unavailable in this environment",
+      "captured_at": "2026-09-21T09:29:40.256687+00:00",
+      "viewport": {
+        "width": 1100,
+        "height": 780
+      },
+      "locale": "en-US",
+      "browser_version": "144.0.7559.96",
+      "sha256": "37091bcdeecb0bd8f0c44060a72d6c72f4afe834a4ac71d0cd556d1c94be5e6c",
+      "artifact": "fixtures/captures/healthy-1.png"
+    },
+    {
+      "fixture": true,
+      "capture_id": "challenge-1",
+      "session_id": "isolated-browser-session-1",
+      "url": "http://127.0.0.1:4179/challenge",
+      "status": 403,
+      "capture_method": "browser-rendered original local HTTP response body; direct browser navigation unavailable in this environment",
+      "captured_at": "2026-09-21T09:29:40.288217+00:00",
+      "viewport": {
+        "width": 1100,
+        "height": 780
+      },
+      "locale": "en-US",
+      "browser_version": "144.0.7559.96",
+      "sha256": "7a40037c173e46691525f2b0d78de9c5eab3b4d8277c321032b4e506b7ac054c",
+      "artifact": "fixtures/captures/challenge-1.png"
+    },
+    {
+      "fixture": true,
+      "capture_id": "source-2",
+      "session_id": "isolated-browser-session-2",
+      "url": "http://127.0.0.1:4179/product",
+      "status": 200,
+      "capture_method": "browser-rendered original local HTTP response body; direct browser navigation unavailable in this environment",
+      "captured_at": "2026-09-21T09:29:40.444384+00:00",
+      "viewport": {
+        "width": 1100,
+        "height": 780
+      },
+      "locale": "en-US",
+      "browser_version": "144.0.7559.96",
+      "sha256": "bc96a68e8970d56f5ce0933abc0f9c0d016f62c447cea7a0842b37a4d5b501d7",
+      "artifact": "fixtures/captures/source-2.png"
+    },
+    {
+      "fixture": true,
+      "capture_id": "destination-2",
+      "session_id": "isolated-browser-session-2",
+      "url": "http://127.0.0.1:4179/size-guide",
+      "status": 404,
+      "capture_method": "browser-rendered original local HTTP response body; direct browser navigation unavailable in this environment",
+      "captured_at": "2026-09-21T09:29:40.488692+00:00",
+      "viewport": {
+        "width": 1100,
+        "height": 780
+      },
+      "locale": "en-US",
+      "browser_version": "144.0.7559.96",
+      "sha256": "220cb9c463ec14481242b90d8028238aaa875e916c83efe7bd333f750641692d",
+      "artifact": "fixtures/captures/destination-2.png"
+    },
+    {
+      "fixture": true,
+      "capture_id": "healthy-2",
+      "session_id": "isolated-browser-session-2",
+      "url": "http://127.0.0.1:4179/fit-guide",
+      "status": 200,
+      "capture_method": "browser-rendered original local HTTP response body; direct browser navigation unavailable in this environment",
+      "captured_at": "2026-09-21T09:29:40.537188+00:00",
+      "viewport": {
+        "width": 1100,
+        "height": 780
+      },
+      "locale": "en-US",
+      "browser_version": "144.0.7559.96",
+      "sha256": "37091bcdeecb0bd8f0c44060a72d6c72f4afe834a4ac71d0cd556d1c94be5e6c",
+      "artifact": "fixtures/captures/healthy-2.png"
+    },
+    {
+      "fixture": true,
+      "capture_id": "challenge-2",
+      "session_id": "isolated-browser-session-2",
+      "url": "http://127.0.0.1:4179/challenge",
+      "status": 403,
+      "capture_method": "browser-rendered original local HTTP response body; direct browser navigation unavailable in this environment",
+      "captured_at": "2026-09-21T09:29:40.586731+00:00",
+      "viewport": {
+        "width": 1100,
+        "height": 780
+      },
+      "locale": "en-US",
+      "browser_version": "144.0.7559.96",
+      "sha256": "7a40037c173e46691525f2b0d78de9c5eab3b4d8277c321032b4e506b7ac054c",
+      "artifact": "fixtures/captures/challenge-2.png"
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "scope": "JSON Schema structure plus positive/negative examples, NOT full OpenAPI compliance or semantic application authorization.",
+  "checks": [
+    {
+      "check": "schema structure: Money",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Problem",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Role",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Session",
+      "passed": true
+    },
+    {
+      "check": "schema structure: CreateAccount",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Account",
+      "passed": true
+    },
+    {
+      "check": "schema structure: AuthorizationInput",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Authorization",
+      "passed": true
+    },
+    {
+      "check": "schema structure: CreateScan",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Scan",
+      "passed": true
+    },
+    {
+      "check": "schema structure: CaptureConditions",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Evidence",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Finding",
+      "passed": true
+    },
+    {
+      "check": "schema structure: ReviewFinding",
+      "passed": true
+    },
+    {
+      "check": "schema structure: PriorityScore",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Opportunity",
+      "passed": true
+    },
+    {
+      "check": "schema structure: ExpectedVersion",
+      "passed": true
+    },
+    {
+      "check": "schema structure: CreateReport",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Report",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Budget",
+      "passed": true
+    },
+    {
+      "check": "schema structure: ChangeBudget",
+      "passed": true
+    },
+    {
+      "check": "schema structure: PauseBudget",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Health",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Accounts",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Scans",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Opportunities",
+      "passed": true
+    },
+    {
+      "check": "schema structure: Budgets",
+      "passed": true
+    },
+    {
+      "check": "schema structure: FindingDetail",
+      "passed": true
+    },
+    {
+      "check": "schema structure: OpportunityDetail",
+      "passed": true
+    },
+    {
+      "check": "valid example: create-scan.json",
+      "passed": true
+    },
+    {
+      "check": "valid example: candidate-finding.json",
+      "passed": true
+    },
+    {
+      "check": "valid example: confirmed-finding.json",
+      "passed": true
+    },
+    {
+      "check": "valid example: review-finding.json",
+      "passed": true
+    },
+    {
+      "check": "valid example: draft-report.json",
+      "passed": true
+    },
+    {
+      "check": "valid example: blocked-scan.json",
+      "passed": true
+    },
+    {
+      "check": "body tenant spoof rejected",
+      "passed": true
+    },
+    {
+      "check": "more than five pages rejected",
+      "passed": true
+    },
+    {
+      "check": "M1 unsupported detector rejected",
+      "passed": true
+    },
+    {
+      "check": "invalid UUID rejected",
+      "passed": true
+    },
+    {
+      "check": "floating money rejected",
+      "passed": true
+    },
+    {
+      "check": "negative money rejected",
+      "passed": true
+    },
+    {
+      "check": "confirmed without proof rejected",
+      "passed": true
+    },
+    {
+      "check": "confirmed without reviewer rejected",
+      "passed": true
+    },
+    {
+      "check": "confirmed without reviewed date rejected",
+      "passed": true
+    },
+    {
+      "check": "confirmed weak grade rejected",
+      "passed": true
+    },
+    {
+      "check": "review without acknowledged limits rejected",
+      "passed": true
+    },
+    {
+      "check": "review zero version rejected",
+      "passed": true
+    },
+    {
+      "check": "brief review reason rejected",
+      "passed": true
+    },
+    {
+      "check": "public audience rejected at M1",
+      "passed": true
+    },
+    {
+      "check": "invented scan state rejected",
+      "passed": true
+    }
+  ]
+}

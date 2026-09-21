@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+opportunity-engine-build-kit
+package-lock.json
+playwright-report
+test-results
+.local-evidence

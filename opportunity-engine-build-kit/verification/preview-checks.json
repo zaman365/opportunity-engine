@@ -1,0 +1,130 @@
+{
+  "environment": "Chromium; inline HTML loaded with set_content; local browser navigation unavailable. These are prototype interaction checks, not app end-to-end tests.",
+  "checks": [
+    {
+      "check": "initial 4 case buttons",
+      "passed": true
+    },
+    {
+      "check": "no desktop horizontal overflow",
+      "passed": true
+    },
+    {
+      "check": "search filters case list",
+      "passed": true
+    },
+    {
+      "check": "empty filter recovery visible",
+      "passed": true
+    },
+    {
+      "check": "clear restores list",
+      "passed": true
+    },
+    {
+      "check": "ready filter count",
+      "passed": true
+    },
+    {
+      "check": "source selected",
+      "passed": true
+    },
+    {
+      "check": "artifact dialog opens",
+      "passed": true
+    },
+    {
+      "check": "escape closes artifact dialog",
+      "passed": true
+    },
+    {
+      "check": "reason required",
+      "passed": true
+    },
+    {
+      "check": "local confirmation changes state",
+      "passed": true
+    },
+    {
+      "check": "report unlocked only after confirmation",
+      "passed": true
+    },
+    {
+      "check": "report shows reviewer note",
+      "passed": true
+    },
+    {
+      "check": "rejected case cannot report",
+      "passed": true
+    },
+    {
+      "check": "missing artifact honest state",
+      "passed": true
+    },
+    {
+      "check": "unknown cannot be confirmed",
+      "passed": true
+    },
+    {
+      "check": "challenge remains unknown",
+      "passed": true
+    },
+    {
+      "check": "live scan explicitly disabled",
+      "passed": true
+    },
+    {
+      "check": "fixture action opens first case",
+      "passed": true
+    },
+    {
+      "check": "design mandate available",
+      "passed": true
+    },
+    {
+      "check": "keyboard focus reaches element",
+      "passed": true
+    },
+    {
+      "check": "no horizontal overflow at 1024",
+      "passed": true
+    },
+    {
+      "check": "no horizontal overflow at 768",
+      "passed": true
+    },
+    {
+      "check": "no horizontal overflow at 390",
+      "passed": true
+    },
+    {
+      "check": "mobile queue initially compact",
+      "passed": true
+    },
+    {
+      "check": "mobile queue opens",
+      "passed": true
+    },
+    {
+      "check": "select returns to compact case",
+      "passed": true
+    },
+    {
+      "check": "mobile evidence control target",
+      "passed": true
+    },
+    {
+      "check": "no horizontal overflow at 320",
+      "passed": true
+    },
+    {
+      "check": "reduced-motion mode renders",
+      "passed": true
+    },
+    {
+      "check": "no javascript exceptions",
+      "passed": true
+    }
+  ],
+  "js_errors": []
+}

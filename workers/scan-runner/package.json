@@ -1,0 +1,15 @@
+{
+  "name": "@oe/scan-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/main.ts",
+  "exports": { ".": "./src/main.ts" },
+  "dependencies": {
+    "@oe/capture": "0.1.0",
+    "@oe/contracts": "0.1.0",
+    "@oe/db": "0.1.0",
+    "@oe/domain": "0.1.0",
+    "@oe/evidence": "0.1.0"
+  }
+}

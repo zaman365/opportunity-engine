@@ -1,0 +1,39 @@
+{
+  "status": "proposed_configuration_not_deployed",
+  "version": "1.0.0",
+  "defaults": {
+    "automatic_outreach": false,
+    "automatic_production_writes": false,
+    "automatic_topups": false,
+    "public_scan_max_pages": 5,
+    "public_scan_max_concurrent_browsers_per_host": 1,
+    "retries_max": 2,
+    "customer_report_requires_human_review": true,
+    "unknown_permission_decision": "deny_action",
+    "scores_are_purchase_probabilities": false,
+    "cross_legal_entity_sharing_requires_approval": true,
+    "raw_artifact_retention_days_proposal": 30
+  },
+  "ventures": [
+    {
+      "id": "pdp-studio",
+      "launch_wave": 1,
+      "mode": "customer_requested_audit",
+      "detectors": ["PDP-CONTENT-01", "PDP-VISUAL-01", "PDP-MOBILE-01"],
+      "allowed_outputs": ["reviewed_audit", "real_asset_content_brief", "scoped_production_proposal"],
+      "excluded_outputs": ["ai_generated_product_photography", "unsubstantiated_revenue_uplift", "automatic_live_publishing"]
+    },
+    {
+      "id": "marktfix",
+      "launch_wave": 1,
+      "mode": "customer_requested_technical_check",
+      "detectors": ["MF-LINK-01", "MF-ASSET-01", "MF-DATA-01"],
+      "allowed_outputs": ["evidence_report", "bounded_fix_proposal", "acceptance_test_plan"],
+      "excluded_outputs": ["private_account_diagnosis_without_access", "guaranteed_platform_reinstatement", "automatic_production_change"]
+    },
+    {"id": "lokalfix", "launch_wave": 2, "mode": "local_readiness_adapter", "requires_new_rubric": true},
+    {"id": "mikroit", "launch_wave": 2, "mode": "authorized_diagnostic_adapter", "requires_new_rubric": true},
+    {"id": "leckereich", "launch_wave": 3, "mode": "restaurant_partner_readiness", "requires_new_rubric": true},
+    {"id": "fabrivo-export-hq", "launch_wave": 3, "mode": "partner_and_workflow_readiness", "requires_new_rubric": true}
+  ]
+}

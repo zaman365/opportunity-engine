@@ -1,0 +1,83 @@
+{
+  "version": "2.0.0",
+  "detectors": [
+    {
+      "id": "MF-LINK-01",
+      "phase": "M1",
+      "status": "reference_logic_only",
+      "required_capture_sessions": 2,
+      "rule": "repeat 404/410 in comparable complete clean sessions",
+      "negative_cases": [
+        "healthy",
+        "challenge",
+        "soft_404",
+        "different_variant",
+        "stale",
+        "unsafe_link"
+      ],
+      "human_review": true
+    },
+    {
+      "id": "MF-ASSET-01",
+      "phase": "M2",
+      "status": "specified_not_implemented",
+      "proof": "Resource failure plus actual rendered-image failure after bounded lazy-load wait",
+      "abstain_on": [
+        "blocked",
+        "pending_lazy_load",
+        "decorative_image",
+        "variant_changed"
+      ],
+      "offer_family": "asset_repair"
+    },
+    {
+      "id": "MF-DATA-01",
+      "phase": "M2",
+      "status": "specified_not_implemented",
+      "proof": "Visible and structured facts differ for matched variant/currency/tax/stock state",
+      "abstain_on": [
+        "variant_unknown",
+        "multi_currency",
+        "aggregate_offer",
+        "unavailable_variant_context"
+      ],
+      "offer_family": "structured_data_diagnosis"
+    },
+    {
+      "id": "PDP-CONTENT-01",
+      "phase": "M2",
+      "status": "specified_not_implemented",
+      "proof": "Category-specific buying information not found in disclosed inspected sample after module/link checks",
+      "abstain_on": [
+        "sample_incomplete",
+        "category_unknown",
+        "hidden_content_not_inspected"
+      ],
+      "human_review": true
+    },
+    {
+      "id": "PDP-VISUAL-01",
+      "phase": "M2",
+      "status": "specified_not_implemented",
+      "proof": "Real image sequence fails a specific category buying-question rubric; specialist review",
+      "abstain_on": [
+        "missing_images",
+        "subjective_style_preference_only",
+        "unsupported_category"
+      ],
+      "human_review": true
+    },
+    {
+      "id": "PDP-MOBILE-01",
+      "phase": "M2",
+      "status": "specified_not_implemented",
+      "proof": "Actual obstruction at recorded viewport with DOM/image evidence and repeated state",
+      "abstain_on": [
+        "user_dismissible_overlay_not_tested",
+        "transient_loading",
+        "missing_viewport"
+      ],
+      "human_review": true
+    }
+  ]
+}

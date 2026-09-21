@@ -1,0 +1,29 @@
+{
+  "status": "synthetic_contract_examples_not_database_seeds",
+  "examples": [
+    {
+      "file": "create-scan.json",
+      "schema": "CreateScan"
+    },
+    {
+      "file": "candidate-finding.json",
+      "schema": "Finding"
+    },
+    {
+      "file": "confirmed-finding.json",
+      "schema": "Finding"
+    },
+    {
+      "file": "review-finding.json",
+      "schema": "ReviewFinding"
+    },
+    {
+      "file": "draft-report.json",
+      "schema": "Report"
+    },
+    {
+      "file": "blocked-scan.json",
+      "schema": "Scan"
+    }
+  ]
+}

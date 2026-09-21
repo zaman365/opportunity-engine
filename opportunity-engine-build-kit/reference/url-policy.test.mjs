@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {preflightTarget} from './url-policy.mjs';
+const approved=['merchant.example.com'];
+test('approved public DNS target passes only preflight',()=>assert.deepEqual(preflightTarget('https://merchant.example.com/pdp#sizes',approved),{allowed:true,url:'https://merchant.example.com/pdp',host:'merchant.example.com',networkValidationRequired:true}));
+for(const u of ['http://merchant.example.com','file:///etc/passwd','https://localhost/','https://127.0.0.1/','https://[::1]/','https://169.254.169.254/','https://2130706433/','https://0x7f000001/','https://10.0.0.1/','https://user:pass@merchant.example.com/','https://merchant.example.com:444/','https://other.example.com/','https://merchant.example.com/?token=secret','https://merchant.example.com/cart/add','https://merchant.example.com/logout','https://fixture.test/','https://merchant.example.com/a b','javascript:alert(1)'])test(`preflight denies ${u}`,()=>assert.equal(preflightTarget(u,approved).allowed,false));
+test('subdomain suffix attack is not approved',()=>assert.equal(preflightTarget('https://merchant.example.com.evil.net/',approved).allowed,false));
+test('query variant survives canonicalization',()=>assert.equal(preflightTarget('https://merchant.example.com/item?variant=42',approved).url,'https://merchant.example.com/item?variant=42'));
+test('missing allowlist denies live target',()=>assert.equal(preflightTarget('https://merchant.example.com/').allowed,false));

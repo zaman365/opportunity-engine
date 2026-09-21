@@ -1,0 +1,6 @@
+{
+  "expected_version": 1,
+  "decision": "confirm",
+  "reason": "Reviewed the synthetic fixture evidence and its limits.",
+  "acknowledged_limitations": true
+}

@@ -1,0 +1,26 @@
+{
+  "id": "00000000-0000-4000-8000-000000000004",
+  "scan_id": "00000000-0000-4000-8000-000000000005",
+  "asset_id": "00000000-0000-4000-8000-000000000006",
+  "detector_id": "MF-LINK-01",
+  "detector_version": "1.0.0",
+  "state": "candidate",
+  "version": 1,
+  "root_cause_key": "example:size-guide",
+  "claim": "Synthetic example: the destination returned 404 in two fixture tests.",
+  "evidence_ids": [
+    "00000000-0000-4000-8000-000000000007",
+    "00000000-0000-4000-8000-000000000008"
+  ],
+  "contrary_evidence_ids": [],
+  "scope": "One information link on a local synthetic fixture.",
+  "limitations": [
+    "Not a real merchant scan.",
+    "Revenue impact unknown."
+  ],
+  "evidence_grade": "A",
+  "commercial_impact": "hypothesis",
+  "captured_at": "2026-09-21T08:00:00Z",
+  "reviewer_id": null,
+  "reviewed_at": null
+}

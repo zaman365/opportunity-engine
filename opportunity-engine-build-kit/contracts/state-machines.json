@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "note": "Allowed edges only. Authorization, invariants and persistence are separate mandatory guards.",
+  "machines": {
+    "scan": {
+      "queued": [
+        "validating",
+        "blocked",
+        "cancel_requested",
+        "failed"
+      ],
+      "validating": [
+        "capturing",
+        "blocked",
+        "cancel_requested",
+        "failed"
+      ],
+      "capturing": [
+        "analysing",
+        "partial",
+        "blocked",
+        "cancel_requested",
+        "failed"
+      ],
+      "analysing": [
+        "succeeded",
+        "partial",
+        "blocked",
+        "cancel_requested",
+        "failed"
+      ],
+      "cancel_requested": [
+        "cancelled"
+      ],
+      "succeeded": [],
+      "partial": [],
+      "blocked": [],
+      "failed": [],
+      "cancelled": []
+    },
+    "finding": {
+      "candidate": [
+        "confirmed",
+        "rejected",
+        "unknown"
+      ],
+      "unknown": [
+        "candidate"
+      ],
+      "confirmed": [
+        "stale",
+        "rejected"
+      ],
+      "stale": [
+        "candidate",
+        "rejected"
+      ],
+      "rejected": []
+    },
+    "report": {
+      "draft": [
+        "approved",
+        "superseded"
+      ],
+      "approved": [
+        "published",
+        "superseded"
+      ],
+      "published": [
+        "revoked",
+        "superseded"
+      ],
+      "revoked": [],
+      "superseded": []
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "version": "2.0.0",
+  "note": "Draft scopes only. Prices/terms/capacity must be approved before quotation. No live commercial offer enabled.",
+  "offers": [
+    {
+      "sku": "MF-LINK-REPAIR",
+      "version": 1,
+      "enabled": false,
+      "venture": "marktfix",
+      "detectors": [
+        "MF-LINK-01"
+      ],
+      "promise": "Repair one supported information-link root cause and verify the corrected destination.",
+      "inclusions": [
+        "one agreed link/route family",
+        "staging test where available",
+        "before/after evidence"
+      ],
+      "exclusions": [
+        "new size-guide content",
+        "whole-site redesign",
+        "platform reinstatement",
+        "guaranteed revenue uplift"
+      ],
+      "prerequisites": [
+        "authorized code/platform access",
+        "agreed destination",
+        "scope approval"
+      ],
+      "currency": "EUR",
+      "price_minor": null,
+      "acceptance": [
+        "approved destination loads in recorded conditions",
+        "no regression in supported fixture",
+        "customer or authorized lead accepts"
+      ]
+    },
+    {
+      "sku": "PDP-REVIEWED-AUDIT",
+      "version": 1,
+      "enabled": false,
+      "venture": "pdp-studio",
+      "detectors": [
+        "PDP-CONTENT-01",
+        "PDP-VISUAL-01",
+        "PDP-MOBILE-01"
+      ],
+      "promise": "A human-reviewed assessment of an agreed PDP sample with evidence and a prioritized brief.",
+      "inclusions": [
+        "up to three agreed PDPs or one template family",
+        "evidence-backed findings",
+        "specialist review"
+      ],
+      "exclusions": [
+        "new photography",
+        "model/location licensing",
+        "implementation",
+        "causal revenue claims"
+      ],
+      "prerequisites": [
+        "permitted sample",
+        "category rubric",
+        "reviewer capacity"
+      ],
+      "currency": "EUR",
+      "price_minor": null,
+      "acceptance": [
+        "scope and inspected sample disclosed",
+        "all findings reviewed",
+        "limitations and next steps included"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opportunity-engine.invalid/contracts/evidence.schema.json",
+  "$ref": "domain.schema.json#/$defs/Evidence"
+}

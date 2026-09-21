@@ -1,0 +1,20 @@
+[
+  {
+    "original": "BUILD_SPEC.md",
+    "preserved_as": "source/BUILD_SPEC.v1.md",
+    "sha256": "20f7ca9c86429795cce590dc8d985c08f56638f6c1831251a6a6a4f8b2184fd4",
+    "byte_identical": true
+  },
+  {
+    "original": "reference/scoring.mjs",
+    "preserved_as": "reference/scoring.mjs",
+    "sha256": "45d36208c55180424f335fcc53930947ad02caf222c425fc19063df9154d10e6",
+    "byte_identical": true
+  },
+  {
+    "original": "reference/scoring.test.mjs",
+    "preserved_as": "reference/scoring.test.mjs",
+    "sha256": "2900fc8b48a82b2fb0542ae2bc73d0bc5deb1e15e329c6f4a28688396766f0ab",
+    "byte_identical": true
+  }
+]

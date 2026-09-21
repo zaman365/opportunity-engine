@@ -1,0 +1,15 @@
+name: Handoff reference checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm test
+# No app build, database, cloud smoke or deployment is implied by this job.
+# Add those suites and owner-gated releases during M0/M1; pin action SHAs per repo policy.

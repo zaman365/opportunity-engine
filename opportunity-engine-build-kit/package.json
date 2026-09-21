@@ -1,0 +1,17 @@
+{
+  "name": "opportunity-engine-build-kit",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Implementation handoff and reference tests; not a production application",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "test": "node --test reference/*.test.mjs && node scripts/check-kit.mjs",
+    "test:reference": "node --test reference/*.test.mjs",
+    "check:kit": "node scripts/check-kit.mjs",
+    "preview": "node scripts/preview-server.mjs",
+    "fixtures": "node fixtures/server.mjs"
+  }
+}

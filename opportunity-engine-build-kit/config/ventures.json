@@ -1,0 +1,81 @@
+{
+  "version": "2.0.0",
+  "status": "handoff_configuration_not_deployed",
+  "defaults": {
+    "automatic_outreach": false,
+    "automatic_production_writes": false,
+    "automatic_topups": false,
+    "live_capture_enabled": false,
+    "public_intake_enabled": false,
+    "live_spend_limit_micro": "0",
+    "public_scan_max_unique_pages": 5,
+    "max_concurrent_browsers_per_host": 1,
+    "retry_limit": 2,
+    "requires_human_review": true
+  },
+  "ventures": [
+    {
+      "id": "marktfix",
+      "phase": "M1",
+      "enabled_in_reference": true,
+      "detectors": [
+        "MF-LINK-01"
+      ],
+      "later_detectors": [
+        "MF-ASSET-01",
+        "MF-DATA-01"
+      ],
+      "legal_controller": "owner_must_verify",
+      "live_enabled": false
+    },
+    {
+      "id": "pdp-studio",
+      "phase": "M2",
+      "detectors": [
+        "PDP-CONTENT-01",
+        "PDP-VISUAL-01",
+        "PDP-MOBILE-01"
+      ],
+      "live_enabled": false,
+      "no_ai_generated_product_photography": true
+    },
+    {
+      "id": "lokalfix",
+      "phase": "M6",
+      "live_enabled": false,
+      "requires_rubric": true
+    },
+    {
+      "id": "mikroit",
+      "phase": "M6",
+      "live_enabled": false,
+      "requires_rubric": true
+    },
+    {
+      "id": "buero-fix",
+      "phase": "future",
+      "live_enabled": false
+    },
+    {
+      "id": "leckereich",
+      "phase": "future",
+      "live_enabled": false
+    },
+    {
+      "id": "fabrivo",
+      "phase": "future",
+      "live_enabled": false
+    },
+    {
+      "id": "export-hq",
+      "phase": "future",
+      "live_enabled": false
+    },
+    {
+      "id": "zehn",
+      "phase": "authorized_internal_test",
+      "live_enabled": false,
+      "cross_entity_permission_required": true
+    }
+  ]
+}
