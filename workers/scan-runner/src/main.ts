@@ -75,6 +75,23 @@ const health = createServer((request, response) => {
 });
 health.listen(healthPort, '127.0.0.1');
 
+/**
+ * Idle backoff.
+ *
+ * A flat one-second poll is ~86,000 ticks a day, and each tick is a transaction — three
+ * statements. That alone exceeds Hyperdrive's 100,000 queries/day on the Cloudflare free plan
+ * before a single scan runs. Backing off to 15s while the queue is empty costs nothing in
+ * responsiveness, because an admitted scan wakes the loop on the next tick either way and a
+ * deployed build starts its workflow directly from the admission transaction.
+ *
+ * `RUNNER_IDLE_MAX_MS` lowers the ceiling for local development, where a 15-second wait
+ * between clicking "scan" and seeing it run is just friction. It never raises it.
+ */
+const BUSY_MS = 100;
+const IDLE_START_MS = 1_000;
+const IDLE_MAX_MS = Math.min(15_000, Number(process.env.RUNNER_IDLE_MAX_MS ?? 15_000));
+
+let idleDelay = IDLE_START_MS;
 let running = true;
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
@@ -88,7 +105,12 @@ process.stdout.write(
 );
 while (running) {
   const handled = await dispatcher.tick();
-  await new Promise((resolve) => setTimeout(resolve, handled > 0 ? 100 : 1000));
+  if (handled > 0) {
+    idleDelay = IDLE_START_MS;
+  } else {
+    idleDelay = Math.min(idleDelay * 2, IDLE_MAX_MS);
+  }
+  await new Promise((resolve) => setTimeout(resolve, handled > 0 ? BUSY_MS : idleDelay));
 }
 health.close();
 await db.close();
