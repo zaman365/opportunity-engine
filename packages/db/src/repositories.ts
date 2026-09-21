@@ -1932,3 +1932,230 @@ export async function revokeReportGrant(
   );
   return result.rows[0] ?? null;
 }
+
+/* ------------------------------------------------------------ engagements */
+
+export interface EngagementRow {
+  id: string;
+  opportunity_id: string;
+  account_id: string;
+  offer_draft_id: string;
+  state: string;
+  version: number;
+  accepted_at: string | null;
+  acceptance_note: string | null;
+  accepted_by: string | null;
+  side_reason: string | null;
+  side_owner: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const ENGAGEMENT_COLUMNS = `id, opportunity_id, account_id, offer_draft_id, state, version,
+  acceptance_note, accepted_by, side_reason, side_owner, created_by,
+  to_char(accepted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS accepted_at,
+  to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
+  to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS updated_at`;
+
+export async function insertEngagement(
+  tx: QueryExecutor,
+  input: {
+    id: string;
+    opportunityId: string;
+    accountId: string;
+    offerDraftId: string;
+    createdBy: string;
+  },
+): Promise<EngagementRow> {
+  const result = await tx.query<EngagementRow>(
+    `INSERT INTO oe.engagements
+       (tenant_id, id, opportunity_id, account_id, offer_draft_id, created_by)
+     VALUES (oe.tenant_context(), $1, $2, $3, $4, $5)
+     RETURNING ${ENGAGEMENT_COLUMNS}`,
+    [input.id, input.opportunityId, input.accountId, input.offerDraftId, input.createdBy],
+  );
+  return result.rows[0]!;
+}
+
+export async function getEngagement(tx: QueryExecutor, id: string): Promise<EngagementRow | null> {
+  const result = await tx.query<EngagementRow>(
+    `SELECT ${ENGAGEMENT_COLUMNS} FROM oe.engagements WHERE id = $1`,
+    [id],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function listEngagements(
+  tx: QueryExecutor,
+  input: { accountId: string | null; limit: number },
+): Promise<EngagementRow[]> {
+  const result = await tx.query<EngagementRow>(
+    `SELECT ${ENGAGEMENT_COLUMNS} FROM oe.engagements
+      WHERE ($1::uuid IS NULL OR account_id = $1)
+      ORDER BY created_at DESC LIMIT $2`,
+    [input.accountId, input.limit],
+  );
+  return result.rows;
+}
+
+/**
+ * Move an engagement, compare-and-swap on its version.
+ *
+ * Acceptance fields and side-state fields travel with the move rather than being set
+ * separately, because the CHECK constraints require them to arrive together: a state past
+ * acceptance with no acceptance recorded, or a side state with no reason, is not a row this
+ * table will hold.
+ */
+export async function advanceEngagement(
+  tx: QueryExecutor,
+  input: {
+    id: string;
+    expectedVersion: number;
+    nextState: string;
+    acceptance: { at: string; note: string; by: string } | null;
+    side: { reason: string; owner: string } | null;
+  },
+): Promise<EngagementRow | null> {
+  const result = await tx.query<EngagementRow>(
+    `UPDATE oe.engagements
+        SET state = $3,
+            version = version + 1,
+            accepted_at = COALESCE($4::timestamptz, accepted_at),
+            acceptance_note = COALESCE($5, acceptance_note),
+            accepted_by = COALESCE($6::uuid, accepted_by),
+            side_reason = $7,
+            side_owner = $8::uuid,
+            updated_at = now()
+      WHERE id = $1 AND version = $2
+      RETURNING ${ENGAGEMENT_COLUMNS}`,
+    [
+      input.id,
+      input.expectedVersion,
+      input.nextState,
+      input.acceptance?.at ?? null,
+      input.acceptance?.note ?? null,
+      input.acceptance?.by ?? null,
+      input.side?.reason ?? null,
+      input.side?.owner ?? null,
+    ],
+  );
+  return result.rows[0] ?? null;
+}
+
+export interface EngagementEventRow {
+  id: string;
+  engagement_id: string;
+  from_state: string;
+  to_state: string;
+  to_version: number;
+  reason: string;
+  actor_id: string;
+  created_at: string;
+}
+
+export async function insertEngagementEvent(
+  tx: QueryExecutor,
+  input: {
+    id: string;
+    engagementId: string;
+    fromState: string;
+    toState: string;
+    toVersion: number;
+    reason: string;
+    actorId: string;
+  },
+): Promise<void> {
+  await tx.query(
+    `INSERT INTO oe.engagement_events
+       (tenant_id, id, engagement_id, from_state, to_state, to_version, reason, actor_id)
+     VALUES (oe.tenant_context(), $1, $2, $3, $4, $5, $6, $7)`,
+    [
+      input.id,
+      input.engagementId,
+      input.fromState,
+      input.toState,
+      input.toVersion,
+      input.reason,
+      input.actorId,
+    ],
+  );
+}
+
+export async function listEngagementEvents(
+  tx: QueryExecutor,
+  engagementId: string,
+): Promise<EngagementEventRow[]> {
+  const result = await tx.query<EngagementEventRow>(
+    `SELECT id, engagement_id, from_state, to_state, to_version, reason, actor_id,
+            to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
+       FROM oe.engagement_events WHERE engagement_id = $1 ORDER BY to_version`,
+    [engagementId],
+  );
+  return result.rows;
+}
+
+export interface PaymentRecordRow {
+  id: string;
+  engagement_id: string;
+  kind: string;
+  currency: string;
+  amount_minor: string;
+  external_ref: string;
+  note: string;
+  occurred_at: string;
+  recorded_by: string;
+  recorded_at: string;
+}
+
+const PAYMENT_COLUMNS = `id, engagement_id, kind, currency, amount_minor::text, external_ref,
+  note, recorded_by,
+  to_char(occurred_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS occurred_at,
+  to_char(recorded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS recorded_at`;
+
+export async function insertPaymentRecord(
+  tx: QueryExecutor,
+  input: {
+    id: string;
+    engagementId: string;
+    kind: string;
+    currency: string;
+    amountMinor: string;
+    externalRef: string;
+    note: string;
+    occurredAt: string;
+    recordedBy: string;
+  },
+): Promise<PaymentRecordRow> {
+  const result = await tx.query<PaymentRecordRow>(
+    `INSERT INTO oe.payment_records
+       (tenant_id, id, engagement_id, kind, currency, amount_minor, external_ref, note,
+        occurred_at, recorded_by)
+     VALUES (oe.tenant_context(), $1, $2, $3, $4, $5::bigint, $6, $7, $8::timestamptz, $9)
+     RETURNING ${PAYMENT_COLUMNS}`,
+    [
+      input.id,
+      input.engagementId,
+      input.kind,
+      input.currency,
+      input.amountMinor,
+      input.externalRef,
+      input.note,
+      input.occurredAt,
+      input.recordedBy,
+    ],
+  );
+  return result.rows[0]!;
+}
+
+export async function listPaymentRecords(
+  tx: QueryExecutor,
+  engagementId: string,
+): Promise<PaymentRecordRow[]> {
+  const result = await tx.query<PaymentRecordRow>(
+    `SELECT ${PAYMENT_COLUMNS} FROM oe.payment_records
+      WHERE engagement_id = $1 ORDER BY occurred_at DESC`,
+    [engagementId],
+  );
+  return result.rows;
+}

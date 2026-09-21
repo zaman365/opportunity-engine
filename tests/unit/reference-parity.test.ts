@@ -6,6 +6,8 @@ import {
   checkActionReadiness,
   contributionScenario,
   evaluateImportantLink,
+  ALL_MACHINES,
+  ENGAGEMENT_MACHINE,
   MACHINES,
   micro,
   preflightTarget,
@@ -144,6 +146,34 @@ describe('state machine parity', () => {
     expect(JSON.parse(JSON.stringify(MACHINES))).toEqual(
       JSON.parse(JSON.stringify(refState.MACHINES)),
     );
+  });
+
+  /**
+   * The engagement machine is this repository's, not the handoff's.
+   *
+   * Asserted separately so the parity above stays exact. If a later milestone adds another
+   * machine, this is where it has to be declared — `ALL_MACHINES` having a key that is
+   * neither the handoff's nor listed here fails.
+   */
+  it('adds exactly one machine of its own, and declares it', () => {
+    const added = Object.keys(ALL_MACHINES).filter((key) => !(key in MACHINES));
+    expect(added).toEqual(['engagement']);
+    // Every edge lands on a state the machine declares. An edge to a state that does not
+    // exist is a dead end nothing could ever reach or leave.
+    for (const [state, next] of Object.entries(ENGAGEMENT_MACHINE)) {
+      for (const target of next) {
+        expect(Object.keys(ENGAGEMENT_MACHINE), `${state} → ${target}`).toContain(target);
+      }
+    }
+    // Both terminal states are genuinely terminal.
+    expect(ENGAGEMENT_MACHINE.cancelled).toEqual([]);
+    expect(ENGAGEMENT_MACHINE.closed).toEqual([]);
+    // And nothing reaches `accepted` except verification. Acceptance follows verified work
+    // plus the customer's own acceptance — never a payment webhook.
+    const reachingAccepted = Object.entries(ENGAGEMENT_MACHINE)
+      .filter(([, next]) => (next as readonly string[]).includes('accepted'))
+      .map(([state]) => state);
+    expect(reachingAccepted).toEqual(['awaiting_verification']);
   });
 
   it('rejects a stale expected version', () => {

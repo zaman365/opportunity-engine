@@ -2,8 +2,11 @@ import type {
   Account,
   Authorization,
   Budget,
+  Engagement,
+  EngagementEvent,
   Evidence,
   Finding,
+  PaymentRecord,
   IntakeChannel,
   IntakeRequest,
   Offer,
@@ -25,8 +28,11 @@ import type {
   AuthorizationRow,
   BudgetRow,
   EvidenceRow,
+  EngagementEventRow,
+  EngagementRow,
   FindingRow,
   IntakeChannelRow,
+  PaymentRecordRow,
   IntakeRequestRow,
   OfferDraftRow,
   OfferPrerequisiteRow,
@@ -473,5 +479,56 @@ export function toDeliveredReport(report: ReportRow, grant: ReportGrantRow): Del
     // The body was rendered once, at publication, from the exact reviewed finding versions and
     // hashed. It is served as it was written; nothing here re-renders it from live rows.
     body: (report.body ?? {}) as Record<string, unknown>,
+  };
+}
+
+export function toEngagement(row: EngagementRow): Engagement {
+  return {
+    id: row.id,
+    opportunity_id: row.opportunity_id,
+    account_id: row.account_id,
+    offer_draft_id: row.offer_draft_id,
+    state: row.state as Engagement['state'],
+    version: row.version,
+    accepted_at: row.accepted_at,
+    // The note travels: it is how acceptance was obtained, and it is the thing a dispute
+    // turns on. Withholding it from the people who have to answer the dispute would be the
+    // wrong kind of caution.
+    acceptance_note: row.acceptance_note,
+    accepted_by: row.accepted_by,
+    side_reason: row.side_reason,
+    side_owner: row.side_owner,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+export function toEngagementEvent(row: EngagementEventRow): EngagementEvent {
+  return {
+    id: row.id,
+    engagement_id: row.engagement_id,
+    from_state: row.from_state as EngagementEvent['from_state'],
+    to_state: row.to_state as EngagementEvent['to_state'],
+    to_version: row.to_version,
+    reason: row.reason,
+    actor_id: row.actor_id,
+    created_at: row.created_at,
+  };
+}
+
+export function toPaymentRecord(row: PaymentRecordRow): PaymentRecord {
+  return {
+    id: row.id,
+    engagement_id: row.engagement_id,
+    kind: row.kind as PaymentRecord['kind'],
+    // The same minor-unit shape as a catalogue price, and deliberately not `Money`: this is
+    // what a customer pays, not what a provider charged us.
+    amount: { currency: row.currency, amount_minor: row.amount_minor, tax_treatment: null },
+    external_ref: row.external_ref,
+    note: row.note,
+    occurred_at: row.occurred_at,
+    recorded_by: row.recorded_by,
+    recorded_at: row.recorded_at,
   };
 }

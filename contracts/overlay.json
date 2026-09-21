@@ -1,7 +1,7 @@
 {
   "$comment": "M2 additions to the build kit's M1 OpenAPI document. See contracts/README.md.",
   "base": "opportunity-engine-build-kit/contracts/openapi.json",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "changes": [
     {
       "op": "set",
@@ -4213,6 +4213,1009 @@
       "pointer": "/info/version",
       "value": "2.7.0",
       "why": "Adds the embeddable form script. Additive; no existing operation changed."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/EngagementState",
+      "value": {
+        "enum": [
+          "draft",
+          "awaiting_acceptance",
+          "awaiting_prerequisites",
+          "ready",
+          "in_progress",
+          "awaiting_verification",
+          "accepted",
+          "change_requested",
+          "disputed",
+          "cancelled",
+          "closed"
+        ]
+      },
+      "why": "M4 slice 2 turns an accepted scope into tracked work. The shapes carry what WORKFLOWS.md requires and nothing it forbids: no card data anywhere, no scope field to edit, and an acceptance that is a recorded act rather than a payment event."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/Engagement",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Work somebody agreed to buy, against one drafted scope. There is no scope field to edit: a draft is immutable, so a changed scope means a new draft and a new engagement. Acceptance is a time, a note saying how it was obtained, and the member attesting to it \u2014 never a payment event.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "opportunity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "offer_draft_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EngagementState"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "accepted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acceptance_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accepted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "side_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "side_owner": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "opportunity_id",
+          "account_id",
+          "offer_draft_id",
+          "state",
+          "version",
+          "accepted_at",
+          "acceptance_note",
+          "accepted_by",
+          "side_reason",
+          "side_owner",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "why": "M4 slice 2 turns an accepted scope into tracked work. The shapes carry what WORKFLOWS.md requires and nothing it forbids: no card data anywhere, no scope field to edit, and an acceptance that is a recorded act rather than a payment event."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/Engagements",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Engagement"
+            }
+          }
+        },
+        "required": ["items"]
+      },
+      "why": "M4 slice 2 turns an accepted scope into tracked work. The shapes carry what WORKFLOWS.md requires and nothing it forbids: no card data anywhere, no scope field to edit, and an acceptance that is a recorded act rather than a payment event."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/CreateEngagement",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "opportunity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "offer_draft_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": ["opportunity_id", "offer_draft_id"]
+      },
+      "why": "M4 slice 2 turns an accepted scope into tracked work. The shapes carry what WORKFLOWS.md requires and nothing it forbids: no card data anywhere, no scope field to edit, and an acceptance that is a recorded act rather than a payment event."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/AdvanceEngagement",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "acceptance_note is required exactly on the transition that first leaves the pre-acceptance states, and refused on every other \u2014 sending it where it does not belong is an error rather than ignored, so nobody believes they recorded an acceptance that is not there.",
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "next_state": {
+            "$ref": "#/components/schemas/EngagementState"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "acceptance_note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["expected_version", "next_state", "reason"]
+      },
+      "why": "M4 slice 2 turns an accepted scope into tracked work. The shapes carry what WORKFLOWS.md requires and nothing it forbids: no card data anywhere, no scope field to edit, and an acceptance that is a recorded act rather than a payment event."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/EngagementEvent",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "One transition, append-only. The state says where a thing is; this says how it got there, which is what a dispute needs.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "engagement_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from_state": {
+            "$ref": "#/components/schemas/EngagementState"
+          },
+          "to_state": {
+            "$ref": "#/components/schemas/EngagementState"
+          },
+          "to_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string"
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "engagement_id",
+          "from_state",
+          "to_state",
+          "to_version",
+          "reason",
+          "actor_id",
+          "created_at"
+        ]
+      },
+      "why": "M4 slice 2 turns an accepted scope into tracked work. The shapes carry what WORKFLOWS.md requires and nothing it forbids: no card data anywhere, no scope field to edit, and an acceptance that is a recorded act rather than a payment event."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/EngagementDetail",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "engagement": {
+            "$ref": "#/components/schemas/Engagement"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementEvent"
+            }
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentRecord"
+            }
+          }
+        },
+        "required": ["engagement", "events", "payments"]
+      },
+      "why": "M4 slice 2 turns an accepted scope into tracked work. The shapes carry what WORKFLOWS.md requires and nothing it forbids: no card data anywhere, no scope field to edit, and an acceptance that is a recorded act rather than a payment event."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/PaymentRecord",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "What somebody typed about money. No card data, no processor token, no webhook. It moves no state: a payment is evidence money arrived, not evidence work was accepted.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "engagement_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "enum": ["invoice_issued", "payment_received", "refund_issued", "written_off"]
+          },
+          "amount": {
+            "$ref": "#/components/schemas/OfferPrice"
+          },
+          "external_ref": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "recorded_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "engagement_id",
+          "kind",
+          "amount",
+          "external_ref",
+          "note",
+          "occurred_at",
+          "recorded_by",
+          "recorded_at"
+        ]
+      },
+      "why": "M4 slice 2 turns an accepted scope into tracked work. The shapes carry what WORKFLOWS.md requires and nothing it forbids: no card data anywhere, no scope field to edit, and an acceptance that is a recorded act rather than a payment event."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/RecordPayment",
+      "value": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": ["invoice_issued", "payment_received", "refund_issued", "written_off"]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "amount_minor": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "external_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["kind", "currency", "amount_minor", "external_ref", "note", "occurred_at"]
+      },
+      "why": "M4 slice 2 turns an accepted scope into tracked work. The shapes carry what WORKFLOWS.md requires and nothing it forbids: no card data anywhere, no scope field to edit, and an acceptance that is a recorded act rather than a payment event."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1engagements",
+      "value": {
+        "get": {
+          "operationId": "listEngagements",
+          "summary": "Work agreed and in progress",
+          "description": "Minimum role: viewer. Phase: M4. Membership, purpose, object and budget checks also apply. Contract only; not a claim this endpoint exists.",
+          "tags": ["M4"],
+          "x-minimum-role": "viewer",
+          "parameters": [
+            {
+              "name": "account_id",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Engagements"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "createEngagement",
+          "summary": "Open work against a drafted scope",
+          "description": "Minimum role: reviewer. Phase: M4. Membership, purpose, object and budget checks also apply. Refused unless the scope is a current open draft: a withdrawn one is a price that was taken back. One live engagement per scope. Contract only; not a claim this endpoint exists.",
+          "tags": ["M4"],
+          "x-minimum-role": "reviewer",
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 200
+              }
+            },
+            {
+              "name": "X-CSRF-Token",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 20
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Engagement"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateEngagement"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "The engagement lifecycle needs a surface. Every unsafe operation carries an idempotency key and a CSRF token like the rest of /v1, and the payment operation is owner-only because money is an owner's record. New operations only; every M1 call is untouched."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1engagements~1{id}",
+      "value": {
+        "get": {
+          "operationId": "getEngagement",
+          "summary": "One engagement, its history and its payments",
+          "description": "Minimum role: viewer. Phase: M4. Membership, purpose, object and budget checks also apply. Contract only; not a claim this endpoint exists.",
+          "tags": ["M4"],
+          "x-minimum-role": "viewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/EngagementDetail"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "The engagement lifecycle needs a surface. Every unsafe operation carries an idempotency key and a CSRF token like the rest of /v1, and the payment operation is owner-only because money is an owner's record. New operations only; every M1 call is untouched."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1engagements~1{id}~1advance",
+      "value": {
+        "post": {
+          "operationId": "advanceEngagement",
+          "summary": "Move an engagement, with a reason",
+          "description": "Minimum role: reviewer. Phase: M4. Membership, purpose, object and budget checks also apply. Nothing may leave the pre-acceptance states without a recorded acceptance, and a side state needs a reason and an owner \u2014 both enforced as database constraints as well as here. Contract only; not a claim this endpoint exists.",
+          "tags": ["M4"],
+          "x-minimum-role": "reviewer",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 200
+              }
+            },
+            {
+              "name": "X-CSRF-Token",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 20
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Engagement"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdvanceEngagement"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "The engagement lifecycle needs a surface. Every unsafe operation carries an idempotency key and a CSRF token like the rest of /v1, and the payment operation is owner-only because money is an owner's record. New operations only; every M1 call is untouched."
+    },
+    {
+      "op": "add",
+      "pointer": "/paths/~1v1~1engagements~1{id}~1payments",
+      "value": {
+        "post": {
+          "operationId": "recordPayment",
+          "summary": "Record an invoice or a payment by hand",
+          "description": "Minimum role: owner. Phase: M4. Membership, purpose, object and budget checks also apply. Money is an owner's record. It moves no engagement state: a payment is evidence money arrived, not evidence work was accepted. No card data is accepted by this or any operation. Contract only; not a claim this endpoint exists.",
+          "tags": ["M4"],
+          "x-minimum-role": "owner",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 200
+              }
+            },
+            {
+              "name": "X-CSRF-Token",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "minLength": 20
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "Successful operation. Does not imply a later workflow step completed.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/PaymentRecord"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Authentication missing or invalid",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Action not permitted",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Object not found or outside tenant scope",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Version, idempotency, budget or workflow conflict",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Invalid or unsupported input",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "429": {
+              "description": "Rate limit",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "Dependency unavailable",
+              "content": {
+                "application/problem+json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Problem"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordPayment"
+                }
+              }
+            }
+          }
+        }
+      },
+      "why": "The engagement lifecycle needs a surface. Every unsafe operation carries an idempotency key and a CSRF token like the rest of /v1, and the payment operation is owner-only because money is an owner's record. New operations only; every M1 call is untouched."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/version",
+      "value": "2.8.0",
+      "why": "M4 slice 2 adds the engagement lifecycle. Additive; no existing operation changed."
     }
   ]
 }

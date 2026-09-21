@@ -3,6 +3,8 @@ import {
   Account as AccountSchema,
   ChangeBudget,
   CreateAccount,
+  AdvanceEngagement as AdvanceEngagementSchema,
+  CreateEngagement as CreateEngagementSchema,
   CreateOfferDraft as CreateOfferDraftSchema,
   DeclineIntakeRequest as DeclineIntakeRequestSchema,
   IssueReportGrant as IssueReportGrantSchema,
@@ -14,6 +16,7 @@ import {
   RecordOfferPrerequisite as RecordOfferPrerequisiteSchema,
   ReviewFinding as ReviewFindingSchema,
   RevokeOfferPrerequisite as RevokeOfferPrerequisiteSchema,
+  RecordPayment as RecordPaymentSchema,
   RevokeReportGrant as RevokeReportGrantSchema,
   SetIntakeChannelEnabled as SetIntakeChannelEnabledSchema,
   SubmitIntakeRequest as SubmitIntakeRequestSchema,
@@ -31,6 +34,7 @@ import {
   getAccount,
   getBudget,
   getEvidence,
+  getEngagement,
   getFinding,
   getIntakeChannel,
   getIntakeRequest,
@@ -47,6 +51,8 @@ import {
   listAccounts,
   listBudgets,
   listEvidenceByIds,
+  listEngagementEvents,
+  listEngagements,
   listEvidenceForScan,
   listFindingsForScan,
   listIntakeChannels,
@@ -54,6 +60,7 @@ import {
   listOfferDrafts,
   listOfferPrerequisites,
   listOpportunities,
+  listPaymentRecords,
   listReportFindings,
   listReportGrants,
   listScanSteps,
@@ -90,7 +97,10 @@ import {
   toOfferDraft,
   toOfferPrerequisite,
   toDeliveredReport,
+  toEngagement,
+  toEngagementEvent,
   toOpportunity,
+  toPaymentRecord,
   toPublicIntakeRequest,
   toReport,
   toReportGrant,
@@ -105,6 +115,7 @@ import { assertPublishable, createReport } from './services/report.ts';
 import { createOfferDraft, matchOffersForOpportunity, withdrawDraft } from './services/offer.ts';
 import { channelForRequest, submitIntakeRequest, verifyIntakeRequest } from './services/intake.ts';
 import { issueReportGrant, readDeliveredReport, revokeGrant } from './services/report-delivery.ts';
+import { advance, createEngagement, recordPayment } from './services/engagement.ts';
 import { deliveredReportPage, invalidLinkPage, PUBLIC_PAGE_CSP } from './public-pages.ts';
 import { EMBED_CACHE_CONTROL, EMBED_SCRIPT } from './embed.ts';
 import type { ReportBody } from './services/report.ts';
@@ -1213,6 +1224,143 @@ export function createApp(deps: AppDependencies) {
       return { status: 200, body: projected };
     });
     return c.json(result.body as object, 200);
+  });
+
+  /* ----------------------------------------------------------- engagements */
+
+  v1.get('/engagements', requireRole('viewer'), async (c) => {
+    const actor = c.get('actor');
+    const { limit } = listParams(c.req.query('limit'), undefined);
+    const accountId = c.req.query('account_id');
+    const items = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const rows = await listEngagements(tx, {
+        accountId: accountId ? uuidParam(accountId) : null,
+        limit,
+      });
+      const out = [];
+      for (const row of rows) {
+        const account = await getAccount(tx, row.account_id);
+        // Venture scoping runs through the account, the way it does for every other object
+        // that hangs off one. A row whose account this member cannot see is not theirs.
+        if (!account || !actor.membership.ventureIds.includes(account.venture_id)) continue;
+        out.push(toEngagement(row));
+      }
+      return out;
+    });
+    return c.json({ items });
+  });
+
+  v1.post('/engagements', requireRole('reviewer'), async (c) => {
+    const actor = c.get('actor');
+    const body = parse(CreateEngagementSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), body);
+    const created = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'createEngagement', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const opportunity = await getOpportunity(tx, body.opportunity_id);
+      if (!opportunity) throw new ApiProblem('NOT_FOUND', 'No such opportunity in this workspace.');
+      assertVenture(actor, opportunity.venture_id);
+      const row = await createEngagement(tx, deps, {
+        actor,
+        opportunityId: body.opportunity_id,
+        offerDraftId: body.offer_draft_id,
+        requestId: c.get('requestId'),
+      });
+      const engagement = toEngagement(row);
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 201,
+        responseBody: engagement,
+      });
+      return { status: 201, body: engagement };
+    });
+    return c.json(created.body as object, 201);
+  });
+
+  v1.get('/engagements/:id', requireRole('viewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const detail = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const row = await getEngagement(tx, id);
+      if (!row) throw new ApiProblem('NOT_FOUND', 'No such engagement in this workspace.');
+      const account = await getAccount(tx, row.account_id);
+      if (!account) throw new ApiProblem('NOT_FOUND', 'No such engagement in this workspace.');
+      assertVenture(actor, account.venture_id);
+      return {
+        engagement: toEngagement(row),
+        events: (await listEngagementEvents(tx, id)).map(toEngagementEvent),
+        payments: (await listPaymentRecords(tx, id)).map(toPaymentRecord),
+      };
+    });
+    return c.json(detail);
+  });
+
+  v1.post('/engagements/:id/advance', requireRole('reviewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const body = parse(AdvanceEngagementSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { id, ...body });
+    const result = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'advanceEngagement', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const existing = await getEngagement(tx, id);
+      if (!existing) throw new ApiProblem('NOT_FOUND', 'No such engagement in this workspace.');
+      const account = await getAccount(tx, existing.account_id);
+      if (!account) throw new ApiProblem('NOT_FOUND', 'No such engagement in this workspace.');
+      assertVenture(actor, account.venture_id);
+      const moved = await advance(tx, deps, {
+        actor,
+        engagementId: id,
+        expectedVersion: body.expected_version,
+        nextState: body.next_state,
+        reason: body.reason,
+        acceptanceNote: body.acceptance_note ?? null,
+        requestId: c.get('requestId'),
+      });
+      const engagement = toEngagement(moved);
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 200,
+        responseBody: engagement,
+      });
+      return { status: 200, body: engagement };
+    });
+    return c.json(result.body as object, 200);
+  });
+
+  v1.post('/engagements/:id/payments', requireRole('owner'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const body = parse(RecordPaymentSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { id, ...body });
+    const created = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'recordPayment', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const existing = await getEngagement(tx, id);
+      if (!existing) throw new ApiProblem('NOT_FOUND', 'No such engagement in this workspace.');
+      const account = await getAccount(tx, existing.account_id);
+      if (!account) throw new ApiProblem('NOT_FOUND', 'No such engagement in this workspace.');
+      assertVenture(actor, account.venture_id);
+      const row = await recordPayment(tx, deps, {
+        actor,
+        engagementId: id,
+        kind: body.kind,
+        currency: body.currency,
+        amountMinor: body.amount_minor,
+        externalRef: body.external_ref,
+        note: body.note,
+        occurredAt: body.occurred_at,
+        requestId: c.get('requestId'),
+      });
+      const record = toPaymentRecord(row);
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 201,
+        responseBody: record,
+      });
+      return { status: 201, body: record };
+    });
+    return c.json(created.body as object, 201);
   });
 
   /* ------------------------------------------------- report delivery */

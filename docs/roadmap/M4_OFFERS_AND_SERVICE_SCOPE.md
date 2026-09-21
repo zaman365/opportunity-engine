@@ -14,7 +14,10 @@ it quoted. [ADR-019](../adr/ADR-019-offer-catalog.md).
 There is no price input anywhere in the application, and no field in the API through which a
 caller could supply one.
 
-## Slice 2 · accepted scope and engagements — next
+## Slice 2 · accepted scope and engagements — **done**
+
+[ADR-023](../adr/ADR-023-engagements.md). What it delivers, against what the handoff asked
+for:
 
 - A customer accepts a specific offer draft version, at a recorded time.
 - The engagement state machine WORKFLOWS.md specifies:

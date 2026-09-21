@@ -850,6 +850,139 @@ export const DeliveredReport = z
   .strict();
 export type DeliveredReport = z.infer<typeof DeliveredReport>;
 
+/* ---------------------------------------------------------- engagements */
+
+export const EngagementState = z.enum([
+  'draft',
+  'awaiting_acceptance',
+  'awaiting_prerequisites',
+  'ready',
+  'in_progress',
+  'awaiting_verification',
+  'accepted',
+  'change_requested',
+  'disputed',
+  'cancelled',
+  'closed',
+]);
+export type EngagementState = z.infer<typeof EngagementState>;
+
+/**
+ * Work somebody agreed to buy, against one drafted scope.
+ *
+ * There is no scope field. A draft is immutable, so a changed scope means a new draft and a
+ * new engagement — which is what WORKFLOWS.md means by "scope change creates a new approved
+ * version", and why `change_requested` leads back to `draft` rather than onward.
+ */
+export const Engagement = z
+  .object({
+    id: Uuid,
+    opportunity_id: Uuid,
+    account_id: Uuid,
+    offer_draft_id: Uuid,
+    state: EngagementState,
+    version: z.number().int().min(1),
+    /** A time, a note saying how acceptance was obtained, and the member attesting to it. */
+    accepted_at: z.union([DateTime, z.null()]),
+    acceptance_note: z.union([z.string(), z.null()]),
+    accepted_by: z.union([Uuid, z.null()]),
+    side_reason: z.union([z.string(), z.null()]),
+    side_owner: z.union([Uuid, z.null()]),
+    created_by: Uuid,
+    created_at: DateTime,
+    updated_at: DateTime,
+  })
+  .strict();
+export type Engagement = z.infer<typeof Engagement>;
+
+export const Engagements = z.object({ items: z.array(Engagement) }).strict();
+export type Engagements = z.infer<typeof Engagements>;
+
+export const CreateEngagement = z.object({ opportunity_id: Uuid, offer_draft_id: Uuid }).strict();
+export type CreateEngagement = z.infer<typeof CreateEngagement>;
+
+/**
+ * `acceptance_note` is required exactly on the transition that first leaves the
+ * pre-acceptance states, and refused on every other. Sending it where it does not belong is
+ * an error rather than ignored, so nobody believes they recorded an acceptance that is not
+ * there.
+ */
+export const AdvanceEngagement = z
+  .object({
+    expected_version: z.number().int().min(1),
+    next_state: EngagementState,
+    reason: z.string().min(1).max(2000),
+    acceptance_note: z.union([z.string().min(10).max(2000), z.null()]).optional(),
+  })
+  .strict();
+export type AdvanceEngagement = z.infer<typeof AdvanceEngagement>;
+
+/** One transition, append-only. The state says where; this says how it got there. */
+export const EngagementEvent = z
+  .object({
+    id: Uuid,
+    engagement_id: Uuid,
+    from_state: EngagementState,
+    to_state: EngagementState,
+    to_version: z.number().int().min(1),
+    reason: z.string(),
+    actor_id: Uuid,
+    created_at: DateTime,
+  })
+  .strict();
+export type EngagementEvent = z.infer<typeof EngagementEvent>;
+
+export const PaymentKind = z.enum([
+  'invoice_issued',
+  'payment_received',
+  'refund_issued',
+  'written_off',
+]);
+export type PaymentKind = z.infer<typeof PaymentKind>;
+
+/**
+ * What somebody typed about money.
+ *
+ * No card data, no processor token, no webhook. It moves no state: a payment is evidence that
+ * money arrived, not evidence that work was accepted, and WORKFLOWS.md rules out conflating
+ * the two.
+ */
+export const PaymentRecord = z
+  .object({
+    id: Uuid,
+    engagement_id: Uuid,
+    kind: PaymentKind,
+    amount: OfferPrice,
+    external_ref: z.string(),
+    note: z.string(),
+    occurred_at: DateTime,
+    recorded_by: Uuid,
+    recorded_at: DateTime,
+  })
+  .strict();
+export type PaymentRecord = z.infer<typeof PaymentRecord>;
+
+export const RecordPayment = z
+  .object({
+    kind: PaymentKind,
+    currency: CurrencyCode,
+    amount_minor: z.string().regex(/^[0-9]+$/),
+    external_ref: z.string().min(1).max(200),
+    note: z.string().min(1).max(2000),
+    occurred_at: DateTime,
+  })
+  .strict();
+export type RecordPayment = z.infer<typeof RecordPayment>;
+
+export const EngagementDetail = z
+  .object({
+    engagement: Engagement,
+    events: z.array(EngagementEvent),
+    payments: z.array(PaymentRecord),
+  })
+  .strict();
+export type EngagementDetail = z.infer<typeof EngagementDetail>;
+
 export { ExpectedVersion };
 
 /** Name → schema, keyed exactly as the OpenAPI `components.schemas` map. */
@@ -916,4 +1049,13 @@ export const componentSchemas = {
   IssueReportGrant,
   RevokeReportGrant,
   DeliveredReport,
+  EngagementState,
+  Engagement,
+  Engagements,
+  CreateEngagement,
+  AdvanceEngagement,
+  EngagementEvent,
+  EngagementDetail,
+  PaymentRecord,
+  RecordPayment,
 } as const;

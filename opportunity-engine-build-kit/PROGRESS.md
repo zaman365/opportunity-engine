@@ -10,7 +10,7 @@
 > This kit is left byte-identical apart from this file, which it instructs agents to update,
 > so it stays the record of what the handoff actually said.
 
-**Kit version 2.0 · last session 21 September 2026 (M3 slice 1, then the direction change)**
+**Kit version 2.0 · last session 22 September 2026 (M3 and M4 complete)**
 
 ## Completed in this kit
 
@@ -25,17 +25,82 @@ VERIFICATION.md.
 |---|---|
 | Production application scaffold | **Built** · monorepo, pinned versions, lockfile, real build/type/lint/test scripts |
 | Live authentication/membership | **Partly** · Access JWT verification implemented (jose, pinned issuer/audience/algorithms) but never exercised against a real Access deployment. The local fixture identity is the only path actually run |
-| Production database/migrations | **Local only** · 10 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
+| Production database/migrations | **Local only** · 13 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
 | Live public scan adapter | **Not implemented** · `BrowserRunCaptureProvider` runs the address policy then reports `not_configured`. No egress-boundary proof, no credentials |
 | Detectors | **2 of 6 implemented** · `CE-LINK-01` and `CE-ASSET-01` (accepted also under the handoff names `MF-LINK-01`, `MF-ASSET-01`), both with negative controls. The other four are specified and unrequestable under either namespace |
 | Persistent budget enforcement | **Implemented and tested** · SQL command functions, runtime holds `SELECT` only, concurrency asserted against real connections |
 | Human review and reports | **Implemented and tested** · versioned review with optimistic locking, immutable hash-bound report snapshot |
 | Requested intake | **Implemented and tested, local only** · public submission, four rate-limit windows, hashed single-use codes, host-bound tenant resolution. No adapter can reach a member of the public: the only working verification channel returns the code to the caller and refuses to construct outside `APP_ENV=local` |
 | Public verification delivery | **Not implemented** · the port refuses and says so. An adapter that sends mail needs owner approval it does not have |
+| Protected report delivery | **Implemented and tested** · one report version per link, hashed 256-bit token, expiry and revocation enforced by the identity role's row policy, no business write on read, one answer for every unusable link. A customer-facing page with no script, outside the operator app |
+| Engagements | **Implemented and tested** · the full WORKFLOWS.md lifecycle, acceptance as a recorded act with a note and a named member, manual invoice and payment records that move no state |
+| Payments | **Manual only, by design** · no card data, no processor token, no webhook, and no field in any schema that would accept one. Hosted checkout needs its own authorization and is not built |
 | Offer catalogue | **Implemented and tested** · deterministic matching from an owner-approved catalogue, prerequisites recorded by a named owner, price/scope snapshotted into each draft. Nothing is sent; a draft is an internal record |
 | Commercial prices | **Provisional** · EUR 290 / EUR 190 net, approved in `config/offer-approvals.json`. **VAT treatment unconfirmed** and recorded as open in both approval notes |
 | OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely, now for a legal reason as well as a design one (`docs/legal/DACH_OUTREACH_STUDY.md`) |
 | Production deployment | **Not performed** · no cloud resource was created or contacted |
+
+## Session log · 22 September 2026 · M3 slices 2-3 and M4 slice 2
+
+**Agent:** Claude Opus 5 · **branch:** main.
+
+### What was built
+
+**Protected report delivery** ([ADR-022](../docs/adr/ADR-022-report-delivery.md)). A grant
+opens one report version, for one recipient, for two weeks, revocably, and nothing else.
+Expiry and revocation live in the identity role's row policy, so an expired or revoked grant
+is invisible to the lookup before any application code could tell it apart from one that never
+existed. The runtime role cannot extend a lifetime, repoint a token or delete a grant. A read
+performs no business write; that a link was used is an append-only audit event.
+
+**The pages a customer sees.** `/r/{token}` is server-rendered with no script, escaped
+everywhere, with a CSP allowing one style block by hash. It sits outside the operator app,
+which is behind Access in production — a customer must never need to get past Access to read
+their own report. The invalid-link page is one page for every reason a link might not work,
+with no form on it to probe with.
+
+**The embeddable form.** One script tag, one container. It derives the origin it posts to from
+its own URL rather than from an attribute; it renders the channel's purpose text as text
+fetched from the API and refuses to render at all if it cannot fetch it; Shadow DOM both ways;
+no marketing checkbox. One scoped CORS allowance, granted only to origins whose host has a
+registered enabled channel.
+
+**Engagements** ([ADR-023](../docs/adr/ADR-023-engagements.md)). The full lifecycle, with
+acceptance as a time, a note saying how it was obtained, and the member attesting to it — never
+a payment event. A payment record moves no state, and the audit trail says so. No card data
+anywhere: no column, no schema field, no webhook.
+
+### Commands run and actual results
+
+| Command | Result |
+|---|---|
+| `npm run verify` | Clean: typecheck, lint, format, contract, build, all four suites |
+| `npm run test:unit` | **179 passed** (178 → 179) |
+| `npm run test:contract` | **52 passed** |
+| `npm run test:db` | **79 passed** (69 → 79) |
+| `npm run test:integration` | **143 passed** (106 → 143) |
+| `npm run test:e2e` | **27 passed, 7 skipped** (25 → 27) |
+| `npm run kit:test` | 114 tests passed; 849 structural checks |
+
+### Still true
+
+- No live capture, no deployment, nothing sent to anybody. Issuing a report link creates a way
+  in; putting it in front of somebody is a separate act this system does not perform.
+- `AUTOMATIC_OUTREACH_ENABLED`, `AUTOMATIC_PRODUCTION_WRITES_ENABLED` and
+  `AUTOMATIC_TOPUPS_ENABLED` are still refused at startup.
+- `PUBLIC_INTAKE_ENABLED` is on locally only, because the only working verification channel
+  returns the code to the caller and refuses to construct outside `APP_ENV=local`.
+
+### What is left, and why
+
+| Left | Blocked on |
+|---|---|
+| Live capture | Owner authorization, Browser Run credentials, and demonstrated deny-private-network egress (ADR-005) |
+| `POST /v1/engagements/{id}/verify` — the automated acceptance-test run | Live capture, under the same recorded conditions |
+| Four more detectors (`CE-DATA-01`, `CE-CONTENT-01`, `CE-VISUAL-01`, `CE-MOBILE-01`) | Nothing — next unblocked work |
+| German copy at length | Nothing; no German report has been rendered or reviewed |
+| Rate limiting the public report read | Nothing; it guards load rather than discovery against a 256-bit token, so it belongs with M5's operational work |
+| M5 monitoring, M6 pilot | Live capture, and real paying customers |
 
 ## Session log · 21 September 2026 · product direction
 
