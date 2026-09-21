@@ -9,6 +9,7 @@ import { ScansRoute } from './routes/ScansRoute.tsx';
 import { ScanDetailRoute } from './routes/ScanDetailRoute.tsx';
 import { NewScanRoute } from './routes/NewScanRoute.tsx';
 import { AccountsRoute } from './routes/AccountsRoute.tsx';
+import { RequestsRoute } from './routes/RequestsRoute.tsx';
 import { ReportRoute } from './routes/ReportRoute.tsx';
 import { SettingsRoute } from './routes/SettingsRoute.tsx';
 import { DesignStudiesRoute } from './routes/DesignStudiesRoute.tsx';
@@ -85,6 +86,7 @@ export function App() {
         <nav className="nav" aria-label="Primary">
           <NavLink to="/opportunities">Review queue</NavLink>
           <NavLink to="/scans">Scans</NavLink>
+          <NavLink to="/requests">Requests</NavLink>
           <NavLink to="/accounts">Accounts</NavLink>
           <NavLink to="/settings">Settings</NavLink>
         </nav>
@@ -114,6 +116,7 @@ export function App() {
           <Route path="/scans" element={<ScansRoute />} />
           <Route path="/scans/new" element={<NewScanRoute session={session} />} />
           <Route path="/scans/:id" element={<ScanDetailRoute session={session} />} />
+          <Route path="/requests" element={<RequestsRoute session={session} />} />
           <Route path="/accounts" element={<AccountsRoute session={session} />} />
           <Route path="/reports/:id" element={<ReportRoute session={session} />} />
           <Route path="/settings" element={<SettingsRoute session={session} />} />

@@ -4,6 +4,7 @@ import {
   ChangeBudget,
   CreateAccount,
   CreateOfferDraft as CreateOfferDraftSchema,
+  DeclineIntakeRequest as DeclineIntakeRequestSchema,
   CreateReport as CreateReportSchema,
   CreateScan as CreateScanSchema,
   AuthorizationInput,
@@ -12,6 +13,9 @@ import {
   RecordOfferPrerequisite as RecordOfferPrerequisiteSchema,
   ReviewFinding as ReviewFindingSchema,
   RevokeOfferPrerequisite as RevokeOfferPrerequisiteSchema,
+  SetIntakeChannelEnabled as SetIntakeChannelEnabledSchema,
+  SubmitIntakeRequest as SubmitIntakeRequestSchema,
+  VerifyIntakeRequest as VerifyIntakeRequestSchema,
   WithdrawOfferDraft as WithdrawOfferDraftSchema,
   type Session,
 } from '@oe/contracts';
@@ -20,11 +24,14 @@ import {
   advanceReport,
   advanceScan,
   configureBudget,
+  decideIntakeRequest,
   findingEvidenceIds,
   getAccount,
   getBudget,
   getEvidence,
   getFinding,
+  getIntakeChannel,
+  getIntakeRequest,
   getOpportunity,
   getReport,
   getScan,
@@ -39,6 +46,8 @@ import {
   listEvidenceByIds,
   listEvidenceForScan,
   listFindingsForScan,
+  listIntakeChannels,
+  listIntakeRequests,
   listOfferDrafts,
   listOfferPrerequisites,
   listOpportunities,
@@ -48,6 +57,7 @@ import {
   listReviews,
   revokeOfferPrerequisite,
   setBudgetPaused,
+  setIntakeChannelEnabled,
   type ScanRow,
   type QueryExecutor,
 } from '@oe/db';
@@ -70,9 +80,12 @@ import {
   toBudget,
   toEvidence,
   toFinding,
+  toIntakeChannel,
+  toIntakeRequest,
   toOfferDraft,
   toOfferPrerequisite,
   toOpportunity,
+  toPublicIntakeRequest,
   toReport,
   toReview,
   toScanStep,
@@ -83,6 +96,7 @@ import { admitScan, ledgerProblem } from './services/scan-admission.ts';
 import { reviewFinding } from './services/review.ts';
 import { assertPublishable, createReport } from './services/report.ts';
 import { createOfferDraft, matchOffersForOpportunity, withdrawDraft } from './services/offer.ts';
+import { channelForRequest, submitIntakeRequest, verifyIntakeRequest } from './services/intake.ts';
 import { completeIdempotencyKey } from '@oe/db';
 
 /**
@@ -1068,8 +1082,261 @@ export function createApp(deps: AppDependencies) {
     return c.json(result.body as object, 200);
   });
 
+  /* ---------------------------------------------------- requested intake */
+
+  v1.get('/intake-requests', requireRole('viewer'), async (c) => {
+    const actor = c.get('actor');
+    const { limit } = listParams(c.req.query('limit'), undefined);
+    const state = c.req.query('state') ?? null;
+    if (state !== null && !INTAKE_STATES.includes(state)) {
+      throw new ApiProblem('INVALID_REQUEST', `state must be one of ${INTAKE_STATES.join(', ')}.`);
+    }
+    const items = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const rows = await listIntakeRequests(tx, {
+        ventureIds: actor.membership.ventureIds,
+        state,
+        limit,
+      });
+      return rows.map((row) => toIntakeRequest(row, canSeeContact(actor)));
+    });
+    return c.json({ items, next_cursor: null });
+  });
+
+  v1.get('/intake-requests/:id', requireRole('viewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const request = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const row = await getIntakeRequest(tx, id);
+      if (!row) throw new ApiProblem('NOT_FOUND', 'No such request in this workspace.');
+      assertVenture(actor, row.venture_id);
+      return toIntakeRequest(row, canSeeContact(actor));
+    });
+    return c.json(request);
+  });
+
+  v1.post('/intake-requests/:id/decline', requireRole('reviewer'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const body = parse(DeclineIntakeRequestSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { id, ...body });
+    const result = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'declineIntakeRequest', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const existing = await getIntakeRequest(tx, id);
+      if (!existing) throw new ApiProblem('NOT_FOUND', 'No such request in this workspace.');
+      assertVenture(actor, existing.venture_id);
+      const declined = await decideIntakeRequest(tx, {
+        id,
+        expectedVersion: body.expected_version,
+        decidedBy: actor.membership.membershipId,
+        reason: body.reason,
+        at: deps.now().toISOString(),
+      });
+      if (!declined) {
+        throw new ApiProblem(
+          'VERSION_CONFLICT',
+          `This request is now at version ${existing.version}. Re-read it before deciding.`,
+        );
+      }
+      await insertAuditEvent(tx, {
+        id: deps.newId(),
+        actorSubject: actor.identity.subject,
+        action: 'intake.declined',
+        objectType: 'intake_request',
+        objectId: declined.id,
+        objectVersion: declined.version,
+        requestId: c.get('requestId'),
+        detail: { target_host: declined.target_host, reason: body.reason },
+      });
+      const projected = toIntakeRequest(declined, canSeeContact(actor));
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 200,
+        responseBody: projected,
+      });
+      return { status: 200, body: projected };
+    });
+    return c.json(result.body as object, 200);
+  });
+
+  v1.get('/intake-channels', requireRole('viewer'), async (c) => {
+    const actor = c.get('actor');
+    const items = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const rows = await listIntakeChannels(tx);
+      return rows
+        .filter((row) => actor.membership.ventureIds.includes(row.venture_id))
+        .map(toIntakeChannel);
+    });
+    return c.json({ items });
+  });
+
+  v1.post('/intake-channels/:id/enabled', requireRole('owner'), async (c) => {
+    const actor = c.get('actor');
+    const id = uuidParam(c.req.param('id'));
+    const body = parse(SetIntakeChannelEnabledSchema, await readJsonBody(c.req.raw));
+    const { key, requestHash } = idempotencyInput(c.req.header('idempotency-key'), { id, ...body });
+    const result = await deps.db.withTenant(actor.membership.tenantId, async (tx) => {
+      const claim = await claimOrReplay(tx, deps, actor, 'setIntakeChannel', key, requestHash);
+      if (claim.replay) return claim.replay;
+      const existing = await getIntakeChannel(tx, id);
+      if (!existing) throw new ApiProblem('NOT_FOUND', 'No such channel in this workspace.');
+      assertVenture(actor, existing.venture_id);
+      const updated = await setIntakeChannelEnabled(tx, { id, enabled: body.enabled });
+      if (!updated) throw new ApiProblem('NOT_FOUND', 'No such channel in this workspace.');
+      await insertAuditEvent(tx, {
+        id: deps.newId(),
+        actorSubject: actor.identity.subject,
+        action: body.enabled ? 'intake_channel.opened' : 'intake_channel.closed',
+        objectType: 'intake_channel',
+        objectId: updated.id,
+        objectVersion: 1,
+        requestId: c.get('requestId'),
+        detail: { host: updated.host, enabled: updated.enabled },
+      });
+      const projected = toIntakeChannel(updated);
+      await completeIdempotencyKey(tx, {
+        recordId: claim.recordId,
+        responseStatus: 200,
+        responseBody: projected,
+      });
+      return { status: 200, body: projected };
+    });
+    return c.json(result.body as object, 200);
+  });
+
+  /* ------------------------------------------------------ public intake */
+
+  /**
+   * The only unauthenticated surface in this application.
+   *
+   * It is a separate Hono instance so the operator middleware cannot be applied to it by
+   * accident, and — more usefully — so nothing here can reach `c.get('actor')`: there is no
+   * actor, and a route that assumed one would fail to compile rather than at runtime.
+   *
+   * What protects it instead of a session: the tenant comes from the host, never the body;
+   * four rate-limit windows are counted before anything is written; the target runs the same
+   * preflight as an operator-started scan; and the one-time code is hashed, short-lived,
+   * attempt-limited and single use. It admits no scan and spends no budget — M3: "Pending
+   * verification spends no live budget."
+   */
+  const publicApi = new Hono<AppEnv>();
+
+  publicApi.get('/intake/form', async (c) => {
+    const channel = await channelForRequest(deps, c.req.raw);
+    return c.json({
+      host: channel.host,
+      purpose_text: channel.purpose_text,
+      purpose_version: channel.purpose_version,
+      allowed_detectors: channel.allowed_detectors,
+    });
+  });
+
+  publicApi.post('/intake', async (c) => {
+    const channel = await channelForRequest(deps, c.req.raw);
+    assertPublicOrigin(c.req.raw, channel.host);
+    const body = parse(SubmitIntakeRequestSchema, await readJsonBody(c.req.raw));
+    const result = await submitIntakeRequest(
+      deps,
+      channel,
+      {
+        targetUrl: body.target_url,
+        requestedDetectors: [...body.requested_detectors],
+        purpose: body.purpose,
+        authorityClaim: body.authority_claim,
+        contactEmail: body.contact_email,
+        sourceFingerprint: sourceFingerprint(c.req.raw),
+      },
+      c.get('requestId'),
+    );
+    return c.json(
+      toPublicIntakeRequest(result.request, result.localCode, result.deliveryDetail),
+      201,
+    );
+  });
+
+  publicApi.post('/intake/:id/verify', async (c) => {
+    const channel = await channelForRequest(deps, c.req.raw);
+    assertPublicOrigin(c.req.raw, channel.host);
+    const id = uuidParam(c.req.param('id'));
+    const body = parse(VerifyIntakeRequestSchema, await readJsonBody(c.req.raw));
+    const result = await verifyIntakeRequest(
+      deps,
+      channel,
+      { requestId: id, code: body.code },
+      c.get('requestId'),
+    );
+    return c.json(toPublicIntakeRequest(result.request, null, null), 200);
+  });
+
+  publicApi.get('/intake/:id', async (c) => {
+    const channel = await channelForRequest(deps, c.req.raw);
+    const id = uuidParam(c.req.param('id'));
+    const request = await deps.db.withTenant(channel.tenant_id, (tx) => getIntakeRequest(tx, id));
+    // Same answer for a request that belongs to another channel as for one that never
+    // existed. A request id is a bearer reference, so this read must not confirm anything
+    // about ids the caller guessed.
+    if (!request || request.channel_id !== channel.id) {
+      throw new ApiProblem('NOT_FOUND', 'No such request.');
+    }
+    return c.json(toPublicIntakeRequest(request, null, null));
+  });
+
+  app.route('/public', publicApi);
+
   app.route('/api/v1', v1);
   return app;
+}
+
+/** The states a request may be filtered by. Mirrors the CHECK constraint in migration 0010. */
+const INTAKE_STATES = ['pending_verification', 'verified', 'declined', 'expired', 'converted'];
+
+/**
+ * Whether this actor may see a requester's address.
+ *
+ * Reviewer and above. A viewer can read the queue — what was asked, what was claimed, what
+ * state it is in — which is everything needed to understand the work without holding a
+ * stranger's contact details.
+ */
+function canSeeContact(actor: RequestActor): boolean {
+  return actor.membership.role === 'reviewer' || actor.membership.role === 'owner';
+}
+
+/**
+ * Where a public submission came from, as an opaque fingerprint.
+ *
+ * The client address is not available to this handler in every deployment shape, and it is
+ * personal data wherever it is. So the value that reaches the rate limiter is a header-derived
+ * string that gets HMAC'd before it is ever stored or compared.
+ *
+ * When there is no forwarded address at all, every caller shares one fingerprint. That makes
+ * the per-source window behave as a second global ceiling rather than a per-caller one —
+ * weaker, but weaker in the safe direction, and stated here rather than discovered later.
+ */
+function sourceFingerprint(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return forwarded && forwarded.length > 0 ? forwarded : 'no-forwarded-source';
+}
+
+/**
+ * A public submission must come from the site whose channel it claims.
+ *
+ * Not CSRF protection — there is no session to ride on — but it keeps the form on the venture's
+ * own pages, where the purpose text the requester agreed to is actually displayed. A request
+ * with no Origin at all is allowed: non-browser clients do not send one, and the rate limits
+ * and the one-time code are what bound them.
+ */
+function assertPublicOrigin(request: Request, channelHost: string): void {
+  const origin = request.headers.get('origin');
+  if (origin === null) return;
+  let host: string;
+  try {
+    host = new URL(origin).hostname.toLowerCase();
+  } catch {
+    throw new ApiProblem('ORIGIN_NOT_ALLOWED', 'That origin is not allowed for this form.');
+  }
+  if (host !== channelHost) {
+    throw new ApiProblem('ORIGIN_NOT_ALLOWED', 'That origin is not allowed for this form.');
+  }
 }
 
 /* ----------------------------------------------------------- helpers */

@@ -10,6 +10,7 @@ export type AppEnvironment = 'local' | 'staging' | 'production';
 export type AuthMode = 'access_jwt' | 'fixture_local_only';
 export type CaptureAdapterKind = 'local_fixture' | 'browser_run';
 export type EvidenceStoreKind = 'local_fs' | 'r2';
+export type VerificationChannelKind = 'not_configured' | 'recorded_local_only';
 
 export interface AppConfig {
   environment: AppEnvironment;
@@ -22,6 +23,12 @@ export interface AppConfig {
   liveSpendLimitMicro: string;
   capture: { adapter: CaptureAdapterKind; fixtureOrigins: string[]; liveEnabled: boolean };
   evidence: { store: EvidenceStoreKind; localDir: string | null; bucket: string | null };
+  /**
+   * Requested intake. `channel` is how a one-time code reaches a member of the public, and
+   * `secret` keys the code hashes and the rate-limit keys so neither is reversible from the
+   * database alone.
+   */
+  intake: { channel: VerificationChannelKind; secret: string | null };
   features: {
     publicIntake: boolean;
     automaticOutreach: boolean;
@@ -193,21 +200,52 @@ export function loadConfig(env: Env): AppConfig {
   if (store === 'r2' && !env.R2_BUCKET)
     problems.push('R2_BUCKET is required when EVIDENCE_STORE=r2.');
 
+  const channel = (env.INTAKE_VERIFICATION_CHANNEL ?? 'not_configured') as VerificationChannelKind;
+  if (channel !== 'not_configured' && channel !== 'recorded_local_only') {
+    problems.push(
+      `INTAKE_VERIFICATION_CHANNEL must be not_configured | recorded_local_only (got ${JSON.stringify(env.INTAKE_VERIFICATION_CHANNEL)}).`,
+    );
+  }
+  // It hands every code straight back to whoever asked. In a deployed environment that is
+  // not a weaker verification, it is none at all.
+  if (channel === 'recorded_local_only' && deployed) {
+    problems.push(
+      `INTAKE_VERIFICATION_CHANNEL=recorded_local_only is rejected when APP_ENV=${environment}. It returns verification codes to the caller.`,
+    );
+  }
+  const intakeSecret = env.INTAKE_SECRET ?? null;
+
   const features = {
     publicIntake: bool(env, 'PUBLIC_INTAKE_ENABLED', problems, false),
     automaticOutreach: bool(env, 'AUTOMATIC_OUTREACH_ENABLED', problems, false),
     automaticProductionWrites: bool(env, 'AUTOMATIC_PRODUCTION_WRITES_ENABLED', problems, false),
     automaticTopups: bool(env, 'AUTOMATIC_TOPUPS_ENABLED', problems, false),
   };
-  // These stay off for the whole of M1-M2. Enabling one is an owner decision recorded in an
-  // ADR plus its milestone gate, never a stray environment variable.
+  // Still off, and still an owner decision recorded in an ADR rather than a stray variable.
+  // Outreach is now a legal control as well as a design one: see docs/legal/DACH_OUTREACH_STUDY.md.
   for (const [key, flag, milestone] of [
-    ['PUBLIC_INTAKE_ENABLED', features.publicIntake, 'M3'],
     ['AUTOMATIC_OUTREACH_ENABLED', features.automaticOutreach, 'out of scope'],
     ['AUTOMATIC_PRODUCTION_WRITES_ENABLED', features.automaticProductionWrites, 'out of scope'],
     ['AUTOMATIC_TOPUPS_ENABLED', features.automaticTopups, 'out of scope'],
   ] as const) {
     if (flag) problems.push(`${key}=true is not supported by this build (${milestone}).`);
+  }
+
+  // Public intake is M3, so it may now be turned on — but only with the two things that make
+  // it safe to turn on. A public surface with no way to verify a contact address is an open
+  // relay for scan requests, and one whose secret is missing cannot hash a code or key a
+  // rate-limit counter. Both refusals name the variable rather than degrading quietly.
+  if (features.publicIntake) {
+    if (channel === 'not_configured') {
+      problems.push(
+        'PUBLIC_INTAKE_ENABLED=true requires INTAKE_VERIFICATION_CHANNEL: an unverified public surface accepts requests from anybody about anybody.',
+      );
+    }
+    if (intakeSecret === null || intakeSecret.length < 32) {
+      problems.push(
+        'PUBLIC_INTAKE_ENABLED=true requires INTAKE_SECRET of at least 32 characters. It keys the verification hashes and the rate-limit keys.',
+      );
+    }
   }
 
   if (problems.length) throw new ConfigError(problems);
@@ -231,6 +269,7 @@ export function loadConfig(env: Env): AppConfig {
       localDir: store === 'local_fs' ? (env.EVIDENCE_LOCAL_DIR ?? '.local-evidence') : null,
       bucket: store === 'r2' ? (env.R2_BUCKET ?? null) : null,
     },
+    intake: { channel, secret: intakeSecret },
     features,
   };
 }

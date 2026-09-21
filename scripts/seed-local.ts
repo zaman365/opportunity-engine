@@ -44,6 +44,8 @@ export const LOCAL_FIXTURE = {
   reviewerA: '11111111-1111-4111-8111-000000000102',
   viewerA: '11111111-1111-4111-8111-000000000103',
   ownerB: '22222222-2222-4222-8222-000000000100',
+  intakeChannelA: '11111111-1111-4111-8111-000000000300',
+  intakeChannelB: '22222222-2222-4222-8222-000000000300',
   tenantBudgetA: '11111111-1111-4111-8111-000000000200',
   ventureBudgetA: '11111111-1111-4111-8111-000000000201',
   tenantBudgetB: '22222222-2222-4222-8222-000000000200',
@@ -92,6 +94,8 @@ export async function seedLocal(connectionString: string): Promise<void> {
       name: 'IntelligentLab (local fixture)',
       ventureId: LOCAL_FIXTURE.ventureA,
       ventureSlug: 'marktfix',
+      intakeChannelId: LOCAL_FIXTURE.intakeChannelA,
+      intakeHost: 'intake-a.fixture.test',
       // The same workspace, a second brand. Both are IntelligentLab's, which is why the
       // catalogue splits across them and membership is assigned per venture.
       secondaryVentures: [{ id: LOCAL_FIXTURE.venturePdpA, slug: 'pdp-studio' }],
@@ -116,6 +120,8 @@ export async function seedLocal(connectionString: string): Promise<void> {
       // An unrelated workspace, not a second IntelligentLab brand. Its catalogue is empty,
       // which is the assertion: approvals recorded in one workspace do not leak into another.
       ventureSlug: 'modewerk',
+      intakeChannelId: LOCAL_FIXTURE.intakeChannelB,
+      intakeHost: 'intake-b.fixture.test',
       secondaryVentures: [],
       accountId: LOCAL_FIXTURE.accountB,
       accountName: 'Modewerk Studio (synthetic fixture)',
@@ -147,6 +153,8 @@ interface TenantSeed {
   authorizationId: string;
   tenantBudgetId: string;
   ventureBudgetId: string;
+  intakeChannelId: string;
+  intakeHost: string;
   catalog: MergedOffer[];
   members: { id: string; subject: string; role: 'owner' | 'operator' | 'reviewer' | 'viewer' }[];
 }
@@ -243,6 +251,40 @@ async function seedTenant(client: pg.Client, seed: TenantSeed): Promise<void> {
   }
 
   await seedOffers(client, seed);
+  await seedIntakeChannel(client, seed);
+}
+
+/**
+ * A public form for this venture.
+ *
+ * The host is what a public request is matched against, and it is the only thing that decides
+ * which workspace a stranger's submission lands in. Two channels on two hosts are seeded so a
+ * test can prove that a request arriving on one cannot reach the other's data.
+ *
+ * Enabled, because the local verification channel sends nothing: it hands the code back to
+ * the caller and refuses to construct outside APP_ENV=local.
+ */
+async function seedIntakeChannel(client: pg.Client, seed: TenantSeed): Promise<void> {
+  const owner = seed.members.find((member) => member.role === 'owner')!;
+  await client.query(
+    `INSERT INTO oe.intake_channels
+       (tenant_id, id, venture_id, host, enabled, purpose_text, allowed_detectors,
+        daily_request_limit, created_by)
+     VALUES ($1, $2, $3, $4, true, $5, $6::text[], 500, $7)
+     ON CONFLICT (tenant_id, id) DO NOTHING`,
+    [
+      seed.tenantId,
+      seed.intakeChannelId,
+      seed.ventureId,
+      seed.intakeHost,
+      'We will check the one page you give us, and the information page it links to, in two ' +
+        'recorded sessions. We will tell you what we observed, not what it is worth. A person ' +
+        'reviews every result before you see it. We use your address to send you this result ' +
+        'and nothing else, and asking for a check does not sign you up for anything.',
+      ['MF-LINK-01', 'MF-ASSET-01'],
+      owner.id,
+    ],
+  );
 }
 
 /**

@@ -1495,3 +1495,328 @@ export async function findingStatesForOpportunity(
   );
   return result.rows.map((row) => row.state);
 }
+
+/* ------------------------------------------------------- requested intake */
+
+export interface IntakeChannelRow {
+  id: string;
+  tenant_id: string;
+  venture_id: string;
+  host: string;
+  enabled: boolean;
+  purpose_text: string;
+  purpose_version: number;
+  allowed_detectors: string[];
+  daily_request_limit: number;
+}
+
+const CHANNEL_COLUMNS = `id, tenant_id, venture_id, host, enabled, purpose_text,
+  purpose_version, allowed_detectors, daily_request_limit`;
+
+/**
+ * Resolve a public hostname to the workspace that registered it.
+ *
+ * Runs on the identity connection with no tenant context, because the tenant is the answer
+ * (ADR-013). Migration 0010 gives that role one narrow policy: enabled channels only, and
+ * only while no context is set.
+ */
+export async function resolveIntakeChannel(
+  tx: QueryExecutor,
+  host: string,
+): Promise<IntakeChannelRow | null> {
+  const result = await tx.query<IntakeChannelRow>(
+    `SELECT ${CHANNEL_COLUMNS} FROM oe.intake_channels WHERE host = $1 AND enabled`,
+    [host.toLowerCase()],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function listIntakeChannels(tx: QueryExecutor): Promise<IntakeChannelRow[]> {
+  const result = await tx.query<IntakeChannelRow>(
+    `SELECT ${CHANNEL_COLUMNS} FROM oe.intake_channels ORDER BY host`,
+  );
+  return result.rows;
+}
+
+export async function getIntakeChannel(
+  tx: QueryExecutor,
+  id: string,
+): Promise<IntakeChannelRow | null> {
+  const result = await tx.query<IntakeChannelRow>(
+    `SELECT ${CHANNEL_COLUMNS} FROM oe.intake_channels WHERE id = $1`,
+    [id],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function setIntakeChannelEnabled(
+  tx: QueryExecutor,
+  input: { id: string; enabled: boolean },
+): Promise<IntakeChannelRow | null> {
+  const result = await tx.query<IntakeChannelRow>(
+    `UPDATE oe.intake_channels SET enabled = $2 WHERE id = $1 RETURNING ${CHANNEL_COLUMNS}`,
+    [input.id, input.enabled],
+  );
+  return result.rows[0] ?? null;
+}
+
+export interface IntakeRequestRow {
+  id: string;
+  channel_id: string;
+  venture_id: string;
+  target_url: string;
+  target_host: string;
+  requested_detectors: string[];
+  purpose: string;
+  authority_claim: string;
+  agreed_purpose_version: number;
+  contact_email: string;
+  marketing_consent: boolean;
+  state: string;
+  version: number;
+  verified_at: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_reason: string | null;
+  account_id: string | null;
+  submitted_at: string;
+  expires_at: string;
+}
+
+const REQUEST_COLUMNS = `id, channel_id, venture_id, target_url, target_host,
+  requested_detectors, purpose, authority_claim, agreed_purpose_version, contact_email,
+  marketing_consent, state, version, decided_by, decision_reason, account_id,
+  to_char(verified_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS verified_at,
+  to_char(decided_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS decided_at,
+  to_char(submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS submitted_at,
+  to_char(expires_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS expires_at`;
+
+export async function insertIntakeRequest(
+  tx: QueryExecutor,
+  input: {
+    id: string;
+    channelId: string;
+    ventureId: string;
+    targetUrl: string;
+    targetHost: string;
+    requestedDetectors: string[];
+    purpose: string;
+    authorityClaim: string;
+    agreedPurposeVersion: number;
+    contactEmail: string;
+    contactEmailHash: Buffer;
+    expiresAt: string;
+  },
+): Promise<IntakeRequestRow> {
+  // `marketing_consent` is absent from this statement on purpose. Asking for a check is not
+  // agreeing to be marketed to, and the surest way to keep that true is to leave the column
+  // unreachable from the path a request travels.
+  const result = await tx.query<IntakeRequestRow>(
+    `INSERT INTO oe.intake_requests
+       (tenant_id, id, channel_id, venture_id, target_url, target_host, requested_detectors,
+        purpose, authority_claim, agreed_purpose_version, contact_email, contact_email_hash,
+        expires_at)
+     VALUES (oe.tenant_context(), $1, $2, $3, $4, $5, $6::text[], $7, $8, $9, $10, $11,
+             $12::timestamptz)
+     RETURNING ${REQUEST_COLUMNS}`,
+    [
+      input.id,
+      input.channelId,
+      input.ventureId,
+      input.targetUrl,
+      input.targetHost,
+      input.requestedDetectors,
+      input.purpose,
+      input.authorityClaim,
+      input.agreedPurposeVersion,
+      input.contactEmail,
+      input.contactEmailHash,
+      input.expiresAt,
+    ],
+  );
+  return result.rows[0]!;
+}
+
+export async function getIntakeRequest(
+  tx: QueryExecutor,
+  id: string,
+): Promise<IntakeRequestRow | null> {
+  const result = await tx.query<IntakeRequestRow>(
+    `SELECT ${REQUEST_COLUMNS} FROM oe.intake_requests WHERE id = $1`,
+    [id],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function listIntakeRequests(
+  tx: QueryExecutor,
+  input: { ventureIds: string[]; state: string | null; limit: number },
+): Promise<IntakeRequestRow[]> {
+  const result = await tx.query<IntakeRequestRow>(
+    `SELECT ${REQUEST_COLUMNS} FROM oe.intake_requests
+      WHERE venture_id = ANY($1::uuid[])
+        AND ($2::text IS NULL OR state = $2)
+      ORDER BY submitted_at DESC
+      LIMIT $3`,
+    [input.ventureIds, input.state, input.limit],
+  );
+  return result.rows;
+}
+
+export async function markIntakeRequestVerified(
+  tx: QueryExecutor,
+  input: { id: string; at: string },
+): Promise<IntakeRequestRow | null> {
+  const result = await tx.query<IntakeRequestRow>(
+    `UPDATE oe.intake_requests
+        SET state = 'verified', version = version + 1, verified_at = $2::timestamptz
+      WHERE id = $1 AND state = 'pending_verification'
+      RETURNING ${REQUEST_COLUMNS}`,
+    [input.id, input.at],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function decideIntakeRequest(
+  tx: QueryExecutor,
+  input: { id: string; expectedVersion: number; decidedBy: string; reason: string; at: string },
+): Promise<IntakeRequestRow | null> {
+  const result = await tx.query<IntakeRequestRow>(
+    `UPDATE oe.intake_requests
+        SET state = 'declined', version = version + 1, decided_by = $3,
+            decided_at = $5::timestamptz, decision_reason = $4
+      WHERE id = $1 AND version = $2 AND state IN ('pending_verification', 'verified')
+      RETURNING ${REQUEST_COLUMNS}`,
+    [input.id, input.expectedVersion, input.decidedBy, input.reason, input.at],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Bind a verified request to the account an owner created from it.
+ *
+ * The account is what grants permission to capture anything; this only records where it came
+ * from, so a later reader can see that a scan of this host began as a request rather than as
+ * somebody typing a URL.
+ */
+export async function convertIntakeRequest(
+  tx: QueryExecutor,
+  input: { id: string; expectedVersion: number; accountId: string; decidedBy: string; at: string },
+): Promise<IntakeRequestRow | null> {
+  const result = await tx.query<IntakeRequestRow>(
+    `UPDATE oe.intake_requests
+        SET state = 'converted', version = version + 1, account_id = $3, decided_by = $4
+      WHERE id = $1 AND version = $2 AND state = 'verified'
+      RETURNING ${REQUEST_COLUMNS}`,
+    [input.id, input.expectedVersion, input.accountId, input.decidedBy],
+  );
+  return result.rows[0] ?? null;
+}
+
+export interface IntakeVerificationRow {
+  id: string;
+  request_id: string;
+  code_hash: Buffer;
+  audience: string;
+  expires_at: string;
+  consumed_at: string | null;
+  attempts: number;
+  delivery: string;
+}
+
+const VERIFICATION_COLUMNS = `id, request_id, code_hash, audience, attempts, delivery,
+  to_char(expires_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS expires_at,
+  to_char(consumed_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS consumed_at`;
+
+export async function insertIntakeVerification(
+  tx: QueryExecutor,
+  input: {
+    id: string;
+    requestId: string;
+    codeHash: Buffer;
+    expiresAt: string;
+    delivery: string;
+  },
+): Promise<IntakeVerificationRow> {
+  const result = await tx.query<IntakeVerificationRow>(
+    `INSERT INTO oe.intake_verifications
+       (tenant_id, id, request_id, code_hash, audience, expires_at, delivery)
+     VALUES (oe.tenant_context(), $1, $2, $3, 'intake_verification', $4::timestamptz, $5)
+     RETURNING ${VERIFICATION_COLUMNS}`,
+    [input.id, input.requestId, input.codeHash, input.expiresAt, input.delivery],
+  );
+  return result.rows[0]!;
+}
+
+/** The live challenge for a request, if there is one. A consumed code is not live. */
+export async function getLiveVerification(
+  tx: QueryExecutor,
+  requestId: string,
+): Promise<IntakeVerificationRow | null> {
+  const result = await tx.query<IntakeVerificationRow>(
+    `SELECT ${VERIFICATION_COLUMNS} FROM oe.intake_verifications
+      WHERE request_id = $1 AND consumed_at IS NULL`,
+    [requestId],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Count one guess.
+ *
+ * Its own statement, committed whether or not the guess was right, so a wrong answer costs an
+ * attempt even if the caller abandons the request afterwards.
+ */
+export async function recordVerificationAttempt(
+  tx: QueryExecutor,
+  id: string,
+): Promise<number | null> {
+  const result = await tx.query<{ attempts: number }>(
+    'UPDATE oe.intake_verifications SET attempts = attempts + 1 WHERE id = $1 RETURNING attempts',
+    [id],
+  );
+  return result.rows[0]?.attempts ?? null;
+}
+
+/**
+ * Spend the code, once.
+ *
+ * The `consumed_at IS NULL` predicate is the replay guard: two requests racing with the same
+ * correct code produce one winner, because only one `UPDATE` can match.
+ */
+export async function consumeVerification(
+  tx: QueryExecutor,
+  input: { id: string; at: string },
+): Promise<boolean> {
+  const result = await tx.query(
+    `UPDATE oe.intake_verifications SET consumed_at = $2::timestamptz
+      WHERE id = $1 AND consumed_at IS NULL`,
+    [input.id, input.at],
+  );
+  return (result.rowCount ?? 0) === 1;
+}
+
+/**
+ * Count one hit against a rate-limit window and return the window's total.
+ *
+ * Runs outside any tenant context: the thing being counted crosses the tenant boundary, and a
+ * per-tenant counter would give an attacker one budget per channel. See migration 0010.
+ */
+export async function countRateLimitHit(
+  tx: QueryExecutor,
+  input: { scopeKey: string; windowStart: string },
+): Promise<number> {
+  const result = await tx.query<{ count_hit: number }>(
+    'SELECT oe_public.count_hit($1, $2::timestamptz)',
+    [input.scopeKey, input.windowStart],
+  );
+  return result.rows[0]?.count_hit ?? 0;
+}
+
+export async function sweepRateLimits(tx: QueryExecutor, before: string): Promise<number> {
+  const result = await tx.query<{ sweep_rate_limits: number }>(
+    'SELECT oe_public.sweep_rate_limits($1::timestamptz)',
+    [before],
+  );
+  return result.rows[0]?.sweep_rate_limits ?? 0;
+}

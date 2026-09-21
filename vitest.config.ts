@@ -7,6 +7,7 @@ const alias = {
   '@oe/db': fileURLToPath(new URL('./packages/db/src/index.ts', import.meta.url)),
   '@oe/capture': fileURLToPath(new URL('./packages/capture/src/index.ts', import.meta.url)),
   '@oe/evidence': fileURLToPath(new URL('./packages/evidence/src/index.ts', import.meta.url)),
+  '@oe/notify': fileURLToPath(new URL('./packages/notify/src/index.ts', import.meta.url)),
   '@oe/scan-runner': fileURLToPath(new URL('./workers/scan-runner/src/index.ts', import.meta.url)),
   '@oe/api': fileURLToPath(new URL('./apps/api/src/app.ts', import.meta.url)),
 };

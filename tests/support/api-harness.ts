@@ -8,6 +8,7 @@ import {
 } from '@oe/capture';
 import { CsrfTokens, FixtureLocalIdentityProvider } from '../../apps/api/src/auth.ts';
 import type { AppDependencies } from '../../apps/api/src/context.ts';
+import { RecordedLocalChannel } from '@oe/notify';
 import { OutboxDispatcher, ScanRunner } from '@oe/scan-runner';
 import { freshHarness, LOCAL_FIXTURE, type Harness } from './harness.ts';
 
@@ -101,6 +102,9 @@ export async function createApiHarness(
     capture,
     targetPolicy: createFixtureTargetPolicy(FIXTURE_ORIGINS),
     evidence: base.evidence,
+    // Returns the code to the caller and sends nothing. It refuses to construct outside
+    // APP_ENV=local, which is what keeps that acceptable.
+    verification: new RecordedLocalChannel(base.config.environment),
     now: () => new Date(),
     newId: () => randomUUID(),
     ...overrides,

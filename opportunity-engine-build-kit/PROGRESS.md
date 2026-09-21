@@ -1,6 +1,6 @@
 # Progress
 
-**Kit version 2.0 · last session 21 September 2026 (M2 slice 2)**
+**Kit version 2.0 · last session 21 September 2026 (M3 slice 1)**
 
 ## Completed in this kit
 
@@ -15,15 +15,100 @@ VERIFICATION.md.
 |---|---|
 | Production application scaffold | **Built** · monorepo, pinned versions, lockfile, real build/type/lint/test scripts |
 | Live authentication/membership | **Partly** · Access JWT verification implemented (jose, pinned issuer/audience/algorithms) but never exercised against a real Access deployment. The local fixture identity is the only path actually run |
-| Production database/migrations | **Local only** · 9 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
+| Production database/migrations | **Local only** · 10 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
 | Live public scan adapter | **Not implemented** · `BrowserRunCaptureProvider` runs the address policy then reports `not_configured`. No egress-boundary proof, no credentials |
 | Detectors | **2 of 6 implemented** · MF-LINK-01 and MF-ASSET-01, both with negative controls. MF-DATA-01, PDP-CONTENT-01, PDP-VISUAL-01 and PDP-MOBILE-01 are specified and unrequestable |
 | Persistent budget enforcement | **Implemented and tested** · SQL command functions, runtime holds `SELECT` only, concurrency asserted against real connections |
 | Human review and reports | **Implemented and tested** · versioned review with optimistic locking, immutable hash-bound report snapshot |
+| Requested intake | **Implemented and tested, local only** · public submission, four rate-limit windows, hashed single-use codes, host-bound tenant resolution. No adapter can reach a member of the public: the only working verification channel returns the code to the caller and refuses to construct outside `APP_ENV=local` |
+| Public verification delivery | **Not implemented** · the port refuses and says so. An adapter that sends mail needs owner approval it does not have |
 | Offer catalogue | **Implemented and tested** · deterministic matching from an owner-approved catalogue, prerequisites recorded by a named owner, price/scope snapshotted into each draft. Nothing is sent; a draft is an internal record |
 | Commercial prices | **Provisional** · EUR 290 / EUR 190 net, approved in `config/offer-approvals.json`. **VAT treatment unconfirmed** and recorded as open in both approval notes |
 | OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely, now for a legal reason as well as a design one (`docs/legal/DACH_OUTREACH_STUDY.md`) |
 | Production deployment | **Not performed** · no cloud resource was created or contacted |
+
+## Session log · 21 September 2026 · M3 slice 1 · requested intake
+
+**Agent:** Claude Opus 5 · **branch:** main · **milestone:** M3, the first unauthenticated
+surface.
+
+### What was built
+
+A stranger can ask for a check through a venture's own site: `POST /public/intake`, a one-time
+code, `POST /public/intake/{id}/verify`, and a coarse status read. Operators get a queue,
+a decline action and an owner switch that opens or closes a form.
+
+Two decisions carry the slice, both in
+[ADR-020](../docs/adr/ADR-020-requested-intake.md):
+
+**The host decides the workspace.** An owner registers a public hostname; a submission
+arriving there belongs to that channel's workspace. There is no tenant, venture or account
+field in any public request body, and the contract has no place to add one. Resolution runs on
+the identity connection with no tenant context, under one narrow policy — the same shape as
+membership resolution, because it is the same problem.
+
+**A request is not permission.** Verifying a contact address proves control of an inbox and
+nothing about the website named. So a verified request is a row in a queue: no account, no
+authorization, no scan, no budget movement. The requester's assertion about their own
+authority is stored as a claim and rendered in the UI as a quotation, under the line "Recorded
+as a claim, not established as a fact."
+
+Around those: the same address rules as an operator-started scan (`preflightTarget` split into
+`preflightAddress` plus the allowlist, rather than copied); four rate-limit windows counted
+before the decision and judged together; codes hashed with a secret outside the database,
+ten-minute life, five attempts, single use; and `marketing_consent` absent from the submission
+path entirely, with a constraint requiring a timestamp beside it.
+
+### Two things this got wrong first, and how
+
+1. **The attempt ceiling did not work.** Read, count and judge ran in one transaction, and a
+   wrong code threw — rolling the counter back with everything else. Five wrong guesses cost
+   nothing and the sixth still worked. Now three transactions: the count commits before the
+   comparison. The integration test for the ceiling found it; the comment in the code claimed
+   the behaviour was already there.
+2. **`verified_at` was constrained as an equality**, which forbade declining a request that
+   had been verified first. Verification is a thing that happened and stays having happened;
+   it is an implication now.
+
+### Commands run and actual results
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | Clean across node, web and e2e projects |
+| `npm run lint` | Clean |
+| `npm run format:check` | Clean |
+| `npm run contract:check` | `contracts/openapi.json` matches the overlay |
+| `npm run build` | Operator bundle built |
+| `npm run test:unit` | **172 passed** (145 → 172; 22 new for intake, 5 for the config gate) |
+| `npm run test:contract` | **52 passed** (51 → 52; the two-surface rule) |
+| `npm run test:db` | **69 passed** (51 → 69; 18 new for the intake tables and counters) |
+| `npm run test:integration` | **106 passed** (79 → 106; 27 new for the public surface) |
+| `npm run test:e2e` | **25 passed, 7 skipped** (23 → 25) |
+
+### Still true after this slice
+
+- No live capture, no deployment, nothing sent to anybody.
+- `PUBLIC_INTAKE_ENABLED` is on locally and off everywhere else, because there is nowhere
+  else to run it: startup refuses the code-returning channel outside `APP_ENV=local`, and no
+  other channel exists.
+- `AUTOMATIC_OUTREACH_ENABLED`, `AUTOMATIC_PRODUCTION_WRITES_ENABLED` and
+  `AUTOMATIC_TOPUPS_ENABLED` are still refused at startup.
+
+### What M3 still owes
+
+- **The embed** for the Astro and Next sites. The contract and the API it would call exist;
+  the form does not.
+- **Report access tokens** — a short-lived, hashed, audience-bound link letting a customer
+  read one report version without a workspace seat, with expiry, revocation and a non-leaking
+  invalid-link page.
+- **Engagements** — accepted offer version, prerequisites, acceptance time, manual payment
+  record with audit, and the state machine WORKFLOWS.md specifies.
+
+### Next smallest complete task
+
+**Report access tokens.** They are what lets a requested report reach the person who asked for
+it without giving them a seat, and ACCESS_MODEL.md already names this as the one genuinely
+hard case in the access model.
 
 ## Session log · 21 September 2026 · M2 slice 2 · the offer catalogue
 
@@ -88,12 +173,14 @@ be settled before a quote reaches a customer.
 | `npm run test:integration` | **79 passed** (64 → 79; 15 new for the draft flow) |
 | `npm run test:e2e` | **23 passed, 7 skipped** (21 → 23) |
 
-### One intermittent failure, observed once and not reproduced
+### Intermittent failures on a cold browser suite, recorded rather than explained
 
-On one cold run of the browser suite, `accessibility behaviour › keyboard reaches the case`
-failed; three subsequent clean runs (servers restarted, database reset) all passed 23/23. The
-cause was not found, so it is recorded here rather than treated as fixed. The test predates
-this slice and touches no offer-catalogue code.
+Twice now, the **first** browser run after `npm run db:reset` — which also restarts the dev
+servers — has failed one test that passed on every subsequent clean run: once
+`accessibility behaviour › keyboard reaches the case` (M2 slice 2, then 3/3 clean runs), once
+`a requested check arrives as a claim` (M3 slice 1, then 2/2 clean runs). Neither left an
+error context. The shared shape is a cold `tsx watch` compiling while the first test fires,
+but that is a suspicion, not a finding, so both are recorded here rather than called fixed.
 
 ### Still true after this slice
 
@@ -104,10 +191,7 @@ this slice and touches no offer-catalogue code.
 
 ### Next smallest complete task
 
-**M3 inbound intake.** The owner chose inbound first: a public request-a-check form behind
-abuse controls, with the report-access token that lets a customer read their own report
-without a workspace seat. Outreach stays off — the DACH study found automated cold email to
-German businesses unlawful under UWG §7(2) Nr. 2, with no B2B exception.
+~~M3 inbound intake.~~ Done in slice 1 above; see its own log for what M3 still owes.
 
 ## Session log · 21 September 2026 · M2 slice 1 · MF-ASSET-01
 

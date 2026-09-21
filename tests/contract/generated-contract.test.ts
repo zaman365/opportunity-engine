@@ -97,17 +97,37 @@ describe('M1 compatibility', () => {
   /**
    * Added operations are where a contract quietly loses its guarantees: a new endpoint with no
    * declared minimum role reads as "anyone", and a new write with no idempotency key reads as
-   * "retry at your own risk". Both are checked here for everything the overlay adds, so the
-   * next added path cannot skip them either.
+   * "retry at your own risk".
+   *
+   * M3 adds a surface that genuinely has no actor, so "a role, or nothing" would be the wrong
+   * rule — it would let an operator endpoint that forgot its role pass as public. The rule is
+   * therefore exclusive: an operation declares a minimum role, or declares itself public and
+   * names what protects it instead. Never neither, and never both.
    */
   it('holds added operations to the same rules as the handoff ones', () => {
     const roles = ['viewer', 'operator', 'reviewer', 'owner'];
     for (const [path, item] of Object.entries(
-      generated.paths as Record<string, Record<string, { 'x-minimum-role'?: string }>>,
+      generated.paths as Record<
+        string,
+        Record<
+          string,
+          { 'x-minimum-role'?: string; 'x-public-surface'?: boolean; 'x-protected-by'?: string[] }
+        >
+      >,
     )) {
       if (path in base.paths) continue;
       for (const [method, operation] of Object.entries(item)) {
-        expect(roles, `${method} ${path}`).toContain(operation['x-minimum-role']);
+        const label = `${method} ${path}`;
+        if (operation['x-public-surface'] === true) {
+          expect(operation['x-minimum-role'], label).toBeUndefined();
+          expect(operation['x-protected-by']?.length, label).toBeGreaterThan(0);
+          // A public path lives under /public. An operator path that set this flag by
+          // accident would be claiming to be unauthenticated while sitting behind /v1.
+          expect(path.startsWith('/public/'), label).toBe(true);
+        } else {
+          expect(roles, label).toContain(operation['x-minimum-role']);
+          expect(path.startsWith('/public/'), label).toBe(false);
+        }
       }
     }
   });
@@ -116,15 +136,40 @@ describe('M1 compatibility', () => {
     for (const [path, item] of Object.entries(
       generated.paths as Record<
         string,
-        Record<string, { parameters?: { name: string; required?: boolean }[] }>
+        Record<
+          string,
+          { parameters?: { name: string; required?: boolean }[]; 'x-public-surface'?: boolean }
+        >
       >,
     )) {
       for (const [method, operation] of Object.entries(item)) {
         if (!['post', 'patch', 'put', 'delete'].includes(method)) continue;
+        // A CSRF token defends a session, and the public surface has none: demanding one
+        // there would be a ritual, not a control. It is bounded by the things named in
+        // `x-protected-by` instead, which the test above requires it to declare.
+        if (operation['x-public-surface'] === true) continue;
         const names = (operation.parameters ?? []).filter((p) => p.required).map((p) => p.name);
         expect(names, `${method} ${path}`).toEqual(
           expect.arrayContaining(['Idempotency-Key', 'X-CSRF-Token']),
         );
+      }
+    }
+  });
+
+  /** Nothing under /public may claim a role, and nothing outside it may claim to be public. */
+  it('keeps the two surfaces from being confused for one another', () => {
+    for (const [path, item] of Object.entries(
+      generated.paths as Record<
+        string,
+        Record<string, { 'x-minimum-role'?: string; 'x-public-surface'?: boolean }>
+      >,
+    )) {
+      for (const [method, operation] of Object.entries(item)) {
+        const label = `${method} ${path}`;
+        expect(
+          path.startsWith('/public/') === (operation['x-public-surface'] === true),
+          label,
+        ).toBe(true);
       }
     }
   });

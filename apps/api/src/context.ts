@@ -1,6 +1,7 @@
 import type { Database, MembershipRecord } from '@oe/db';
 import type { EvidenceStore } from '@oe/evidence';
 import type { CaptureProvider, TargetPolicy } from '@oe/capture';
+import type { VerificationChannel } from '@oe/notify';
 import type { AppConfig } from '@oe/domain';
 import type { CsrfTokens, IdentityProvider, VerifiedIdentity } from './auth.ts';
 
@@ -20,6 +21,11 @@ export interface AppDependencies {
    */
   targetPolicy: TargetPolicy;
   evidence: EvidenceStore;
+  /**
+   * How a one-time code reaches a member of the public. The default sends nothing and says
+   * so; an adapter that actually sends mail needs owner approval it does not have.
+   */
+  verification: VerificationChannel;
   /** Injected for deterministic tests; production passes `() => new Date()`. */
   now: () => Date;
   /** Injected so admission tests can assert exact identifiers. */

@@ -2,8 +2,8 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Opportunity Engine · initial internal API",
-    "version": "2.2.0",
-    "description": "Generated from the build kit's M1 contract plus contracts/overlay.json. Implemented detectors: MF-LINK-01, MF-ASSET-01. Adds the M2 offer catalogue: eligibility, drafting and withdrawal. Contract only; an operation appearing here is not a claim that a deployment serves it."
+    "version": "2.3.0",
+    "description": "Generated from the build kit's M1 contract plus contracts/overlay.json. Implemented detectors: MF-LINK-01, MF-ASSET-01. Adds the M2 offer catalogue and the M3 requested-intake surface. Operations under /public have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it."
   },
   "servers": [
     {
@@ -3780,6 +3780,983 @@
           }
         }
       }
+    },
+    "/public/intake/form": {
+      "get": {
+        "operationId": "getIntakeForm",
+        "summary": "What this venture's form offers and what it discloses",
+        "description": "No authentication. The workspace is resolved from the host the request arrives on, never from the body. Returns the purpose text a requester must be shown before submitting. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-public-surface": true,
+        "x-protected-by": [
+          "host_bound_tenant",
+          "rate_limits",
+          "single_use_code",
+          "target_preflight"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeForm"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request origin not allowed for this form",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource. Also returned when requested intake is switched off, so a prober cannot tell the two apart",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request is already open",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input, unsupported check, or a target the safety policy refuses",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No verification channel is configured",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/intake": {
+      "post": {
+        "operationId": "submitIntakeRequest",
+        "summary": "Request a check on a page",
+        "description": "No authentication. Counted against four rate-limit windows before anything is written, and the target runs the same preflight as an operator-started scan. Recording a request admits no scan and spends no budget: verifying the contact address proves control of an inbox, not of a website. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-public-surface": true,
+        "x-protected-by": [
+          "host_bound_tenant",
+          "rate_limits",
+          "single_use_code",
+          "target_preflight"
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicIntakeRequest"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request origin not allowed for this form",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource. Also returned when requested intake is switched off, so a prober cannot tell the two apart",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request is already open",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input, unsupported check, or a target the safety policy refuses",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No verification channel is configured",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitIntakeRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/intake/{id}/verify": {
+      "post": {
+        "operationId": "verifyIntakeRequest",
+        "summary": "Spend the one-time code",
+        "description": "No authentication. The code is hashed at rest, expires in ten minutes, allows five attempts and is single use; a replay finds nothing left to spend. Every refusal returns the same message, because expired, wrong and already-used are all things an attacker would like to tell apart. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-public-surface": true,
+        "x-protected-by": [
+          "host_bound_tenant",
+          "rate_limits",
+          "single_use_code",
+          "target_preflight"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicIntakeRequest"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request origin not allowed for this form",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource. Also returned when requested intake is switched off, so a prober cannot tell the two apart",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request is already open",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input, unsupported check, or a target the safety policy refuses",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No verification channel is configured",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIntakeRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/intake/{id}": {
+      "get": {
+        "operationId": "getPublicIntakeRequest",
+        "summary": "The state of one's own request",
+        "description": "No authentication. A request id is a bearer reference, so this returns a coarse state and nothing that would confirm a guessed id. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-public-surface": true,
+        "x-protected-by": [
+          "host_bound_tenant",
+          "rate_limits",
+          "single_use_code",
+          "target_preflight"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicIntakeRequest"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request origin not allowed for this form",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource. Also returned when requested intake is switched off, so a prober cannot tell the two apart",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request is already open",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input, unsupported check, or a target the safety policy refuses",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No verification channel is configured",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/intake-requests": {
+      "get": {
+        "operationId": "listIntakeRequests",
+        "summary": "The queue of requested checks",
+        "description": "Minimum role: viewer. Phase: M3. Membership, purpose, object and budget checks also apply. The contact address is returned to reviewers and owners only. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-minimum-role": "viewer",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeRequests"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/intake-requests/{id}": {
+      "get": {
+        "operationId": "getIntakeRequest",
+        "summary": "One requested check",
+        "description": "Minimum role: viewer. Phase: M3. Membership, purpose, object and budget checks also apply. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-minimum-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/intake-requests/{id}/decline": {
+      "post": {
+        "operationId": "declineIntakeRequest",
+        "summary": "Decline a request with a reason",
+        "description": "Minimum role: reviewer. Phase: M3. Membership, purpose, object and budget checks also apply. The record is kept; the requester is told only that it is closed. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-minimum-role": "reviewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineIntakeRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/intake-channels": {
+      "get": {
+        "operationId": "listIntakeChannels",
+        "summary": "Public forms registered for this workspace",
+        "description": "Minimum role: viewer. Phase: M3. Membership, purpose, object and budget checks also apply. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-minimum-role": "viewer",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeChannels"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/intake-channels/{id}/enabled": {
+      "post": {
+        "operationId": "setIntakeChannelEnabled",
+        "summary": "Open or close a public form",
+        "description": "Minimum role: owner. Phase: M3. Membership, purpose, object and budget checks also apply. Registering a host is a bootstrap act outside this API; only opening and closing one is a runtime capability. Contract only; not a claim this endpoint exists.",
+        "tags": [
+          "M3"
+        ],
+        "x-minimum-role": "owner",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation. Does not imply a later workflow step completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeChannel"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication missing or invalid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not permitted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Object not found or outside tenant scope",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, idempotency, budget or workflow conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or unsupported input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetIntakeChannelEnabled"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6152,6 +7129,419 @@
         "required": [
           "items",
           "next_cursor"
+        ]
+      },
+      "IntakeForm": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "What a venture's public form must display before it may accept a submission: the scope and limits the requester is agreeing to, and the checks this channel offers.",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "purpose_text": {
+            "type": "string",
+            "minLength": 40
+          },
+          "purpose_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "allowed_detectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "host",
+          "purpose_text",
+          "allowed_detectors",
+          "purpose_version"
+        ]
+      },
+      "SubmitIntakeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A request for a check. Note what is absent: no tenant, no venture, no account and no price. The workspace comes from the host the request arrives on, never from this body.",
+        "properties": {
+          "target_url": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 2000
+          },
+          "requested_detectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000
+          },
+          "authority_claim": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000,
+            "description": "What the requester asserts about their authority over the target. Recorded as a claim, never treated as proof: an owner still records the account and the authorization before anything is captured."
+          },
+          "contact_email": {
+            "type": "string",
+            "format": "email",
+            "minLength": 5,
+            "maxLength": 320
+          }
+        },
+        "required": [
+          "target_url",
+          "requested_detectors",
+          "purpose",
+          "authority_claim",
+          "contact_email"
+        ]
+      },
+      "VerifyIntakeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "PublicIntakeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "What a member of the public may learn about their own request. Deliberately coarse: 'closed' covers both declined and expired, because a decline is an internal judgement that may be about the requester.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "received",
+              "closed"
+            ]
+          },
+          "target_url": {
+            "type": "string"
+          },
+          "requested_detectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "local_verification_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only ever non-null under the local fixture channel, which sends nothing. A deployed build has no code-returning channel."
+          },
+          "delivery_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "target_url",
+          "requested_detectors",
+          "submitted_at",
+          "expires_at",
+          "local_verification_code",
+          "delivery_detail"
+        ]
+      },
+      "IntakeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The operator's view of a request, including the contact address needed to answer it. Reviewer and above; a viewer sees the queue without the address.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channel_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "venture_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_url": {
+            "type": "string"
+          },
+          "target_host": {
+            "type": "string"
+          },
+          "requested_detectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "authority_claim": {
+            "type": "string"
+          },
+          "agreed_purpose_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "marketing_consent": {
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "pending_verification",
+              "verified",
+              "declined",
+              "expired",
+              "converted"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decision_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "channel_id",
+          "venture_id",
+          "target_url",
+          "target_host",
+          "requested_detectors",
+          "purpose",
+          "authority_claim",
+          "agreed_purpose_version",
+          "contact_email",
+          "marketing_consent",
+          "state",
+          "version",
+          "verified_at",
+          "decided_at",
+          "decision_reason",
+          "account_id",
+          "submitted_at",
+          "expires_at"
+        ]
+      },
+      "IntakeRequests": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntakeRequest"
+            }
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "IntakeChannel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "venture_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "host": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "purpose_text": {
+            "type": "string"
+          },
+          "purpose_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "allowed_detectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "daily_request_limit": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "venture_id",
+          "host",
+          "enabled",
+          "purpose_text",
+          "purpose_version",
+          "allowed_detectors",
+          "daily_request_limit"
+        ]
+      },
+      "IntakeChannels": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntakeChannel"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "SetIntakeChannelEnabled": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "DeclineIntakeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "expected_version",
+          "reason"
         ]
       }
     }

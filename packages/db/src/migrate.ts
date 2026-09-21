@@ -115,6 +115,7 @@ export async function dropAll(migrationUrl: string): Promise<void> {
   try {
     await client.query('DROP SCHEMA IF EXISTS oe CASCADE');
     await client.query('DROP SCHEMA IF EXISTS oe_dispatch CASCADE');
+    await client.query('DROP SCHEMA IF EXISTS oe_public CASCADE');
     await client.query('DROP SCHEMA IF EXISTS oe_meta CASCADE');
   } finally {
     await client.end();

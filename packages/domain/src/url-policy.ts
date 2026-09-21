@@ -42,10 +42,30 @@ function decodeSafe(value: string): string {
   }
 }
 
+/**
+ * Every address rule except the account allowlist.
+ *
+ * Split out for requested intake, where the target is by definition a host nobody has
+ * approved yet — that is what the request is asking for. Splitting rather than copying keeps
+ * one copy of the scheme, credential, port, IP-literal, hostname, query and state-change
+ * rules; ADR-015 rejected a second, looser copy of a safety rule for the same reason.
+ *
+ * On its own this is NOT permission to fetch anything. `preflightTarget` adds the allowlist,
+ * and the capture adapter still resolves the address, rejects non-public destinations and
+ * re-applies the policy to every redirect and subrequest.
+ */
+export function preflightAddress(raw: string): PreflightResult {
+  return preflight(raw, null);
+}
+
 export function preflightTarget(
   raw: string,
   allowedHosts: readonly string[] = [],
 ): PreflightResult {
+  return preflight(raw, allowedHosts);
+}
+
+function preflight(raw: string, allowedHosts: readonly string[] | null): PreflightResult {
   // Control characters and raw spaces are rejected outright: they are how a URL gets
   // split or smuggled past a parser, so matching them is the point of this expression.
   // eslint-disable-next-line no-control-regex
@@ -77,10 +97,12 @@ export function preflightTarget(
   ) {
     return { allowed: false, reason: 'invalid_hostname' };
   }
-  const approved = Array.isArray(allowedHosts)
-    ? allowedHosts.map((h) => String(h).toLowerCase().replace(/\.$/, ''))
-    : [];
-  if (!approved.includes(host)) return { allowed: false, reason: 'host_not_approved' };
+  if (allowedHosts !== null) {
+    const approved = Array.isArray(allowedHosts)
+      ? allowedHosts.map((h) => String(h).toLowerCase().replace(/\.$/, ''))
+      : [];
+    if (!approved.includes(host)) return { allowed: false, reason: 'host_not_approved' };
+  }
   if ([...url.searchParams.keys()].some((k) => SENSITIVE_QUERY_KEY.test(k))) {
     return { allowed: false, reason: 'sensitive_query' };
   }

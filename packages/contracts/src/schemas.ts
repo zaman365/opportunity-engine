@@ -648,6 +648,126 @@ export type Reviews = z.infer<typeof Reviews>;
 export const Authorizations = page(Authorization);
 export type Authorizations = z.infer<typeof Authorizations>;
 
+/* --------------------------------------------------------- requested intake */
+
+export const IntakeForm = z
+  .object({
+    host: z.string(),
+    /** What a requester must be shown before submitting. Minimum length is the contract. */
+    purpose_text: z.string().min(40),
+    purpose_version: z.number().int().min(1),
+    allowed_detectors: z.array(z.string()).min(1),
+  })
+  .strict();
+export type IntakeForm = z.infer<typeof IntakeForm>;
+
+/**
+ * A request for a check.
+ *
+ * Note what is absent: no tenant, no venture, no account, no price. The workspace comes from
+ * the host the request arrives on. BUILD_SPEC.md §14: "Clients never choose a tenant by
+ * sending an arbitrary trusted body field."
+ */
+export const SubmitIntakeRequest = z
+  .object({
+    target_url: z.string().min(8).max(2000),
+    requested_detectors: z.array(z.string()).min(1).max(2),
+    purpose: z.string().min(10).max(2000),
+    /** Recorded as a claim, never treated as proof of authority over the target. */
+    authority_claim: z.string().min(10).max(2000),
+    contact_email: z.string().email().min(5).max(320),
+  })
+  .strict();
+export type SubmitIntakeRequest = z.infer<typeof SubmitIntakeRequest>;
+
+export const VerifyIntakeRequest = z.object({ code: z.string().regex(/^[0-9]{6}$/) }).strict();
+export type VerifyIntakeRequest = z.infer<typeof VerifyIntakeRequest>;
+
+/** Coarse on purpose: `closed` covers both declined and expired. */
+export const PublicIntakeState = z.enum(['pending', 'received', 'closed']);
+export type PublicIntakeState = z.infer<typeof PublicIntakeState>;
+
+export const PublicIntakeRequest = z
+  .object({
+    id: Uuid,
+    state: PublicIntakeState,
+    target_url: z.string(),
+    requested_detectors: z.array(z.string()),
+    submitted_at: DateTime,
+    expires_at: DateTime,
+    /** Non-null only under the local fixture channel, which sends nothing. */
+    local_verification_code: z.union([z.string(), z.null()]),
+    delivery_detail: z.union([z.string(), z.null()]),
+  })
+  .strict();
+export type PublicIntakeRequest = z.infer<typeof PublicIntakeRequest>;
+
+export const IntakeRequestState = z.enum([
+  'pending_verification',
+  'verified',
+  'declined',
+  'expired',
+  'converted',
+]);
+export type IntakeRequestState = z.infer<typeof IntakeRequestState>;
+
+export const IntakeRequest = z
+  .object({
+    id: Uuid,
+    channel_id: Uuid,
+    venture_id: Uuid,
+    target_url: z.string(),
+    target_host: z.string(),
+    requested_detectors: z.array(z.string()),
+    purpose: z.string(),
+    authority_claim: z.string(),
+    agreed_purpose_version: z.number().int().min(1),
+    /** Null for a viewer. Answering a request needs the address; browsing the queue does not. */
+    contact_email: z.union([z.string(), z.null()]),
+    marketing_consent: z.boolean(),
+    state: IntakeRequestState,
+    version: z.number().int().min(1),
+    verified_at: z.union([DateTime, z.null()]),
+    decided_at: z.union([DateTime, z.null()]),
+    decision_reason: z.union([z.string(), z.null()]),
+    account_id: z.union([Uuid, z.null()]),
+    submitted_at: DateTime,
+    expires_at: DateTime,
+  })
+  .strict();
+export type IntakeRequest = z.infer<typeof IntakeRequest>;
+
+export const IntakeRequests = page(IntakeRequest);
+export type IntakeRequests = z.infer<typeof IntakeRequests>;
+
+export const IntakeChannel = z
+  .object({
+    id: Uuid,
+    venture_id: Uuid,
+    host: z.string(),
+    enabled: z.boolean(),
+    purpose_text: z.string(),
+    purpose_version: z.number().int().min(1),
+    allowed_detectors: z.array(z.string()),
+    daily_request_limit: z.number().int().min(0),
+  })
+  .strict();
+export type IntakeChannel = z.infer<typeof IntakeChannel>;
+
+export const IntakeChannels = z.object({ items: z.array(IntakeChannel) }).strict();
+export type IntakeChannels = z.infer<typeof IntakeChannels>;
+
+export const SetIntakeChannelEnabled = z.object({ enabled: z.boolean() }).strict();
+export type SetIntakeChannelEnabled = z.infer<typeof SetIntakeChannelEnabled>;
+
+export const DeclineIntakeRequest = z
+  .object({
+    expected_version: z.number().int().min(1),
+    reason: z.string().min(1).max(2000),
+  })
+  .strict();
+export type DeclineIntakeRequest = z.infer<typeof DeclineIntakeRequest>;
+
 export { ExpectedVersion };
 
 /** Name → schema, keyed exactly as the OpenAPI `components.schemas` map. */
@@ -698,4 +818,14 @@ export const componentSchemas = {
   Review,
   Reviews,
   Authorizations,
+  IntakeForm,
+  SubmitIntakeRequest,
+  VerifyIntakeRequest,
+  PublicIntakeRequest,
+  IntakeRequest,
+  IntakeRequests,
+  IntakeChannel,
+  IntakeChannels,
+  SetIntakeChannelEnabled,
+  DeclineIntakeRequest,
 } as const;

@@ -13,6 +13,7 @@ import {
   type EvidenceStore,
 } from '@oe/evidence';
 import { loadConfig, type AppConfig } from '@oe/domain';
+import { NotConfiguredChannel, RecordedLocalChannel, type VerificationChannel } from '@oe/notify';
 import {
   AccessJwtIdentityProvider,
   CsrfTokens,
@@ -72,6 +73,13 @@ export async function buildDependencies(
       ? new LocalFsEvidenceStore(config.evidence.localDir!)
       : new UnconfiguredR2EvidenceStore();
 
+  // No fallback that quietly sends nothing while reporting success: the not-configured
+  // channel refuses, and the local one throws if it ever finds itself outside APP_ENV=local.
+  const verification: VerificationChannel =
+    config.intake.channel === 'recorded_local_only'
+      ? new RecordedLocalChannel(config.environment)
+      : new NotConfiguredChannel();
+
   return {
     config,
     db,
@@ -81,6 +89,7 @@ export async function buildDependencies(
     capture,
     targetPolicy,
     evidence,
+    verification,
     now: () => new Date(),
     newId: () => randomUUID(),
     ...overrides,

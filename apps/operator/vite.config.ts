@@ -7,8 +7,10 @@ import { fileURLToPath } from 'node:url';
  * CORS configuration anywhere: ADR-004 rules out permissive credentialed CORS, and
  * same-origin plus a session CSRF token is the whole story.
  *
- * In development Vite proxies /api to the local API process, which keeps the browser's
- * notion of origin identical to production's.
+ * In development Vite proxies /api and /public to the local API process, which keeps the
+ * browser's notion of origin identical to production's. `/public` is the M3 requested-intake
+ * surface; it is served by the API in every environment, and is proxied here only so a
+ * developer poking at the local stack sees the same shape.
  */
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
@@ -26,6 +28,10 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
+        target: process.env.API_ORIGIN ?? 'http://127.0.0.1:4174',
+        changeOrigin: false,
+      },
+      '/public': {
         target: process.env.API_ORIGIN ?? 'http://127.0.0.1:4174',
         changeOrigin: false,
       },

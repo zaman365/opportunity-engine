@@ -13,6 +13,7 @@
     "packages/db",
     "packages/capture",
     "packages/evidence",
+    "packages/notify",
     "apps/api",
     "apps/operator",
     "workers/scan-runner"

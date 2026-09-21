@@ -46,9 +46,14 @@ function mountedRoutes(instance: unknown): MountedRoute[] {
   return out;
 }
 
-/** `/api/v1/opportunities/:id/offers` → `/v1/opportunities/{id}/offers`. */
+/**
+ * `/api/v1/opportunities/:id/offers` → `/v1/opportunities/{id}/offers`.
+ *
+ * The public surface is mounted at `/public` with no `/api` prefix, so only the prefix that
+ * is actually present is stripped.
+ */
 function toContractPath(path: string): string {
-  return path.replace(/^\/api/, '').replaceAll(/:([A-Za-z0-9_]+)/g, '{$1}');
+  return path.replace(/^\/api\/v1/, '/v1').replaceAll(/:([A-Za-z0-9_]+)/g, '{$1}');
 }
 
 const contractOperations = Object.entries(spec.paths).flatMap(([path, item]) =>
@@ -59,7 +64,7 @@ const contractOperations = Object.entries(spec.paths).flatMap(([path, item]) =>
 
 const implemented = mountedRoutes(app)
   .map((route) => ({ ...route, path: toContractPath(route.path) }))
-  .filter((route) => route.path.startsWith('/v1/'));
+  .filter((route) => route.path.startsWith('/v1/') || route.path.startsWith('/public/'));
 
 describe('routes and contract', () => {
   it('implements every operation the served contract declares', () => {

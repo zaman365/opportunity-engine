@@ -20,6 +20,8 @@ import {
 
 const SHOTS = 'docs/design/screenshots';
 const BASE_URL = 'http://127.0.0.1:4173';
+/** The API process itself. The public intake surface is served here, not by the operator app. */
+const API_URL = 'http://127.0.0.1:4174';
 const FIXTURE_PRODUCT = 'http://127.0.0.1:4179/product';
 /** The M2 fixture site; see fixtures/m2-server.mjs. */
 const M2 = 'http://127.0.0.1:4180';
@@ -354,6 +356,83 @@ test.describe('operator journey', () => {
     await expect(withdraw).toBeEnabled();
 
     await asOwner.dispose();
+  });
+
+  test('a requested check arrives as a claim, not as permission', async ({ page }, testInfo) => {
+    // Submitted the way a venture site would: straight at the API, with the forwarded host a
+    // proxy would set. The host decides the workspace, and there is no tenant field in the
+    // body to decide it any other way.
+    const publicApi = await apiRequest.newContext({ baseURL: API_URL });
+    const asSite = {
+      host: 'intake-a.fixture.test',
+      'x-forwarded-host': 'intake-a.fixture.test',
+      origin: 'https://intake-a.fixture.test',
+    };
+    const unique = Date.now();
+    let requestId: string;
+    try {
+      const submitted = await publicApi.post('/public/intake', {
+        headers: asSite,
+        data: {
+          target_url: `https://shop-${unique}.example.com/products/jacket`,
+          requested_detectors: ['MF-LINK-01'],
+          purpose: 'Customers tell us the size guide link on our product page is broken.',
+          authority_claim: 'I am the owner of this shop and I am asking for this check myself.',
+          contact_email: `requester-${unique}@example.com`,
+        },
+      });
+      expect(submitted.status(), await submitted.text()).toBe(201);
+      const created = (await submitted.json()) as { id: string; local_verification_code: string };
+      requestId = created.id;
+
+      const verified = await publicApi.post(`/public/intake/${created.id}/verify`, {
+        headers: asSite,
+        data: { code: created.local_verification_code },
+      });
+      expect(verified.status(), await verified.text()).toBe(200);
+      expect(((await verified.json()) as { state: string }).state).toBe('received');
+    } finally {
+      await publicApi.dispose();
+    }
+
+    await signIn(page, 'reviewer@fixture.test');
+    await page.goto('/requests');
+    await expect(page.getByRole('heading', { name: 'Requested checks', level: 1 })).toBeVisible();
+
+    // Filtered to this test's own request, not `.first()`: a shared fixture database can hold
+    // other verified requests, and a run that asserted against whichever sorted first would
+    // pass or fail depending on what ran before it.
+    const card = page.locator('.request').filter({ hasText: `shop-${unique}.example.com` });
+    await expect(card).toHaveCount(1);
+    await expect(card.locator('.chip')).toContainText('address confirmed');
+
+    // The screen has to keep "asked" and "allowed" apart, in words.
+    await expect(card).toContainText('Confirmed address, no authority yet');
+    await expect(card).toContainText('says nothing about whether they control');
+    await expect(card.locator('.request-claim footer')).toContainText('not established as a fact');
+    // And it must not imply consent to anything beyond answering this request.
+    await expect(card).toContainText('not agreeing to be marketed to');
+
+    await page.screenshot({
+      path: `${SHOTS}/${testInfo.project.name}-requests.png`,
+      fullPage: true,
+    });
+
+    // Declining needs a reason; the control refuses an empty one.
+    const decline = card.getByRole('button', { name: 'Decline', exact: true });
+    await expect(decline).toBeDisabled();
+    await card.getByLabel('Decline this request').fill('We cannot establish site control.');
+    await expect(decline).toBeEnabled();
+    await decline.click();
+
+    // And the requester learns only that it is closed.
+    const closed = await apiRequest.newContext({ baseURL: API_URL });
+    try {
+      const view = await closed.get(`/public/intake/${requestId}`, { headers: asSite });
+      expect(((await view.json()) as { state: string }).state).toBe('closed');
+    } finally {
+      await closed.dispose();
+    }
   });
 
   test('a blocked scan explains itself and produces no finding', async ({ page }, testInfo) => {

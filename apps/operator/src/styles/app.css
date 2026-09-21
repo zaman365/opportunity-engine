@@ -849,6 +849,16 @@ main {
   font-size: var(--text-meta);
   color: var(--blocked);
 }
+/*
+ * A button inside a field is a button.
+ *
+ * The column layout stretched it to the full width of the input above it, so "Decline" and
+ * "Withdraw" read as a second empty text box rather than as the action that ends the thing
+ * on screen. Found by looking at desktop-requests.png, not by a failing test.
+ */
+.field > .btn {
+  align-self: flex-start;
+}
 .amount {
   display: flex;
   align-items: center;
@@ -1115,6 +1125,72 @@ main {
   color: var(--ink-secondary);
 }
 .offer .hint {
+  font-size: var(--text-meta);
+  color: var(--ink-secondary);
+  margin: 0;
+}
+
+/* ------------------------------------------------------- requested intake */
+
+/*
+ * A request is a document somebody wrote, so it reads as one. The quotation below is the
+ * requester's own words about their authority over a site they named, and it is styled as a
+ * quotation deliberately: rendering it as a plain field would let it read as something this
+ * system established rather than something a stranger asserted.
+ */
+.request {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-surface);
+  padding: var(--s4);
+  margin-bottom: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.request > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+.request > header h2 {
+  font: var(--text-lead) / 1.3 var(--font-mono);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.request-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s1) var(--s3);
+  margin: 0;
+  font-size: var(--text-meta);
+}
+.request-facts dt {
+  font: var(--text-micro) / 1.5 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.request-facts dd {
+  margin: 0;
+  color: var(--ink-secondary);
+}
+.request-claim {
+  margin: 0;
+  padding-left: var(--s4);
+  border-left: 3px solid var(--rule-strong);
+  font-size: var(--text-meta);
+}
+.request-claim p {
+  margin: 0 0 var(--s2);
+}
+.request-claim footer {
+  font: var(--text-micro) / 1.5 var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+}
+.request .hint {
   font-size: var(--text-meta);
   color: var(--ink-secondary);
   margin: 0;

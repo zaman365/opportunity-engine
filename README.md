@@ -4,9 +4,10 @@ An evidence-first diagnostic engine: it inspects an approved page, records what 
 observed, asks a person whether that evidence supports a claim, and turns confirmed claims into
 a protected report. It is not a prospecting tool and has no outbound channel of any kind.
 
-**Status: M0 and M1 complete against local fixtures; M2 in progress — 2 of 6 detectors
-implemented** (MF-LINK-01, MF-ASSET-01) **and the offer catalogue in place**. Nothing is
-deployed and nothing is sent: a drafted scope is an internal record. Live capture, cloud
+**Status: M0–M2 complete against local fixtures; M3 in progress.** 2 of 6 detectors
+implemented (MF-LINK-01, MF-ASSET-01), the offer catalogue in place, and requested intake
+open behind abuse controls. Nothing is deployed and nothing is sent: a drafted scope is an
+internal record, and no adapter can reach a member of the public. Live capture, cloud
 resources, payments and every integration remain unconfigured and fail closed. Read
 [`opportunity-engine-build-kit/PROGRESS.md`](opportunity-engine-build-kit/PROGRESS.md) for the
 capability truth table before drawing conclusions from a green test run.
@@ -71,6 +72,7 @@ packages/domain      Scoring, money, state machine, URL policy, detectors, offer
 config               Owner price approvals, separate from the kit's scope definition
 packages/db          Migrations, tenant-scoped client, repositories, ledger
 packages/capture     Capture port, egress guard, fixture and Browser Run adapters
+packages/notify      One-time codes and the verification-channel port (no sending adapter)
 packages/evidence    Private evidence object store
 docs/adr             ADR-010 onward; ADR-001..009 live in the build kit
 docs/design          Design log and the screenshots behind it
@@ -103,7 +105,17 @@ opportunity-engine-build-kit/   The handoff. Treat as read-only input.
 - **Assume a customer agreed to something.** A scope's prerequisites are draftable only once an
   owner records each one with a note explaining how they know — and revoking one makes the
   scope undraftable again.
-- **Send anything.** There is no outbound adapter, no mail, no webhook and no customer billing.
+- **Scan a site because somebody asked it to.** A requested check is a row in a queue.
+  Verifying a contact address proves control of an inbox, not of a website; an owner still
+  establishes site control and records the account and the authorization by hand.
+- **Let a request pick its own workspace.** The public surface resolves the tenant from the
+  host the request arrived on, matched against a channel an owner registered. There is no
+  tenant field in any public request body.
+- **Infer marketing consent from a request for a check.** The column is absent from the
+  submission path entirely, and carries a constraint requiring a timestamp beside it.
+- **Send anything.** There is no outbound adapter, no mail, no webhook and no customer
+  billing. The verification-code port has one implementation that refuses and one that
+  returns the code to the caller and will not construct outside `APP_ENV=local`.
 - **Run fixtures in a deployed environment.** Startup validation rejects fixture auth, the
   fixture capture adapter and the local evidence store outside `APP_ENV=local`.
 

@@ -4,23 +4,28 @@ import type {
   Budget,
   Evidence,
   Finding,
+  IntakeChannel,
+  IntakeRequest,
   Offer,
   OfferDraft,
   OfferPrerequisite,
   Opportunity,
   PriorityScore,
+  PublicIntakeRequest,
   Report,
   Review,
   Scan,
   ScanStep,
 } from '@oe/contracts';
-import { effortBand, type CatalogOffer } from '@oe/domain';
+import { effortBand, publicRequestState, type CatalogOffer } from '@oe/domain';
 import type {
   AccountRow,
   AuthorizationRow,
   BudgetRow,
   EvidenceRow,
   FindingRow,
+  IntakeChannelRow,
+  IntakeRequestRow,
   OfferDraftRow,
   OfferPrerequisiteRow,
   OfferRow,
@@ -346,5 +351,77 @@ export function toScanStep(row: ScanStepRow): ScanStep {
     attempt: row.attempt,
     provider_request_id: row.provider_request_id,
     updated_at: row.updated_at,
+  };
+}
+
+/**
+ * What a member of the public may learn about their own request.
+ *
+ * Everything an attacker could use is absent: no contact address, no operator note, no
+ * decline reason, no target beyond what they themselves sent, and a coarse state that maps
+ * "declined" and "expired" onto the same word. A request id is a bearer reference, so this
+ * shape assumes whoever holds it might not be the person who created it.
+ */
+export function toPublicIntakeRequest(
+  row: IntakeRequestRow,
+  localCode: string | null,
+  deliveryDetail: string | null,
+): PublicIntakeRequest {
+  return {
+    id: row.id,
+    state: publicRequestState(row.state as Parameters<typeof publicRequestState>[0]),
+    target_url: row.target_url,
+    requested_detectors: row.requested_detectors,
+    submitted_at: row.submitted_at,
+    expires_at: row.expires_at,
+    // Present only under the local fixture channel, which sends nothing and says so. A
+    // deployed build has no code-returning channel, so this is always null there.
+    local_verification_code: localCode,
+    delivery_detail: deliveryDetail,
+  };
+}
+
+/**
+ * The operator's view of a request.
+ *
+ * The contact address is the one field gated by role. A viewer can see that a request exists,
+ * what was asked and what was claimed — everything needed to understand the queue — without
+ * holding a stranger's email address. Answering the request is a reviewer act, so the address
+ * travels with that authority and not below it.
+ */
+export function toIntakeRequest(row: IntakeRequestRow, canSeeContact: boolean): IntakeRequest {
+  return {
+    id: row.id,
+    channel_id: row.channel_id,
+    venture_id: row.venture_id,
+    target_url: row.target_url,
+    target_host: row.target_host,
+    requested_detectors: row.requested_detectors,
+    purpose: row.purpose,
+    authority_claim: row.authority_claim,
+    agreed_purpose_version: row.agreed_purpose_version,
+    contact_email: canSeeContact ? row.contact_email : null,
+    marketing_consent: row.marketing_consent,
+    state: row.state as IntakeRequest['state'],
+    version: row.version,
+    verified_at: row.verified_at,
+    decided_at: row.decided_at,
+    decision_reason: row.decision_reason,
+    account_id: row.account_id,
+    submitted_at: row.submitted_at,
+    expires_at: row.expires_at,
+  };
+}
+
+export function toIntakeChannel(row: IntakeChannelRow): IntakeChannel {
+  return {
+    id: row.id,
+    venture_id: row.venture_id,
+    host: row.host,
+    enabled: row.enabled,
+    purpose_text: row.purpose_text,
+    purpose_version: row.purpose_version,
+    allowed_detectors: row.allowed_detectors,
+    daily_request_limit: row.daily_request_limit,
   };
 }

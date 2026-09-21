@@ -62,6 +62,11 @@ export async function freshHarness(): Promise<Harness> {
     FIXTURE_ORIGIN: process.env.FIXTURE_ORIGIN ?? 'http://127.0.0.1:4179,http://127.0.0.1:4180',
     EVIDENCE_STORE: 'local_fs',
     EVIDENCE_LOCAL_DIR: evidenceDir,
+    // The M3 public surface, with the channel that sends nothing. `loadConfig` refuses this
+    // combination outside APP_ENV=local, which is what makes turning it on here acceptable.
+    PUBLIC_INTAKE_ENABLED: 'true',
+    INTAKE_VERIFICATION_CHANNEL: 'recorded_local_only',
+    INTAKE_SECRET: 'local-test-intake-secret-000000000000',
   });
 
   const db = new Database({ connectionString: urls.runtime, applicationName: 'oe-test-runtime' });

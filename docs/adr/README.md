@@ -18,3 +18,4 @@ migration and rollback, verification, and status.
 | [ADR-017](ADR-017-asset-detector.md)      | MF-ASSET-01 needs a browser, and its own fixtures                     | Accepted    |
 | [ADR-018](ADR-018-contract-overlay.md)    | Generate the served contract from the handoff plus an overlay         | Accepted    |
 | [ADR-019](ADR-019-offer-catalog.md)       | Scope from a catalogue, price from an owner, neither from the code    | Accepted    |
+| [ADR-020](ADR-020-requested-intake.md)    | A request is not permission, and the host decides the workspace       | Accepted    |

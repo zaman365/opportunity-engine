@@ -8,3 +8,4 @@ export * from './config.ts';
 export * from './offer-catalog.ts';
 export * from './offer-matcher.ts';
 export * from './case-progress.ts';
+export * from './intake.ts';

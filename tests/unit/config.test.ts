@@ -80,9 +80,10 @@ describe('configuration', () => {
     expect(problems.some((p) => p.includes('MIGRATION_DATABASE_URL must differ'))).toBe(true);
   });
 
-  it('refuses to start with any capability flag turned on', () => {
+  it('refuses to start with an out-of-scope capability flag turned on', () => {
+    // PUBLIC_INTAKE_ENABLED left this list at M3. The three below have no milestone that
+    // turns them on, and outreach now has a legal reason as well as a design one.
     for (const key of [
-      'PUBLIC_INTAKE_ENABLED',
       'AUTOMATIC_OUTREACH_ENABLED',
       'AUTOMATIC_PRODUCTION_WRITES_ENABLED',
       'AUTOMATIC_TOPUPS_ENABLED',
@@ -90,6 +91,62 @@ describe('configuration', () => {
       const problems = problemsFor({ ...localEnv, [key]: 'true' });
       expect(problems.some((p) => p.startsWith(`${key}=true is not supported`))).toBe(true);
     }
+  });
+
+  describe('public intake', () => {
+    it('refuses to open a public surface with no way to verify a contact address', () => {
+      const problems = problemsFor({ ...localEnv, PUBLIC_INTAKE_ENABLED: 'true' });
+      expect(problems.some((p) => p.includes('requires INTAKE_VERIFICATION_CHANNEL'))).toBe(true);
+    });
+
+    it('refuses to open it without a secret to key codes and counters with', () => {
+      const problems = problemsFor({
+        ...localEnv,
+        PUBLIC_INTAKE_ENABLED: 'true',
+        INTAKE_VERIFICATION_CHANNEL: 'recorded_local_only',
+      });
+      expect(problems.some((p) => p.includes('requires INTAKE_SECRET'))).toBe(true);
+    });
+
+    it('refuses a secret short enough to guess', () => {
+      const problems = problemsFor({
+        ...localEnv,
+        PUBLIC_INTAKE_ENABLED: 'true',
+        INTAKE_VERIFICATION_CHANNEL: 'recorded_local_only',
+        INTAKE_SECRET: 'too-short',
+      });
+      expect(problems.some((p) => p.includes('at least 32 characters'))).toBe(true);
+    });
+
+    it('accepts the local fixture channel with a real secret', () => {
+      expect(
+        problemsFor({
+          ...localEnv,
+          PUBLIC_INTAKE_ENABLED: 'true',
+          INTAKE_VERIFICATION_CHANNEL: 'recorded_local_only',
+          INTAKE_SECRET: 'x'.repeat(32),
+        }),
+      ).toEqual([]);
+    });
+
+    it('refuses the code-returning channel outside local, whatever else is set', () => {
+      const problems = problemsFor({
+        ...localEnv,
+        APP_ENV: 'production',
+        APP_ORIGIN: 'https://oe.example.com',
+        AUTH_MODE: 'access_jwt',
+        ACCESS_ISSUER: 'https://example.cloudflareaccess.com',
+        ACCESS_AUDIENCE: 'aud',
+        ACCESS_JWKS_URL: 'https://example.cloudflareaccess.com/cdn-cgi/access/certs',
+        CAPTURE_ADAPTER: 'browser_run',
+        EVIDENCE_STORE: 'r2',
+        R2_BUCKET: 'oe-evidence',
+        INTAKE_VERIFICATION_CHANNEL: 'recorded_local_only',
+      });
+      expect(problems.some((p) => p.includes('returns verification codes to the caller'))).toBe(
+        true,
+      );
+    });
   });
 
   it('refuses live capture without an endpoint', () => {

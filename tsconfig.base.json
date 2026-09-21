@@ -23,6 +23,7 @@
       "@oe/db": ["./packages/db/src/index.ts"],
       "@oe/capture": ["./packages/capture/src/index.ts"],
       "@oe/evidence": ["./packages/evidence/src/index.ts"],
+      "@oe/notify": ["./packages/notify/src/index.ts"],
       "@oe/scan-runner": ["./workers/scan-runner/src/index.ts"],
       "@oe/api": ["./apps/api/src/app.ts"]
     }
