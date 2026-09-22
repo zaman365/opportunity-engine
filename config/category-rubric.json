@@ -1,0 +1,175 @@
+{
+  "$comment": "DRAFTED BY THE BUILD, NOT APPROVED BY AN OWNER. `approval.approved_by_subject` is null, so nothing loads this into oe.category_rubrics and CE-CONTENT-01 and CE-VISUAL-01 stay unrequestable — the same arrangement as config/offer-approvals.json, where an unpriced SKU stays unsellable rather than defaulting to sellable. This file exists so the argument can be had against something concrete instead of against a blank page. See docs/adr/ADR-027-category-rubric.md.",
+
+  "$what_I_am_least_sure_about": [
+    "visual.minimum_product_images = 3. This is the weakest number in the file. Three (front, back, detail) is the conventional floor for apparel, but I have not counted a sample of shops that convert well against a sample that does not, and neither has anybody else here. It is a convention I am repeating, not a measurement.",
+    "Whether `returns_window` belongs in `required` at all. A buyer will not refuse to buy an overshirt because the returns window is not restated on the product page — they assume the EU statutory right exists, and it does. I kept it required because fit is the single largest return driver in apparel and an unstated policy is what turns a return into a complaint, but a reasonable colleague would move it to `expected` and I would not fight hard.",
+    "Whether a linked size guide counts as the page stating measurements. I said yes (`may_be_on_a_linked_page: true`) because that is how most competent shops do it. Somebody who believes measurements must be on the page itself would get a very different defect rate out of the same rubric, and the rubric would still look reasonable to them.",
+    "The German patterns are mine, not a native merchant's. `Zusammensetzung` and `Materialzusammensetzung` are right; I am less sure I have the common spellings a small DACH shop actually uses, and a missed spelling reads as a missing disclosure, which is a false positive against a page that did nothing wrong."
+  ],
+
+  "category": {
+    "key": "apparel-everyday-layers",
+    "label": "Everyday layers — overshirts, jackets, knitwear, sold direct to consumer",
+    "why_this_one": "It is the only category this build has ever inspected: every fixture in fixtures/m2-server.mjs is an 'Everyday overshirt', and both ventures that would sell a scan sell into DACH apparel. Proving the rubric anywhere else would mean proving it against pages nobody here has seen."
+  },
+
+  "content": {
+    "$comment": "CE-CONTENT-01 · 'Category-specific buying information not found in disclosed inspected sample after module/link checks'. Each item is something a page either says or does not say. IMPORTANT: this checks that the page states something about the item, not that what it states is adequate. A page reading 'Material: siehe Etikett' passes. That limitation is carried in every finding rather than corrected here, because judging adequacy is a reader's job and this rule does not have a reader.",
+
+    "required": [
+      {
+        "key": "materials",
+        "question_a_buyer_asks": "What is it made of?",
+        "why_required": "Fibre content decides whether a garment is warm, whether it itches, and whether the buyer can wash it. It is also mandatory disclosure for textiles sold in the EU under Regulation 1007/2011, so a page without it is not merely unhelpful.",
+        "how_a_page_states_it": [
+          "Material",
+          "Materials",
+          "Composition",
+          "Fabric",
+          "Zusammensetzung",
+          "Materialzusammensetzung",
+          "Obermaterial",
+          "% cotton",
+          "% wool",
+          "% Baumwolle",
+          "% Wolle",
+          "% Polyester"
+        ],
+        "may_be_on_a_linked_page": false,
+        "drafted_confidence": "high"
+      },
+      {
+        "key": "size_measurements",
+        "question_a_buyer_asks": "Will it fit me?",
+        "why_required": "A size letter is not a measurement, and an S from one shop is an M from another. Fit uncertainty is the largest single cause of apparel returns, and a buyer who cannot resolve it either does not buy or buys two sizes intending to send one back.",
+        "how_a_page_states_it": [
+          "Size guide",
+          "Size chart",
+          "Measurements",
+          "Chest",
+          "Length",
+          "Größentabelle",
+          "Grössentabelle",
+          "Maßtabelle",
+          "Brustumfang",
+          "Rückenlänge"
+        ],
+        "may_be_on_a_linked_page": true,
+        "drafted_confidence": "high"
+      },
+      {
+        "key": "returns_window",
+        "question_a_buyer_asks": "What happens if it does not fit?",
+        "why_required": "Fit cannot be settled before delivery, so in this category the returns term is part of the purchase decision rather than after-sales detail. See the caveat in $what_I_am_least_sure_about: this is the item most likely to belong one rung lower.",
+        "how_a_page_states_it": [
+          "Returns",
+          "Return policy",
+          "Free returns",
+          "day return",
+          "days to return",
+          "Rückgabe",
+          "Rücksendung",
+          "Widerruf",
+          "Widerrufsrecht",
+          "Tage Rückgaberecht"
+        ],
+        "may_be_on_a_linked_page": true,
+        "drafted_confidence": "medium"
+      }
+    ],
+
+    "expected": [
+      {
+        "key": "care_instructions",
+        "question_a_buyer_asks": "How do I wash it?",
+        "how_a_page_states_it": [
+          "Care",
+          "Washing",
+          "Machine wash",
+          "Pflege",
+          "Pflegehinweise",
+          "Waschen"
+        ]
+      },
+      {
+        "key": "model_reference",
+        "question_a_buyer_asks": "How does it sit on somebody my size?",
+        "how_a_page_states_it": ["Model is", "Model wears", "Das Model ist", "Model trägt"]
+      },
+      {
+        "key": "country_of_origin",
+        "question_a_buyer_asks": "Where was it made?",
+        "how_a_page_states_it": ["Made in", "Hergestellt in", "Produziert in"]
+      },
+      {
+        "key": "delivery_expectation",
+        "question_a_buyer_asks": "When will it arrive?",
+        "how_a_page_states_it": ["Delivery", "Shipping", "Versand", "Lieferzeit"]
+      }
+    ],
+
+    "contested": [
+      "Whether a fit description — 'relaxed fit', 'true to size', 'fällt klein aus' — is buying information or copywriting. It changes purchase decisions, which argues for required; it is also unverifiable and unfalsifiable, which argues for never claiming it.",
+      "Whether sustainability and provenance claims belong in the rubric. 'Made in Portugal' is decisive for one buyer and noise to another, and a rule that treats its absence as a defect is enforcing a house style on somebody else's shop.",
+      "Whether a returns term has to be numeric. 'Free returns' with no window says less than '14 Tage' but reads as more generous, and deciding which counts as stated is a judgement about the merchant's honesty, not about the page.",
+      "Stock and availability. Deliberately absent: CE-DATA-01 already compares declared availability against what the page shows, and two rules claiming one defect would put the same problem in front of a reviewer twice under different names.",
+      "Price transparency — whether VAT and shipping basis must be stated on the product page. Left out here because CE-DATA-01 owns the price surface, but a reasonable person would say the rubric is incomplete without it."
+    ]
+  },
+
+  "visual": {
+    "$comment": "CE-VISUAL-01 · 'Real image sequence fails a specific category buying-question rubric; specialist review'. This rule cannot see what is IN a photograph — there is no vision model in this system, and adding one would mean a machine asserting what a picture shows. It can count images and read what the page declares about them. Everything that needs an eye is under `needs_a_human` and is recorded as an open question, never as a finding.",
+
+    "required_shots": [
+      {
+        "key": "front-full",
+        "question_a_buyer_asks": "What does the whole garment look like?",
+        "detectable_from": "alt text",
+        "alt_text_patterns": ["front", "vorne", "vorderansicht", "full", "ganz"]
+      },
+      {
+        "key": "detail-fabric",
+        "question_a_buyer_asks": "What does the material actually look like up close?",
+        "detectable_from": "alt text",
+        "alt_text_patterns": [
+          "detail",
+          "close",
+          "close-up",
+          "nahaufnahme",
+          "stoff",
+          "fabric",
+          "texture"
+        ]
+      },
+      {
+        "key": "back",
+        "question_a_buyer_asks": "What does the back look like?",
+        "detectable_from": "alt text",
+        "alt_text_patterns": ["back", "rear", "rückansicht", "hinten", "rueckansicht"]
+      },
+      {
+        "key": "worn-on-body",
+        "question_a_buyer_asks": "How does it hang on a person?",
+        "detectable_from": "not detectable",
+        "alt_text_patterns": []
+      }
+    ],
+
+    "minimum_product_images": 3,
+
+    "needs_a_human": [
+      "Whether the colour shown is the colour that arrives. The most common and most expensive apparel complaint, and nothing in a captured page can answer it.",
+      "Whether the garment is photographed on a body or laid flat. Alt text almost never says, and guessing from a filename would be a fabricated observation.",
+      "Whether the images show this product or a stock photograph of something similar.",
+      "Whether scale is readable — a knit that photographs like a fine gauge and arrives chunky is a return, and no count of images detects it."
+    ]
+  },
+
+  "approval": {
+    "$comment": "Mirrors config/offer-approvals.json. A rubric is used only when an owner has signed it, and this file records who and when. Null here is not a placeholder to be filled in casually: it is the reason both detectors are currently unrequestable, enforced by migration 0017 rather than by convention.",
+    "approved_by_subject": null,
+    "approved_at": null,
+    "approval_note": null
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "$comment": "TEMPLATE — NOT APPROVED, NOT IN USE. Nothing reads this file. Copy it to config/category-rubric.json, fill in the values, and CE-CONTENT-01 and CE-VISUAL-01 can be built against it. Until then both stay unrequestable. The structure is settled; the judgement is not, and the judgement is the owner's. See docs/roadmap/M2_CONSISTENCY_DETECTORS.md.",
+  "$comment": "TEMPLATE — NOT APPROVED, NOT IN USE. Nothing reads this file. Copy it to config/category-rubric.json, fill in the values, and CE-CONTENT-01 and CE-VISUAL-01 can be built against it. Until then both stay unrequestable. The structure is settled; the judgement is not, and the judgement is the owner's. config/category-rubric.json is a filled-in draft written by the build, unapproved, to argue against. See docs/roadmap/M2_CONSISTENCY_DETECTORS.md and docs/adr/ADR-027-category-rubric.md.",
 
   "$how_to_fill_this_in": [
     "Pick ONE category you actually sell into. Not a list — one. A rubric that covers everything covers nothing, and the second category is easy once the first is proven.",
@@ -26,7 +26,8 @@
           "FILL IN — words or phrases that would appear, e.g. '100% wool', 'Material:', 'Zusammensetzung'",
           "Include German if you sell in German. The detector matches text, not intent."
         ],
-        "may_be_on_a_linked_page": true
+        "may_be_on_a_linked_page": true,
+        "$optional": "drafted_confidence — 'high' | 'medium' | 'low'. Nothing reads it. It is there so the item you were unsure about is still marked unsure a year from now, when everyone has forgotten which ones were arguments."
       }
     ],
 
@@ -34,7 +35,8 @@
       {
         "$comment": "Things most good pages have, whose absence is worth mentioning but is not a defect. The detector reports these separately and never as a candidate finding.",
         "key": "FILL IN",
-        "question_a_buyer_asks": "FILL IN"
+        "question_a_buyer_asks": "FILL IN",
+        "how_a_page_states_it": ["FILL IN — same idea as above, in every language you sell in"]
       }
     ],
 

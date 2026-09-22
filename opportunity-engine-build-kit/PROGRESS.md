@@ -10,7 +10,7 @@
 > This kit is left byte-identical apart from this file, which it instructs agents to update,
 > so it stays the record of what the handoff actually said.
 
-**Kit version 2.0 · last session 22 September 2026 (M3, M4, four of six detectors, English and German)**
+**Kit version 2.0 · last session 22 September 2026 (M3, M4, six of six detectors written — four requestable, two locked behind an unsigned rubric)**
 
 ## Completed in this kit
 
@@ -40,6 +40,108 @@ VERIFICATION.md.
 | Commercial prices | **Provisional** · EUR 290 / EUR 190 net, approved in `config/offer-approvals.json`. **VAT treatment unconfirmed** and recorded as open in both approval notes |
 | OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely, now for a legal reason as well as a design one (`docs/legal/DACH_OUTREACH_STUDY.md`) |
 | Production deployment | **Not performed** · no cloud resource was created or contacted |
+
+## Session log · 22 September 2026 · The category rubric, and the last two detectors
+
+Branch `main`. Milestone M2, closing the two rules that had been blocked for several sessions.
+
+### What the block actually was, and why it moved
+
+`CE-CONTENT-01` and `CE-VISUAL-01` apply a **category rubric** — what a buyer of a particular
+kind of thing needs a page to tell them. That is a commercial judgement, not a property of
+markup, and a rule that decided it for itself would assert taste as defect. Recorded here for
+several sessions as "a product decision engineering cannot make", which was half right and had
+started working as an excuse: nobody writes a rubric from a blank page.
+
+So the rubric was drafted by the build instead of waited for, and signed by nobody.
+
+### What was built
+
+- `config/category-rubric.json` — a filled-in rubric for one category, **apparel / everyday
+  layers**, chosen because every fixture in `fixtures/m2-server.mjs` is an "Everyday overshirt"
+  and both ventures sell into DACH apparel. `approval.approved_by_subject` is `null`. Carries
+  `$what_I_am_least_sure_about` (four judgements) and `contested` (five things a colleague
+  would argue about, which no finding ever claims).
+- `packages/domain/src/category-rubric.ts` — parse, validate, gate. Rejects template
+  placeholders, a required item with no reason, an item with no patterns to match, a shot
+  claimed readable from alt text with no patterns, an empty `contested`, an empty
+  `needs_a_human`. Distinguishes "unapproved" from "malformed" (`unapprovedOnly`).
+- `packages/domain/src/detector-content.ts` — `CE-CONTENT-01`, eleven abstentions.
+- `packages/domain/src/detector-visual.ts` — `CE-VISUAL-01`, twelve abstentions, two grades.
+- `packages/capture/src/page-content.ts` — page text, undisclosed-region detection, declared
+  images.
+- `packages/db/migrations/0017_category_rubric.sql` — the lock.
+- `packages/contracts/src/detector-ids.ts` — `RUBRIC_GATED_DETECTORS` alongside
+  `IMPLEMENTED_DETECTORS`; "implemented" and "requestable" are now different facts.
+- `docs/adr/ADR-027-category-rubric.md`. ADRs 021–027 added to `docs/adr/README.md`, which had
+  stopped at 020.
+
+### The lock is a database constraint, not a service-layer check
+
+`oe.category_rubrics.approved_by` and `.approved_at` are `NOT NULL`, so the table can only hold
+approved rubrics. `oe.scans.rubric_key` is a foreign key into it, and a check constraint
+requires one whenever either gated rule appears. An unsigned rubric produces no row, so no scan
+can name it, so neither rule can be requested — including by a caller going straight to SQL,
+which is what `tests/db/category-rubric.test.ts` does to prove it. The runtime role has `SELECT`
+only: the application that applies a standard does not get to write one.
+
+Same arrangement as migration 0009 for prices. An unpriced SKU stays unsellable; an unsigned
+rubric stays unapplied.
+
+### The grade split in CE-VISUAL-01
+
+There is no vision model in this system. The rule reads the two things a captured page
+discloses about its images and grades them differently: a **count** below the category floor is
+arithmetic over recorded evidence (grade **A**); a **gap in declared coverage** rests on alt
+text, and missing alt text is not a missing photograph (grade **B**, which
+`checkActionReadiness` will not publish until a specialist has looked — the review
+`contracts/detectors.json` asks for on this rule). If no image carries any description at all,
+it abstains rather than describing the alt text while appearing to describe the photographs.
+
+### A bug the tests found
+
+`extractPageText` treated a `<details>` element's `<summary>` as content, so a collapsed
+"Material & care" section read as disclosed. That is precisely the case the undisclosed-region
+check exists for: the rule would have said "materials not stated" about a page that states them
+behind a tab. Fixed by stripping `<summary>` before the emptiness test, with a test for both
+directions.
+
+### Commands run and actual results
+
+- `npm run db:reset` → 18 migrations applied, seed clean.
+- `npm run test:db` → 6 files, 92 passed (5 failed first: the runtime role cannot write a
+  rubric, which was the design working; the tests moved to the migration role and one new test
+  now asserts the refusal).
+- `npm run test:unit` → 15 files, 326 passed.
+- `npm run verify` → typecheck, lint, format, contract check, build, unit, contract, db (92),
+  integration (169) all pass.
+
+### Deliberately not done
+
+Neither rule is wired into `workers/scan-runner`. They cannot be admitted, so the branch would
+be several hundred lines that cannot execute and cannot be tested end to end — and this
+repository has already been bitten by code only the e2e suite could reach (ADR-025). Wiring is
+the first task after a rubric is signed; the observation shapes are already produced by
+`@oe/capture/page-content.ts`.
+
+`CE-CONTENT-01` checks that a page *says something* about a required item, not that what it
+says is adequate. "Material: siehe Etikett" passes. Carried in every finding, not hidden.
+
+### What is least trustworthy in the rubric
+
+Recorded because somebody will otherwise treat a draft as a standard:
+
+1. `minimum_product_images: 3` — a repeated convention, not a measurement.
+2. `returns_window` as *required* rather than *expected* — defensible either way.
+3. Whether a linked size guide discharges `size_measurements` — the draft says yes.
+4. The German patterns are mine, not a native merchant's. A missed spelling reads as a missing
+   disclosure: the item most likely to cause a false positive and the cheapest to fix.
+
+### Next smallest complete task
+
+**Somebody reads `config/category-rubric.json` and signs it, or edits it and signs that.** Then:
+load approved rubrics in the seeder the way the offer catalogue is loaded, and wire both rules
+into the runner. Everything else in M2 is done.
 
 ## Session log · 22 September 2026 · German copy
 

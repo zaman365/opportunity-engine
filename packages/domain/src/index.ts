@@ -5,10 +5,13 @@ export {
   DETECTOR_IDS,
   IMPLEMENTED_DETECTORS,
   isImplementedDetector,
+  isRubricGated,
+  RUBRIC_GATED_DETECTORS,
   LEGACY_DETECTOR_IDS,
   sameDetector,
   type DetectorId,
   type ImplementedDetector,
+  type RubricGatedDetector,
 } from '@oe/contracts';
 export * from './money.ts';
 export * from './scoring.ts';
@@ -23,3 +26,6 @@ export * from './case-progress.ts';
 export * from './intake.ts';
 export * from './detector-data.ts';
 export * from './detector-mobile.ts';
+export * from './category-rubric.ts';
+export * from './detector-content.ts';
+export * from './detector-visual.ts';

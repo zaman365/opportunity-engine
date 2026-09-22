@@ -50,13 +50,18 @@ export function sameDetector(a: string, b: string): boolean {
 }
 
 /**
- * The rules this build actually runs.
+ * The rules this build actually runs without further permission.
  *
- * Four of six. `CE-CONTENT-01` and `CE-VISUAL-01` are specified in `contracts/detectors.json`
- * and remain unrequestable: both turn on a category rubric — what a buyer of a particular kind
- * of thing needs to see — and no such rubric exists yet. One list drives the request contract,
- * admission and the database constraint, so a detector cannot become requestable in one layer
- * and not another.
+ * Four of six. `CE-CONTENT-01` and `CE-VISUAL-01` are written and tested, but both apply a
+ * **category rubric** — what a buyer of a particular kind of thing needs a page to tell them —
+ * and that is a commercial judgement an owner signs, not a property of markup this build gets
+ * to decide. `config/category-rubric.json` holds a draft with no signature on it, so neither
+ * rule can be requested; migration 0017 enforces that as a foreign key rather than trusting
+ * this list.
+ *
+ * So "implemented" and "requestable" have come apart, and the two are kept apart deliberately:
+ * one list drives the request contract, admission and the database constraint, and a detector
+ * must not become requestable in one layer and not another.
  */
 export const IMPLEMENTED_DETECTORS = [
   'CE-LINK-01',
@@ -65,6 +70,22 @@ export const IMPLEMENTED_DETECTORS = [
   'CE-MOBILE-01',
 ] as const;
 export type ImplementedDetector = (typeof IMPLEMENTED_DETECTORS)[number];
+
+/**
+ * Written, tested, and held shut behind an approved rubric.
+ *
+ * Here rather than in `@oe/domain` for the same reason as everything else in this module: the
+ * operator bundle needs to explain *why* a rule is not on offer, and "not built yet" and
+ * "waiting on a judgement somebody owes us" are different sentences to put in front of a user.
+ */
+export const RUBRIC_GATED_DETECTORS = ['CE-CONTENT-01', 'CE-VISUAL-01'] as const;
+export type RubricGatedDetector = (typeof RUBRIC_GATED_DETECTORS)[number];
+
+/** True when a rule exists but is waiting on an owner-approved category rubric. */
+export function isRubricGated(id: string): boolean {
+  const canonical = canonicalDetectorId(id);
+  return canonical !== null && (RUBRIC_GATED_DETECTORS as readonly string[]).includes(canonical);
+}
 
 /**
  * Every spelling a caller may send for an implemented rule.
