@@ -1,0 +1,71 @@
+{
+  "$comment": "TEMPLATE — NOT APPROVED, NOT IN USE. Nothing reads this file. Copy it to config/category-rubric.json, fill in the values, and CE-CONTENT-01 and CE-VISUAL-01 can be built against it. Until then both stay unrequestable. The structure is settled; the judgement is not, and the judgement is the owner's. See docs/roadmap/M2_CONSISTENCY_DETECTORS.md.",
+
+  "$how_to_fill_this_in": [
+    "Pick ONE category you actually sell into. Not a list — one. A rubric that covers everything covers nothing, and the second category is easy once the first is proven.",
+    "For each item, answer as a buyer, not as a merchant: what would make you close the tab without buying?",
+    "If you would not refuse to buy without it, it does not belong in `required`. Put it in `expected` or leave it out.",
+    "Anything you would argue about with a colleague goes in `contested` and the detector will never claim it."
+  ],
+
+  "category": {
+    "key": "FILL IN — a slug, e.g. apparel-outerwear",
+    "label": "FILL IN — how you would describe it out loud, e.g. 'Jackets and coats, direct to consumer'",
+    "why_this_one": "FILL IN — one sentence. Why is this the category to prove the rubric on? Existing customers, a venture already selling here, something else?"
+  },
+
+  "content": {
+    "$comment": "CE-CONTENT-01 · 'Category-specific buying information not found in disclosed inspected sample after module/link checks'. Each item is something a page either states or does not. The detector looks for it and abstains when it cannot tell.",
+
+    "required": [
+      {
+        "key": "FILL IN — e.g. materials",
+        "question_a_buyer_asks": "FILL IN — e.g. 'What is it made of?'",
+        "why_required": "FILL IN — what does a buyer do when it is missing? If the answer is 'buys anyway', this is not required.",
+        "how_a_page_states_it": [
+          "FILL IN — words or phrases that would appear, e.g. '100% wool', 'Material:', 'Zusammensetzung'",
+          "Include German if you sell in German. The detector matches text, not intent."
+        ],
+        "may_be_on_a_linked_page": true
+      }
+    ],
+
+    "expected": [
+      {
+        "$comment": "Things most good pages have, whose absence is worth mentioning but is not a defect. The detector reports these separately and never as a candidate finding.",
+        "key": "FILL IN",
+        "question_a_buyer_asks": "FILL IN"
+      }
+    ],
+
+    "contested": [
+      "FILL IN — anything you and a colleague would disagree about. The detector will not claim these at all. Being explicit here is what stops taste becoming a defect later."
+    ]
+  },
+
+  "visual": {
+    "$comment": "CE-VISUAL-01 · 'Real image sequence fails a specific category buying-question rubric; specialist review'. IMPORTANT: this rule cannot see what is IN a photograph — no vision model is in this system, and adding one would mean a machine asserting what a picture shows. It can only count images and read what the page declares about them. So the rubric has to be answerable from alt text, captions and count. Say so if that makes a shot type unusable here; it belongs under `needs_a_human` instead.",
+
+    "required_shots": [
+      {
+        "key": "FILL IN — e.g. front-full",
+        "question_a_buyer_asks": "FILL IN — e.g. 'What does the whole thing look like?'",
+        "detectable_from": "FILL IN — 'alt text', 'count only', or 'not detectable'",
+        "alt_text_patterns": ["FILL IN — e.g. 'front', 'Vorderansicht'"]
+      }
+    ],
+
+    "minimum_product_images": 0,
+
+    "needs_a_human": [
+      "FILL IN — shot types only a person can judge, e.g. 'is the colour true to life'. These are recorded as open questions for a specialist, never as findings."
+    ]
+  },
+
+  "approval": {
+    "$comment": "Mirrors config/offer-approvals.json: a rubric is used only when an owner has signed it, and the file records who and when. An unapproved rubric leaves both detectors unrequestable, exactly as an unpriced SKU stays unsellable.",
+    "approved_by_subject": null,
+    "approved_at": null,
+    "approval_note": null
+  }
+}
