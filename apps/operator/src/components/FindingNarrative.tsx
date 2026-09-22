@@ -112,6 +112,8 @@ function interpretationFor(detectorId: string): string {
       return 'A linked information page that does not load can interrupt a buying decision. That is a reason to repair the link, not a measured effect on sales.';
     case 'CE-ASSET-01':
       return 'A product image that does not appear leaves a buyer without something they were meant to see. That is a reason to repair the asset, not a measured effect on sales.';
+    case 'CE-MOBILE-01':
+      return 'Something covering a product page on a phone stands between a visitor and what they came for. Whether they worked around it was not tested; that it was there on arrival is what was observed.';
     case 'CE-DATA-01':
       return 'A page whose markup contradicts what it shows can be read one way by a shopper and another by a shopping feed or a search result. Which figure is correct is for the shop to say; that they disagree is what was observed.';
     default:

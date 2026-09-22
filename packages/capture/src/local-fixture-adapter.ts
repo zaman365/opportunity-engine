@@ -1,4 +1,4 @@
-import { classifyLink } from '@oe/domain';
+import { classifyLink, type OverlayObservation, type Rect } from '@oe/domain';
 import { extractStructuredFacts, extractVisibleFacts } from './product-facts.ts';
 import type {
   CaptureOutcome,
@@ -120,6 +120,9 @@ export class LocalFixtureCaptureProvider implements CaptureProvider {
       if (shot.ok) {
         observation.screenshot = { body: shot.body, contentType: 'image/png' };
         applyRenderedState(observation.images, shot.measured);
+        // Only present when a renderer ran. Without one there is no layout to measure, and
+        // CE-MOBILE-01 abstains rather than treating "not measured" as "nothing there".
+        observation.layout = shot.layout ?? null;
       } else {
         observation.screenshotUnavailableReason = shot.reason;
       }
@@ -172,6 +175,13 @@ export type RenderResult =
       body: Uint8Array;
       /** Per-image painted state, as the browser reported it. */
       measured: { src: string; rendered: boolean; renderedWidth: number; renderedHeight: number }[];
+      /**
+       * What the page positioned over itself, and the region its own content occupies.
+       *
+       * Measured in the same render that produced the screenshot, so a CE-MOBILE-01 claim and
+       * the image a reviewer looks at are about the same pixels.
+       */
+      layout?: { overlays: OverlayObservation[]; contentRect: Rect | null };
     }
   | { ok: false; reason: string };
 
@@ -238,6 +248,8 @@ function buildObservation(
       structured: extractStructuredFacts(html),
       visible: extractVisibleFacts(html, extractVariant(html)),
     },
+    // Filled in by the renderer, when one ran. Layout cannot be computed from markup alone.
+    layout: null,
     body: buffer,
     screenshot: null,
     screenshotUnavailableReason: null,

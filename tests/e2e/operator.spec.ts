@@ -687,6 +687,22 @@ test.describe('MF-ASSET-01 in the workbench', () => {
       await page.getByRole('tab', { name: 'Evidence' }).click();
     }
 
+    // The render itself succeeded.
+    //
+    // Asserted explicitly because a renderer that throws produces a plausible-looking result:
+    // every image reads "did not render", which is a false positive manufactured by the
+    // measuring instrument. It happened once, from a bundler helper injected into code that
+    // runs inside the page, and only this suite could catch it — the integration suite runs
+    // under a different bundler that does not inject it.
+    const timeline = (await (
+      await page.request.get(`/api/v1/scans/${scanId}/timeline`)
+    ).json()) as {
+      evidence: { kind: string; content_available: boolean }[];
+    };
+    const pageEvidence = timeline.evidence.filter((item) => item.kind === 'screenshot');
+    expect(pageEvidence.length).toBeGreaterThan(0);
+    expect(pageEvidence.every((item) => item.content_available)).toBe(true);
+
     // The page and both of its images each get a row; two clean sessions each.
     const rows = page.locator('.matrix tbody tr');
     await expect(rows).toHaveCount(3);

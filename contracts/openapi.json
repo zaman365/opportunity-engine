@@ -2,8 +2,8 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Opportunity Engine · initial internal API",
-    "version": "2.9.0",
-    "description": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it."
+    "version": "2.10.0",
+    "description": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01, CE-MOBILE-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it."
   },
   "servers": [
     {
@@ -702,7 +702,7 @@
       "post": {
         "operationId": "createScan",
         "summary": "Durably admit bounded scan after authorization and cap checks",
-        "description": "Minimum role: operator. Phase: M1-M2. Membership, purpose, object and budget checks also apply. Detectors are limited to the implemented set — CE-LINK-01, CE-ASSET-01 and CE-DATA-01 — and may be written in either the Consistency Engine namespace or the handoff's venture-scoped one; what is recorded is always the CE- id. Contract only; not a claim this endpoint exists.",
+        "description": "Minimum role: operator. Phase: M1-M2. Membership, purpose, object and budget checks also apply. Detectors are limited to the implemented set — CE-LINK-01, CE-ASSET-01, CE-DATA-01 and CE-MOBILE-01 — and may be written in either the Consistency Engine namespace or the handoff's venture-scoped one; what is recorded is always the CE- id. Requesting CE-MOBILE-01 adds a second pair of captures at a phone viewport: the same page at another screen size, not an extra page. Contract only; not a claim this endpoint exists.",
         "tags": [
           "M1"
         ],
@@ -6239,13 +6239,15 @@
                 "CE-LINK-01",
                 "CE-ASSET-01",
                 "CE-DATA-01",
+                "CE-MOBILE-01",
                 "MF-LINK-01",
                 "MF-ASSET-01",
-                "MF-DATA-01"
+                "MF-DATA-01",
+                "PDP-MOBILE-01"
               ]
             },
             "minItems": 1,
-            "maxItems": 3,
+            "maxItems": 4,
             "uniqueItems": true
           },
           "max_cost": {
@@ -8325,7 +8327,7 @@
               "type": "string"
             },
             "minItems": 1,
-            "maxItems": 3,
+            "maxItems": 4,
             "uniqueItems": true
           },
           "purpose": {

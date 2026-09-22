@@ -1,6 +1,6 @@
 # M2 · Consistency detectors
 
-**3 of 6 built.** Supersedes `opportunity-engine-build-kit/tasks/M2_DETECTORS_AND_OFFERS.md`.
+**4 of 6 built.** Supersedes `opportunity-engine-build-kit/tasks/M2_DETECTORS_AND_OFFERS.md`.
 The offer half of that document is [M4](M4_OFFERS_AND_SERVICE_SCOPE.md) now; it is already
 built, and it was never really a detector milestone.
 

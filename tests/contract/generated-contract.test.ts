@@ -271,19 +271,14 @@ describe('supplied examples and previously valid payloads', () => {
     expect(validate(scan(['MF-ASSET-01']))).toBe(true);
     expect(validate(scan(['MF-LINK-01', 'MF-ASSET-01']))).toBe(true);
     // The Consistency Engine namespace, which is what this build records.
-    expect(validate(scan(['CE-LINK-01', 'CE-ASSET-01', 'CE-DATA-01']))).toBe(true);
+    expect(validate(scan(['CE-LINK-01', 'CE-ASSET-01', 'CE-DATA-01', 'CE-MOBILE-01']))).toBe(true);
     // Either spelling of a built rule is accepted; the handoff's names keep working.
     expect(validate(scan(['MF-DATA-01']))).toBe(true);
+    expect(validate(scan(['PDP-MOBILE-01']))).toBe(true);
     // Specified in contracts/detectors.json, not implemented, so not requestable under any
-    // name. One list drives this enum, admission and the database constraint.
-    for (const detector of [
-      'PDP-CONTENT-01',
-      'PDP-VISUAL-01',
-      'PDP-MOBILE-01',
-      'CE-CONTENT-01',
-      'CE-VISUAL-01',
-      'CE-MOBILE-01',
-    ]) {
+    // name. One list drives this enum, admission and the database constraint. Both remaining
+    // rules turn on a category rubric that does not exist.
+    for (const detector of ['PDP-CONTENT-01', 'PDP-VISUAL-01', 'CE-CONTENT-01', 'CE-VISUAL-01']) {
       expect(validate(scan([detector])), detector).toBe(false);
     }
     // Still bounded: no duplicates, no unbounded list.

@@ -11,8 +11,9 @@ The capability underneath is the **Consistency Engine** — capture, detectors, 
 `tasks/`. The directory and git remote are still named `opportunity-engine`; renaming them is
 a separate, disruptive act and is the owner's to take.
 
-**Status: M0, M1, M3 and M4 complete against local fixtures; M2 at 3 of 6 detectors**
-(`CE-LINK-01`, `CE-ASSET-01`, `CE-DATA-01`, all still accepted under their handoff names).
+**Status: M0, M1, M3 and M4 complete against local fixtures; M2 at 4 of 6 detectors**
+(`CE-LINK-01`, `CE-ASSET-01`, `CE-DATA-01`, `CE-MOBILE-01`, all still accepted under their
+handoff names).
 The offer catalogue, requested intake, protected report delivery and the engagement
 lifecycle are all in place. Nothing is deployed and nothing is sent: a drafted scope is an
 internal record, and no adapter can reach a member of the public. Live capture, cloud
@@ -108,6 +109,10 @@ opportunity-engine-build-kit/   The handoff. Treat as read-only input.
 - **Rewrite a claim somebody confirmed.** Renaming the detector namespace normalised
   configuration and left `oe.findings.detector_id` alone: a reviewer confirmed that claim
   under that id, and comparisons are canonical instead.
+- **Call a sticky header an obstruction.** CE-MOBILE-01 needs an element covering a quarter of
+  a phone screen _and_ overlapping the page's content, in both sessions, with no visible way to
+  close it. It also cannot see overlays added by JavaScript, because captured pages are never
+  executed — and says so in every finding.
 - **Call a price difference a defect when tax could explain it.** CE-DATA-01 refuses a gap any
   EU VAT rate could produce, refuses when two currencies are in view, refuses a price range
   across variants, and refuses an element containing two prices. A false positive here tells a

@@ -263,6 +263,11 @@ describe('image parsing', () => {
 
 describe('implemented detector list', () => {
   it('names only detectors this build actually runs', () => {
-    expect([...IMPLEMENTED_DETECTORS]).toEqual(['CE-LINK-01', 'CE-ASSET-01', 'CE-DATA-01']);
+    expect([...IMPLEMENTED_DETECTORS]).toEqual([
+      'CE-LINK-01',
+      'CE-ASSET-01',
+      'CE-DATA-01',
+      'CE-MOBILE-01',
+    ]);
   });
 });

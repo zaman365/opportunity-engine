@@ -154,6 +154,63 @@ const PAGES = {
       visiblePrice: '89.00',
     }),
 
+  /* ---------------------------------------------- CE-MOBILE-01 fixtures */
+
+  // Known positive: a server-rendered consent bar, fixed to the bottom, covering a third of a
+  // phone screen and overlapping the product content, with no close control anywhere in it.
+  '/product-mobile-blocked': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'A fixed consent bar covers a third of a phone screen and carries no way to close it. Known positive for CE-MOBILE-01.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      overlay: {
+        style:
+          'position:fixed;left:0;right:0;bottom:0;height:34vh;background:#20252b;color:#fff;padding:18px;z-index:50',
+        body: '<p>We use cookies. By continuing you agree to everything, forever, with no way back.</p>',
+      },
+    }),
+
+  // The same bar, with a visible close control. It might vanish on the first tap, and this
+  // rule taps nothing — so it says it cannot tell rather than guessing.
+  '/product-mobile-dismissible': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'The same bar, but with a close button. A rule that does not tap anything cannot say whether it would go away.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      overlay: {
+        style:
+          'position:fixed;left:0;right:0;bottom:0;height:34vh;background:#20252b;color:#fff;padding:18px;z-index:50',
+        body: '<p>We use cookies.</p><button type="button" aria-label="Close">Close</button>',
+      },
+    }),
+
+  // A loading skeleton. Not finished is not an obstruction a visitor would live with.
+  '/product-mobile-loading': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'What covers the page announces itself as a loading state.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      overlay: {
+        attributes: 'aria-busy="true" class="skeleton-overlay"',
+        style: 'position:fixed;inset:0;background:#f4f6f8;z-index:50',
+        body: '<p>Loading…</p>',
+      },
+    }),
+
+  // Normal furniture: a 48-pixel sticky header. Six per cent of a phone screen, and a rule
+  // that called it a defect would be wrong on most sites in existence.
+  '/product-mobile-normal': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'A conventional sticky header, 48 pixels tall. Healthy negative control.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      overlay: {
+        style:
+          'position:sticky;top:0;height:48px;background:#fff;border-bottom:1px solid #dadde2;z-index:50',
+        body: '<p>ATELIER NORD</p>',
+      },
+    }),
+
   // The selected product state differs between requests, so two sessions are not comparable.
   '/product-variant': () => {
     variantFlip += 1;
@@ -234,6 +291,7 @@ function productPage({
   visibleTaxNote = null,
   secondCurrencyNote = null,
   structured = null,
+  overlay = null,
 }) {
   const media = images
     .map((image) => {
@@ -272,6 +330,7 @@ footer{padding:26px 42px;border-top:1px solid #dadde2;font-size:12px;color:#5965
 @media(max-width:650px){.product{grid-template-columns:1fr}main{margin:28px auto;padding:0 20px}}
 </style>
 ${structuredDataBlock(structured, size)}
+${overlay ? `<div ${overlay.attributes ?? ''} style="${overlay.style}">${overlay.body}</div>` : ''}
 <div class="fixture">SYNTHETIC TEST FIXTURE · No real merchant, photography or purchase function</div>
 <header><div class="wordmark">ATELIER NORD</div></header>
 <main><div class="product">

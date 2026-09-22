@@ -311,9 +311,11 @@ describe('detector namespace', () => {
       'CE-LINK-01',
       'CE-ASSET-01',
       'CE-DATA-01',
+      'CE-MOBILE-01',
       'MF-LINK-01',
       'MF-ASSET-01',
       'MF-DATA-01',
+      'PDP-MOBILE-01',
     ]) {
       expect(isImplementedDetector(id), id).toBe(true);
     }

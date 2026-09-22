@@ -1,4 +1,4 @@
-import type { StructuredFacts, VisibleFacts } from '@oe/domain';
+import type { OverlayObservation, Rect, StructuredFacts, VisibleFacts } from '@oe/domain';
 
 /**
  * CaptureProvider port.
@@ -105,6 +105,13 @@ export interface PageObservation {
    * failure — plenty of pages carry no structured data at all.
    */
   productFacts: { structured: StructuredFacts; visible: VisibleFacts } | null;
+  /**
+   * What the page positioned over its own content, measured in the rendered page.
+   *
+   * Null when no renderer ran: CE-MOBILE-01 abstains on that rather than reading "not
+   * measured" as "nothing there".
+   */
+  layout: { overlays: OverlayObservation[]; contentRect: Rect | null } | null;
   /** Raw page bytes, kept only when policy allows persisting the artifact. */
   body: Uint8Array | null;
   screenshot: { body: Uint8Array; contentType: string } | null;

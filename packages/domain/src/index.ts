@@ -22,3 +22,4 @@ export * from './offer-matcher.ts';
 export * from './case-progress.ts';
 export * from './intake.ts';
 export * from './detector-data.ts';
+export * from './detector-mobile.ts';

@@ -35,12 +35,15 @@ import {
   ASSET_DETECTOR_ID,
   DATA_DETECTOR_ID,
   DATA_DETECTOR_VERSION,
+  MOBILE_DETECTOR_ID,
+  MOBILE_DETECTOR_VERSION,
   ASSET_DETECTOR_VERSION,
   classifyLink,
   DETECTOR_ID,
   DETECTOR_VERSION,
   evaluateImportantLink,
   evaluateProductImage,
+  evaluateMobileObstruction,
   evaluateStructuredData,
   nextActionForCase,
   scoreOpportunity,
@@ -48,6 +51,8 @@ import {
   type DataDetectorResult,
   type DataObservation,
   type ImageObservation,
+  type MobileDetectorResult,
+  type MobileObservation,
   type LinkObservation,
 } from '@oe/domain';
 
@@ -78,6 +83,15 @@ export interface RunnerOptions {
 }
 
 const VIEWPORT = { width: 1280, height: 900 };
+
+/**
+ * The phone CE-MOBILE-01 measures at.
+ *
+ * 390×844 is a current mid-size iPhone in CSS pixels, and it is what the browser suite already
+ * uses for its narrow project — so what the detector measures and what a reviewer sees in the
+ * screenshot are the same screen.
+ */
+const MOBILE_VIEWPORT = { width: 390, height: 844 };
 const LOCALE = 'de-DE';
 const LIMITS = {
   timeoutMs: 10_000,
@@ -268,6 +282,30 @@ export class ScanRunner {
       : { reasons: [], checked: false };
     reasons.push(...dataOutcome.reasons);
 
+    // 3d · CE-MOBILE-01, which needs a phone. A different viewport is a different recorded
+    //      condition, so it gets its own pair of captures rather than reinterpreting the
+    //      desktop ones — but it is the same page, so it does not enter the denominator.
+    let mobileOutcome: { reasons: string[]; checked: boolean } = { reasons: [], checked: false };
+    if (requested.has(MOBILE_DETECTOR_ID)) {
+      const mobile = await this.#captureTwice({
+        tenantId,
+        scanId,
+        url: sourceUrl,
+        approvedHosts: account.approved_hosts,
+        accountId: account.id,
+        role: 'source_page',
+        stepPrefix: 'capture:mobile',
+        viewport: MOBILE_VIEWPORT,
+      });
+      reasons.push(...mobile.reasons);
+      mobileOutcome = await this.#detectMobileObstruction(tenantId, scanId, {
+        accountId: account.id,
+        sourceUrl,
+        observations: mobile.mobileObservations,
+      });
+      reasons.push(...mobileOutcome.reasons);
+    }
+
     // 4 · Deterministic detection. Two independent, comparable, complete observations or
     //     the rule abstains — it never guesses from one capture.
     const verdict = requested.has(DETECTOR_ID)
@@ -308,7 +346,9 @@ export class ScanRunner {
     const linkComplete = !requested.has(DETECTOR_ID) || destinationObservations.length >= 2;
     const assetComplete = !requested.has(ASSET_DETECTOR_ID) || assetOutcome.checked > 0;
     const dataComplete = !requested.has(DATA_DETECTOR_ID) || dataOutcome.checked;
-    const complete = capturedPages > 0 && linkComplete && assetComplete && dataComplete;
+    const mobileComplete = !requested.has(MOBILE_DETECTOR_ID) || mobileOutcome.checked;
+    const complete =
+      capturedPages > 0 && linkComplete && assetComplete && dataComplete && mobileComplete;
     const finalState = complete ? 'succeeded' : 'partial';
     if (!complete) {
       reasons.push(
@@ -328,6 +368,8 @@ export class ScanRunner {
     accountId: string;
     role: 'source_page' | 'link_destination';
     stepPrefix: string;
+    /** Defaults to the desktop viewport. A different one is a different recorded condition. */
+    viewport?: { width: number; height: number };
   }): Promise<{
     captured: {
       observation: NonNullable<Extract<CaptureOutcome, { status: 'captured' }>['observation']>;
@@ -337,6 +379,8 @@ export class ScanRunner {
     imageObservations: Map<string, ImageObservation[]>;
     /** What each session read off the page: its markup, and what a person would have seen. */
     dataObservations: DataObservation[];
+    /** What each session found covering the page, at the viewport it was captured in. */
+    mobileObservations: MobileObservation[];
     reasons: string[];
     costMicro: string;
     fatal?: string;
@@ -347,10 +391,15 @@ export class ScanRunner {
     const observations: LinkObservation[] = [];
     const imageObservations = new Map<string, ImageObservation[]>();
     const dataObservations: DataObservation[] = [];
+    const mobileObservations: MobileObservation[] = [];
     const reasons: string[] = [];
     let costMicro = 0n;
 
-    for (const ordinal of [1, 2] as const) {
+    // A capture at a second viewport is a third and fourth clean session of the same scan,
+    // not a repeat of the first two. Distinct ordinals keep their evidence distinct — the
+    // object key is unique per tenant, and reusing an ordinal would collide with the desktop
+    // capture rather than sitting beside it.
+    for (const ordinal of input.viewport ? ([3, 4] as const) : ([1, 2] as const)) {
       const sessionId = `${input.scanId}:${input.role}:${ordinal}`;
       const request: CaptureRequest = {
         url: input.url,
@@ -359,7 +408,7 @@ export class ScanRunner {
         sessionOrdinal: ordinal,
         contextKey: 'pending',
         role: input.role,
-        viewport: VIEWPORT,
+        viewport: input.viewport ?? VIEWPORT,
         locale: LOCALE,
         operationKey: `scan:${input.scanId}:capture`,
         limits: LIMITS,
@@ -381,6 +430,7 @@ export class ScanRunner {
             observations,
             imageObservations,
             dataObservations,
+            mobileObservations,
             reasons,
             costMicro: '0',
             fatal: detail,
@@ -393,7 +443,8 @@ export class ScanRunner {
       costMicro += BigInt(outcome.costMicro);
       // The context key ties the two observations to the same page state. Different
       // variants are not comparable and the detector must abstain.
-      const contextKey = `${new URL(outcome.observation.finalUrl).pathname}|${outcome.conditions.variant ?? 'no-variant'}|${VIEWPORT.width}x${VIEWPORT.height}|${LOCALE}`;
+      const viewport = input.viewport ?? VIEWPORT;
+      const contextKey = `${new URL(outcome.observation.finalUrl).pathname}|${outcome.conditions.variant ?? 'no-variant'}|${viewport.width}x${viewport.height}|${LOCALE}`;
 
       const evidenceId = await this.#persistEvidence({
         tenantId: input.tenantId,
@@ -418,6 +469,21 @@ export class ScanRunner {
           contextKey,
           structured: outcome.observation.productFacts.structured,
           visible: outcome.observation.productFacts.visible,
+          pageComplete: outcome.observation.complete,
+          challenge: outcome.observation.challenge,
+          loginWall: outcome.observation.loginWall,
+        });
+      }
+      if (input.role === 'source_page') {
+        mobileObservations.push({
+          sessionId,
+          evidenceId,
+          capturedAt: outcome.conditions.captured_at,
+          target: input.url,
+          contextKey,
+          viewport,
+          contentRect: outcome.observation.layout?.contentRect ?? null,
+          overlays: outcome.observation.layout?.overlays ?? [],
           pageComplete: outcome.observation.complete,
           challenge: outcome.observation.challenge,
           loginWall: outcome.observation.loginWall,
@@ -494,6 +560,7 @@ export class ScanRunner {
       observations,
       imageObservations,
       dataObservations,
+      mobileObservations,
       reasons,
       costMicro: costMicro.toString(),
     };
@@ -720,6 +787,161 @@ export class ScanRunner {
       reasons,
       checked: explanation !== undefined || input.observations.length >= 2,
     };
+  }
+
+  /**
+   * Run CE-MOBILE-01 over what the phone capture found covering the page.
+   *
+   * One page, one verdict. The rule's own limitations carry the important caveat — elements
+   * added by JavaScript are invisible here, because captured pages are never executed — so
+   * this method does not repeat it in a scan reason where it would be read as a coverage gap.
+   */
+  async #detectMobileObstruction(
+    tenantId: string,
+    scanId: string,
+    input: { accountId: string; sourceUrl: string; observations: MobileObservation[] },
+  ): Promise<{ reasons: string[]; checked: boolean }> {
+    const reasons: string[] = [];
+    const verdict = evaluateMobileObstruction({
+      target: input.sourceUrl,
+      observations: input.observations,
+      now: this.#options.now().toISOString(),
+      maxAgeMs: this.#options.freshnessDays * 86_400_000,
+    });
+
+    await this.#step(tenantId, scanId, `detect:${MOBILE_DETECTOR_ID}`, 'succeeded');
+
+    if (verdict.result === 'candidate') {
+      await this.#recordMobileFinding(tenantId, scanId, { ...input, verdict });
+      return { reasons, checked: true };
+    }
+    if (verdict.result === 'no_finding') {
+      reasons.push(
+        'Nothing covered the page at the recorded phone viewport. The same page at one more viewport is not an extra page.',
+      );
+      return { reasons, checked: true };
+    }
+
+    const explanations: Partial<Record<typeof verdict.reason, string>> = {
+      user_dismissible_overlay_not_tested:
+        'Something covered the page on a phone, but it carried a visible way to close it and nothing was tapped, so no claim is made.',
+      transient_loading:
+        'What covered the page announced itself as a loading state, so it was not treated as an obstruction.',
+      missing_viewport:
+        'No viewport was recorded for the phone capture, so nothing could be measured against it.',
+      content_region_not_established:
+        'The page exposes no main content region, so there was nothing to measure an obstruction against.',
+      obstruction_not_repeated:
+        'Something covered the page in one check and not the other, so it was not treated as persistent.',
+      blocked: 'An access check answered instead of the page, so its layout was not judged.',
+      noncomparable_context:
+        'The page served a different state between phone checks, so its layout was not compared.',
+    };
+    const explanation = explanations[verdict.reason];
+    if (explanation) reasons.push(explanation);
+    return { reasons, checked: explanation !== undefined || input.observations.length >= 2 };
+  }
+
+  async #recordMobileFinding(
+    tenantId: string,
+    scanId: string,
+    input: { accountId: string; sourceUrl: string; verdict: MobileDetectorResult },
+  ): Promise<void> {
+    const { db, now, freshnessDays } = this.#options;
+    const verdict = input.verdict;
+    if (verdict.result !== 'candidate') return;
+
+    await db.withTenant(tenantId, async (tx) => {
+      const rootCauseKey = `mobile-obstruction:${new URL(input.sourceUrl).pathname}`;
+      const evidenceRows = await listEvidenceForScan(tx, scanId);
+      const assetId =
+        evidenceRows.find((row) => row.source_url === input.sourceUrl)?.asset_id ??
+        evidenceRows[0]?.asset_id;
+      if (!assetId) return;
+
+      const finding = await insertFinding(tx, {
+        id: this.#options.newId(),
+        scanId,
+        assetId,
+        detectorId: MOBILE_DETECTOR_ID,
+        detectorVersion: MOBILE_DETECTOR_VERSION,
+        state: 'candidate',
+        rootCauseKey,
+        claim: verdict.claim,
+        scope: `The page at ${input.sourceUrl}, as it arrived at a phone viewport, in two recorded sessions.`,
+        limitations: verdict.limitations,
+        evidenceGrade: verdict.proposed_grade,
+        capturedAt: now().toISOString(),
+        targetUrl: input.sourceUrl,
+        detectorOutput: verdict as unknown as Record<string, unknown>,
+        evidenceFreshUntil: new Date(now().getTime() + freshnessDays * 86_400_000).toISOString(),
+      });
+
+      for (const evidenceId of verdict.evidence_ids) {
+        await linkFindingEvidence(tx, {
+          id: this.#options.newId(),
+          findingId: finding.id,
+          evidenceId,
+          relationship: 'supports',
+        });
+      }
+
+      const existing = await findOpportunityByAccountAndRootCause(tx, {
+        accountId: input.accountId,
+        rootCauseKey,
+      });
+      const opportunityId = existing?.id ?? this.#options.newId();
+      if (!existing) {
+        const scan = await getScan(tx, scanId);
+        const need = aggregateNeed([{ rootCauseKey, severity: 0.5 }]);
+        const priority = scoreOpportunity({
+          fit: 0.9,
+          need: need.need,
+          deliverability: 0.7,
+          timing: null,
+          value: null,
+        });
+        await insertOpportunity(tx, {
+          id: opportunityId,
+          accountId: input.accountId,
+          ventureId: scan!.venture_id,
+          title: 'Something covers the page on a phone',
+          priority: priority as unknown as Record<string, unknown>,
+          permissionState: 'review_allowed',
+          nextAction: 'review_evidence',
+          ownerId: null,
+        });
+      }
+      await linkOpportunityFinding(tx, {
+        id: this.#options.newId(),
+        opportunityId,
+        findingId: finding.id,
+      });
+      if (existing) {
+        const nextAction = nextActionForCase({
+          findingStates: await findingStatesForOpportunity(tx, opportunityId),
+          current: existing.next_action,
+        });
+        if (nextAction !== existing.next_action) {
+          await updateOpportunity(tx, { id: opportunityId, nextAction });
+        }
+      }
+
+      await insertAuditEvent(tx, {
+        id: this.#options.newId(),
+        actorSubject: 'service:scan-runner',
+        action: 'finding.created',
+        objectType: 'finding',
+        objectId: finding.id,
+        objectVersion: finding.version,
+        requestId: `scan:${scanId}`,
+        detail: {
+          detector_id: MOBILE_DETECTOR_ID,
+          detector_version: MOBILE_DETECTOR_VERSION,
+          root_cause_key: rootCauseKey,
+        },
+      });
+    });
   }
 
   async #recordDataFinding(

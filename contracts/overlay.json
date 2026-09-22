@@ -1,7 +1,7 @@
 {
   "$comment": "M2 additions to the build kit's M1 OpenAPI document. See contracts/README.md.",
   "base": "opportunity-engine-build-kit/contracts/openapi.json",
-  "version": "2.9.0",
+  "version": "2.10.0",
   "changes": [
     {
       "op": "set",
@@ -12,7 +12,7 @@
     {
       "op": "set",
       "pointer": "/info/description",
-      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
+      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01, CE-MOBILE-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
       "why": "The served contract now covers three detectors and four milestones' worth of surface. A reader should learn what is in it from the document rather than from a commit log."
     },
     {
@@ -25,22 +25,24 @@
             "CE-LINK-01",
             "CE-ASSET-01",
             "CE-DATA-01",
+            "CE-MOBILE-01",
             "MF-LINK-01",
             "MF-ASSET-01",
-            "MF-DATA-01"
+            "MF-DATA-01",
+            "PDP-MOBILE-01"
           ]
         },
         "minItems": 1,
-        "maxItems": 3,
+        "maxItems": 4,
         "uniqueItems": true
       },
-      "why": "CE-DATA-01 ships in this commit with its rule, its fixtures and its tests, so the enum it is requestable through moves with it. The handoff's MF- spellings stay valid input. The three detectors that remain specified-but-unbuilt stay unrequestable under either namespace."
+      "why": "CE-MOBILE-01 ships in this commit with its rule, its fixtures and its tests, so the enum it is requestable through moves with it. Its handoff spelling PDP-MOBILE-01 stays valid input. CE-CONTENT-01 and CE-VISUAL-01 stay unrequestable under either namespace: both turn on a category rubric that does not exist, and shipping them without one would assert taste as defect."
     },
     {
       "op": "set",
       "pointer": "/paths/~1v1~1scans/post/description",
-      "value": "Minimum role: operator. Phase: M1-M2. Membership, purpose, object and budget checks also apply. Detectors are limited to the implemented set \u2014 CE-LINK-01, CE-ASSET-01 and CE-DATA-01 \u2014 and may be written in either the Consistency Engine namespace or the handoff's venture-scoped one; what is recorded is always the CE- id. Contract only; not a claim this endpoint exists.",
-      "why": "CE-DATA-01 ships in this commit with its rule, its fixtures and its tests, so the enum it is requestable through moves with it. The handoff's MF- spellings stay valid input. The three detectors that remain specified-but-unbuilt stay unrequestable under either namespace."
+      "value": "Minimum role: operator. Phase: M1-M2. Membership, purpose, object and budget checks also apply. Detectors are limited to the implemented set \u2014 CE-LINK-01, CE-ASSET-01, CE-DATA-01 and CE-MOBILE-01 \u2014 and may be written in either the Consistency Engine namespace or the handoff's venture-scoped one; what is recorded is always the CE- id. Requesting CE-MOBILE-01 adds a second pair of captures at a phone viewport: the same page at another screen size, not an extra page. Contract only; not a claim this endpoint exists.",
+      "why": "CE-MOBILE-01 ships in this commit with its rule, its fixtures and its tests, so the enum it is requestable through moves with it. Its handoff spelling PDP-MOBILE-01 stays valid input. CE-CONTENT-01 and CE-VISUAL-01 stay unrequestable under either namespace: both turn on a category rubric that does not exist, and shipping them without one would assert taste as defect."
     },
     {
       "op": "add",
@@ -993,7 +995,7 @@
     {
       "op": "set",
       "pointer": "/info/description",
-      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
+      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01, CE-MOBILE-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
       "why": "The served contract now covers three detectors and four milestones' worth of surface. A reader should learn what is in it from the document rather than from a commit log."
     },
     {
@@ -2045,7 +2047,7 @@
               "type": "string"
             },
             "minItems": 1,
-            "maxItems": 3,
+            "maxItems": 4,
             "uniqueItems": true
           },
           "purpose": {
@@ -3444,13 +3446,13 @@
     {
       "op": "set",
       "pointer": "/info/description",
-      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
+      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01, CE-MOBILE-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
       "why": "The served contract now covers three detectors and four milestones' worth of surface. A reader should learn what is in it from the document rather than from a commit log."
     },
     {
       "op": "set",
       "pointer": "/info/description",
-      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
+      "value": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01, CE-MOBILE-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it.",
       "why": "The served contract now covers three detectors and four milestones' worth of surface. A reader should learn what is in it from the document rather than from a commit log."
     },
     {
@@ -5229,6 +5231,12 @@
       "pointer": "/info/version",
       "value": "2.9.0",
       "why": "CE-DATA-01 becomes requestable. The enum widens; nothing it accepted before is refused."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/version",
+      "value": "2.10.0",
+      "why": "CE-MOBILE-01 becomes requestable. The enum widens; nothing it accepted before is refused."
     }
   ]
 }

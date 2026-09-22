@@ -10,7 +10,7 @@
 > This kit is left byte-identical apart from this file, which it instructs agents to update,
 > so it stays the record of what the handoff actually said.
 
-**Kit version 2.0 · last session 22 September 2026 (M3, M4 and the third detector)**
+**Kit version 2.0 · last session 22 September 2026 (M3, M4 and four of six detectors)**
 
 ## Completed in this kit
 
@@ -25,9 +25,9 @@ VERIFICATION.md.
 |---|---|
 | Production application scaffold | **Built** · monorepo, pinned versions, lockfile, real build/type/lint/test scripts |
 | Live authentication/membership | **Partly** · Access JWT verification implemented (jose, pinned issuer/audience/algorithms) but never exercised against a real Access deployment. The local fixture identity is the only path actually run |
-| Production database/migrations | **Local only** · 14 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
+| Production database/migrations | **Local only** · 15 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
 | Live public scan adapter | **Not implemented** · `BrowserRunCaptureProvider` runs the address policy then reports `not_configured`. No egress-boundary proof, no credentials |
-| Detectors | **3 of 6 implemented** · `CE-LINK-01`, `CE-ASSET-01` and `CE-DATA-01` (accepted also under their handoff names), each with a known positive, a healthy negative and one control per declared abstention. The other three are specified and unrequestable under either namespace |
+| Detectors | **4 of 6 implemented** · `CE-LINK-01`, `CE-ASSET-01`, `CE-DATA-01` and `CE-MOBILE-01` (accepted also under their handoff names), each with a known positive, a healthy negative and one control per declared abstention. `CE-CONTENT-01` and `CE-VISUAL-01` are unrequestable and blocked on a category rubric that does not exist |
 | Persistent budget enforcement | **Implemented and tested** · SQL command functions, runtime holds `SELECT` only, concurrency asserted against real connections |
 | Human review and reports | **Implemented and tested** · versioned review with optimistic locking, immutable hash-bound report snapshot |
 | Requested intake | **Implemented and tested, local only** · public submission, four rate-limit windows, hashed single-use codes, host-bound tenant resolution. No adapter can reach a member of the public: the only working verification channel returns the code to the caller and refuses to construct outside `APP_ENV=local` |
@@ -39,6 +39,81 @@ VERIFICATION.md.
 | Commercial prices | **Provisional** · EUR 290 / EUR 190 net, approved in `config/offer-approvals.json`. **VAT treatment unconfirmed** and recorded as open in both approval notes |
 | OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely, now for a legal reason as well as a design one (`docs/legal/DACH_OUTREACH_STUDY.md`) |
 | Production deployment | **Not performed** · no cloud resource was created or contacted |
+
+## Session log · 22 September 2026 · CE-MOBILE-01, and a bug it exposed
+
+**Agent:** Claude Opus 5 · **branch:** main.
+
+### A correction first
+
+The previous log said all three remaining detectors were blocked on a category rubric. That
+was wrong. `CE-MOBILE-01` measures whether something covers the page at a phone viewport, which
+is geometry, not taste — it needed no rubric and has now been built. `CE-CONTENT-01` and
+`CE-VISUAL-01` genuinely do.
+
+### What was built
+
+CE-MOBILE-01. An obstruction is an element covering at least a quarter of the viewport *and*
+overlapping at least a tenth of the page's content, present in both sessions, with no visible
+way to close it. A 48-pixel sticky header is 6% of a phone screen and is furniture — a rule
+that flagged those would be wrong on nearly every site in existence.
+
+Requesting it adds a second pair of captures at 390×844: the same page at another screen size,
+which gets its own evidence at session ordinals 3 and 4 but does not enter the coverage
+denominator. [ADR-025](../docs/adr/ADR-025-mobile-detector.md).
+
+### The bug this exposed, which matters more than the detector
+
+While wiring the layout measurement, **every image on every page started reading as "did not
+render"**. The cause was `ReferenceError: __name is not defined`: the in-page measurement code
+declared named inner functions, the bundler rewrote them to call its own helper, and the helper
+does not exist inside a browser page. The whole render threw.
+
+Three things make it worth recording:
+
+1. **It produced a plausible-looking result** — a grid of images all reporting "did not
+   render". A false positive manufactured by the measuring instrument, on the exact claim the
+   detector exists to make.
+2. **Only the browser suite could catch it.** The integration suite runs under a bundler that
+   does not inject that helper, and passed throughout.
+3. **It was invisible until something looked at a healthy image.** Every test asserting a
+   *broken* image still passed, because a broken image and a broken renderer give the same
+   answer.
+
+Fixed, with a comment saying why, and the browser suite now asserts explicitly that the render
+succeeded — so a recurrence fails on the cause rather than on a symptom.
+
+### The intermittent failures, probably explained
+
+The same work replaced the renderer's fixed 500 ms settle wait with a bounded poll for every
+image request to settle. That fixed interval is the most likely cause of the browser-suite
+failures recorded three times in the logs below: enough on an idle machine, not always enough
+on a busy one. Since the change the suite has run clean twice consecutively and dropped from
+about 80 seconds to 48.
+
+Stated as the probable cause, not a proven one. Those failures were never reproducible on
+demand, which is exactly why they went unexplained for so long.
+
+### Commands run and actual results
+
+| Command | Result |
+|---|---|
+| `npm run verify` | Clean: typecheck, lint, format, contract, build, all four suites |
+| `npm run test:unit` | **250 passed** (232 → 250) |
+| `npm run test:contract` | **52 passed** |
+| `npm run test:db` | **79 passed** |
+| `npm run test:integration` | **164 passed** (156 → 164) |
+| `npm run test:e2e` | **27 passed, 7 skipped**, twice consecutively from a clean database |
+
+### What is left
+
+| Left | Blocked on |
+|---|---|
+| `CE-CONTENT-01`, `CE-VISUAL-01` | A category rubric that does not exist. A product decision before an engineering task |
+| Live capture | Owner authorization, Browser Run credentials, demonstrated deny-private-network egress (ADR-005) |
+| `POST /v1/engagements/{id}/verify` | Live capture, under the same recorded conditions |
+| German copy at length | Nothing; no German report has been rendered or reviewed |
+| M5 monitoring, M6 pilot | Live capture, and real paying customers |
 
 ## Session log · 22 September 2026 · CE-DATA-01
 
@@ -92,7 +167,7 @@ rule's limitations rather than faked with a string match.
 
 | Left | Blocked on |
 |---|---|
-| `CE-CONTENT-01`, `CE-VISUAL-01`, `CE-MOBILE-01` | **A category rubric that does not exist.** All three turn on what a buyer of a particular kind of thing needs to see. Writing that is a product decision before it is an engineering task, and writing it badly produces a detector that asserts taste as defect |
+| ~~`CE-CONTENT-01`, `CE-VISUAL-01`, `CE-MOBILE-01`~~ | **Corrected in the next session.** `CE-MOBILE-01` does not need a rubric — it measures an obstruction, which is geometry — and has since been built. The claim that all three were blocked was wrong |
 | Live capture | Owner authorization, Browser Run credentials, demonstrated deny-private-network egress (ADR-005) |
 | `POST /v1/engagements/{id}/verify` | Live capture, under the same recorded conditions |
 | German copy at length | Nothing; no German report has been rendered or reviewed |
