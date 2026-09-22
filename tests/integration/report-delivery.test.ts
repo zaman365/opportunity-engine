@@ -486,3 +486,117 @@ describe('version binding', () => {
     expect((await read(live.token)).status).toBe(404);
   });
 });
+
+/**
+ * A German report, end to end.
+ *
+ * The frame is this system's own words and is translated. A confirmed finding is not: it is
+ * the exact text a reviewer put their name to, and the document says so rather than mixing
+ * languages silently or inventing a translation nobody checked.
+ */
+describe('a report in German', () => {
+  it('writes its frame in German and says why the findings are not', async () => {
+    const scan = await h.json<Scan>(
+      await h.request(
+        `/api/v1/scans/${
+          (
+            await h.json<Scan>(
+              await h.request('/api/v1/scans', {
+                method: 'POST',
+                body: JSON.stringify(scanRequest()),
+              }),
+            )
+          ).id
+        }`,
+      ),
+    );
+    await h.drain();
+    const refreshed = await h.json<Scan>(await h.request(`/api/v1/scans/${scan.id}`));
+    const findingId = refreshed.finding_ids[0]!;
+    const finding = await h.json<Finding>(
+      await h.request(`/api/v1/findings/${findingId}/review`, {
+        method: 'POST',
+        subject: 'reviewer@fixture.test',
+        body: JSON.stringify({
+          expected_version: 1,
+          decision: 'confirm',
+          reason: 'Both recorded checks returned 404 for the linked size guide.',
+          acknowledged_limitations: true,
+        }),
+      }),
+    );
+
+    const german = await h.json<Report>(
+      await h.request('/api/v1/reports', {
+        method: 'POST',
+        subject: 'reviewer@fixture.test',
+        body: JSON.stringify({
+          account_id: refreshed.account_id,
+          scan_id: refreshed.id,
+          finding_versions: [{ finding_id: finding.id, version: finding.version }],
+          language: 'de',
+          scope_summary:
+            'Wir haben eine Produktseite und die daraus verlinkte Informationsseite geprüft.',
+        }),
+      }),
+    );
+    expect(german.language).toBe('de');
+    expect(german.limitations.join(' ')).toContain('Umsatz wurde nicht gemessen');
+    expect(german.findings_language_note).toContain('nicht übersetzt');
+
+    for (const step of ['approve', 'publish']) {
+      const current = await h.json<Report>(await h.request(`/api/v1/reports/${german.id}`));
+      const response = await h.request(`/api/v1/reports/${german.id}/${step}`, {
+        method: 'POST',
+        subject: 'reviewer@fixture.test',
+        body: JSON.stringify({ expected_version: current.version }),
+      });
+      expect(response.status, `${step}: ${await response.clone().text()}`).toBe(200);
+    }
+
+    const issued = await h.json<IssuedReportGrant>(
+      await h.request(`/api/v1/reports/${german.id}/grants`, {
+        method: 'POST',
+        subject: 'reviewer@fixture.test',
+        body: JSON.stringify({
+          recipient_note: 'German report case',
+          recipient_ref: 'deutsch@example.com',
+        }),
+      }),
+    );
+
+    const page = await h.app.fetch(new Request(`http://127.0.0.1:4173/r/${issued.token}`));
+    expect(page.status).toBe(200);
+    const html = await page.text();
+
+    expect(html).toContain('lang="de"');
+    expect(html).toContain('Was wir geprüft haben');
+    expect(html).toContain('Was daraus nicht folgt');
+    expect(html).toContain('Was wir nicht getan haben');
+    // The limitations render in German, including the one a careless translation drops.
+    expect(html).toContain('Umsatz wurde nicht gemessen');
+    expect(html).toContain('An der geprüften Website wurde nichts verändert');
+    // And no English heading leaked through.
+    expect(html).not.toContain('What we inspected');
+    expect(html).not.toContain('What this does not establish');
+
+    // The finding itself is the reviewer's English text, presented under a note that says so.
+    expect(html).toContain('nicht übersetzt');
+    expect(html).toContain('404');
+  });
+
+  it('serves the invalid-link page in German when asked for one', async () => {
+    // Nothing identifies a reader, so a bad token cannot know which language to answer in;
+    // English is the default and the query is how a venture site asks for the other.
+    const bad = 'a'.repeat(43);
+    const english = await h.app.fetch(new Request(`http://127.0.0.1:4173/r/${bad}`));
+    expect(await english.text()).toContain('This link is not available');
+
+    const german = await h.app.fetch(new Request(`http://127.0.0.1:4173/r/${bad}?lang=de`));
+    const html = await german.text();
+    expect(german.status).toBe(404);
+    expect(html).toContain('Dieser Link ist nicht verfügbar');
+    // It still says nothing about whether the report existed.
+    expect(html).not.toMatch(/widerrufen von|abgelaufen am|kein solcher/i);
+  });
+});

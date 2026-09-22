@@ -14,6 +14,10 @@
  * - **Write its own disclosure.** The purpose text comes from `GET /public/intake/form` and is
  *   rendered as text. A host page that could supply its own wording could promise anything in
  *   this system's name; a host page that could style it could hide it.
+ * - **Choose its own language.** The labels come from the same endpoint, in the language the
+ *   channel is registered with. A German venture site gets a German form; nothing about the
+ *   embedding page decides that, because a form whose labels a host could rewrite is a form
+ *   whose privacy sentence a host could rewrite.
  * - **Pre-tick anything.** Asking for a check is not agreeing to be marketed to, and the form
  *   has no marketing checkbox at all — not an unticked one.
  */
@@ -74,20 +78,22 @@ const SCRIPT = String.raw`
     .then(render)
     .catch(function () {
       // A form that cannot state its own scope does not render. Showing input fields without
-      // the disclosure would collect an address under terms nobody was shown.
+      // the disclosure would collect an address under terms nobody was shown — and this
+      // sentence is the one string the script owns, because there is nothing to fetch it from.
       el.appendChild(text('p', 'This form is not available right now.'));
     });
 
   function render(form) {
-    el.appendChild(text('h2', 'Request a check'));
-    el.appendChild(text('p', 'We will look at one page and tell you what we observed.'));
+    var copy = form.copy;
+    el.appendChild(text('h2', copy.heading));
+    el.appendChild(text('p', copy.intro));
     el.appendChild(text('p', form.purpose_text, 'scope'));
 
     var fields = [
-      ['target_url', 'The page to check', 'input', 'https://'],
-      ['contact_email', 'Where to send the result', 'input', 'you@example.com'],
-      ['purpose', 'What made you ask', 'textarea', ''],
-      ['authority_claim', 'Your connection to this site', 'textarea', ''],
+      ['target_url', copy.targetUrl, 'input', 'https://'],
+      ['contact_email', copy.contactEmail, 'input', 'you@example.com'],
+      ['purpose', copy.purpose, 'textarea', ''],
+      ['authority_claim', copy.authority, 'textarea', ''],
     ];
     var inputs = {};
     fields.forEach(function (f) {
@@ -104,19 +110,14 @@ const SCRIPT = String.raw`
       el.appendChild(input);
     });
 
-    var button = text('button', 'Request a check');
+    var button = text('button', copy.submit);
     button.type = 'button';
     el.appendChild(button);
-    el.appendChild(
-      text(
-        'p',
-        'We use your address to send you this result and nothing else. Asking for a check does not sign you up for anything.',
-        'scope',
-      ),
-    );
+    el.appendChild(text('p', copy.privacy, 'scope'));
 
     button.addEventListener('click', function () {
       button.disabled = true;
+      button.textContent = copy.submitting;
       var payload = {
         target_url: inputs.target_url.value.trim(),
         contact_email: inputs.contact_email.value.trim(),
@@ -134,27 +135,27 @@ const SCRIPT = String.raw`
         .then(function (result) {
           if (!result.ok) {
             button.disabled = false;
+            button.textContent = copy.submit;
             // The API's own sentence, which is written for a person and says nothing about
             // this system's internals.
-            say(result.body.detail || 'That request could not be accepted.', false);
+            say(result.body.detail || copy.failed, false);
             return;
           }
           el.textContent = '';
-          el.appendChild(text('h2', 'Check your inbox'));
-          el.appendChild(
-            text('p', 'We sent a six-digit code to confirm the address you gave. It is good for ten minutes.'),
-          );
+          el.appendChild(text('h2', copy.sent));
+          el.appendChild(text('p', copy.sentBody));
           if (result.body.local_verification_code) {
             // Only ever present under the local fixture channel, which sends nothing. A
             // deployed build has no channel that returns a code, so this never renders there.
             el.appendChild(
-              text('p', 'Local fixture: the code is ' + result.body.local_verification_code, 'scope'),
+              text('p', copy.localCode + ' ' + result.body.local_verification_code, 'scope'),
             );
           }
         })
         .catch(function () {
           button.disabled = false;
-          say('That request could not be sent. Check your connection and try again.', false);
+          button.textContent = copy.submit;
+          say(copy.failed, false);
         });
     });
   }

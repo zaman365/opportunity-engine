@@ -1,7 +1,7 @@
 {
   "$comment": "M2 additions to the build kit's M1 OpenAPI document. See contracts/README.md.",
   "base": "opportunity-engine-build-kit/contracts/openapi.json",
-  "version": "2.10.0",
+  "version": "2.11.0",
   "changes": [
     {
       "op": "set",
@@ -2022,9 +2022,24 @@
               "type": "string"
             },
             "minItems": 1
+          },
+          "language": {
+            "enum": ["en", "de"]
+          },
+          "copy": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The form's own labels, in the channel's language. Served rather than bundled, so a host page cannot rewrite the privacy sentence by shipping its own copy of the script."
           }
         },
-        "required": ["host", "purpose_text", "allowed_detectors", "purpose_version"]
+        "required": [
+          "host",
+          "purpose_text",
+          "allowed_detectors",
+          "purpose_version",
+          "language",
+          "copy"
+        ]
       },
       "why": "M3 adds a requested-intake surface, which needs shapes for the public form, the submission, the one-time code and the operator's queue. Additive: no payload the M1 contract accepted is affected, and the public request body deliberately has no tenant, venture or account field."
     },
@@ -2364,6 +2379,9 @@
           "daily_request_limit": {
             "type": "integer",
             "minimum": 0
+          },
+          "language": {
+            "enum": ["en", "de"]
           }
         },
         "required": [
@@ -2374,7 +2392,8 @@
           "purpose_text",
           "purpose_version",
           "allowed_detectors",
-          "daily_request_limit"
+          "daily_request_limit",
+          "language"
         ]
       },
       "why": "M3 adds a requested-intake surface, which needs shapes for the public form, the submission, the one-time code and the operator's queue. Additive: no payload the M1 contract accepted is affected, and the public request body deliberately has no tenant, venture or account field."
@@ -5237,6 +5256,28 @@
       "pointer": "/info/version",
       "value": "2.10.0",
       "why": "CE-MOBILE-01 becomes requestable. The enum widens; nothing it accepted before is refused."
+    },
+    {
+      "op": "add",
+      "pointer": "/components/schemas/Report/properties/findings_language_note",
+      "value": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Why the findings in this report may not be in its language. A confirmed claim is reproduced in the language it was confirmed in, because a translated claim is not the one anybody checked."
+      },
+      "why": "A German report carries an English finding when that is what a reviewer confirmed. Saying so in the document is better than a silent mix, and better than a translation nobody checked."
+    },
+    {
+      "op": "set",
+      "pointer": "/info/version",
+      "value": "2.11.0",
+      "why": "German copy for the report frame, the customer-facing page and the embedded form. Additive: a response gains fields, and no request changes."
     }
   ]
 }

@@ -12,6 +12,7 @@ import {
   type QueryExecutor,
   type ReportRow,
 } from '@oe/db';
+import { fill, REPORT_FRAME } from '../copy.ts';
 import { ApiProblem } from '../problem.ts';
 import type { AppDependencies, RequestActor } from '../context.ts';
 
@@ -62,21 +63,24 @@ export interface ReportBody {
   }[];
   /** Present and explicit when the inspected sample supported no defect. */
   no_supported_defect: boolean;
+  /**
+   * Why the findings below may not be in the report's language.
+   *
+   * Null when there are none. A confirmed claim is reproduced in the language it was confirmed
+   * in, because a translated claim is not the one anybody checked.
+   */
+  findings_language_note: string | null;
   exclusions: string[];
   limitations: string[];
 }
 
-const BASE_LIMITATIONS = [
-  'Only the pages, links and assets listed under "inspected" were checked.',
-  'The effect on sales has not been measured.',
-  'Private account configuration was not inspected.',
-];
-
-const EXCLUSIONS = [
-  'No change was made to the inspected site.',
-  'No private or logged-in area was accessed.',
-  'This assessment is not a guarantee of platform approval, compliance or revenue.',
-];
+/**
+ * The frame — headings, limitations, exclusions — is written in the report's language.
+ *
+ * A confirmed finding's claim is not. That text is what a reviewer read and put their name to,
+ * and translating it afterwards would produce a sentence nobody confirmed in a document whose
+ * value is that somebody did. `findings_language_note` says so where a reader will see it.
+ */
 
 export async function createReport(
   tx: QueryExecutor,
@@ -164,10 +168,11 @@ export async function createReport(
   }
 
   const partialReasons = Array.isArray(scan.reasons) ? scan.reasons.map(String) : [];
+  const frame = REPORT_FRAME[input.body.language];
   const body: ReportBody = {
     // Neutral: one report can carry link findings, image findings, or neither, and the title
     // must not describe a scope the scan did not have.
-    title: `${account.name} · inspected pages and assets`,
+    title: fill(frame.title, { account: account.name }),
     scope_summary: input.body.scope_summary,
     as_of: asOf,
     language: input.body.language,
@@ -181,14 +186,21 @@ export async function createReport(
     // COPY.md: "No supported defect was found in the inspected sample" — scope-limited, not
     // a statement that the store is healthy.
     no_supported_defect: confirmed.length === 0,
-    exclusions: EXCLUSIONS,
+    exclusions: frame.exclusions,
     limitations:
       scan.captured_unique_pages < scan.expected_unique_pages
         ? [
-            ...BASE_LIMITATIONS,
-            `${scan.captured_unique_pages} of ${scan.expected_unique_pages} pages were captured. The remaining pages could not be inspected.`,
+            ...frame.baseLimitations,
+            fill(frame.partialPages, {
+              captured: scan.captured_unique_pages,
+              expected: scan.expected_unique_pages,
+            }),
           ]
-        : BASE_LIMITATIONS,
+        : frame.baseLimitations,
+    // Present whenever there is something whose language could differ from the frame's: a
+    // confirmed claim, or a note the scan recorded about its own coverage.
+    findings_language_note:
+      confirmed.length > 0 || partialReasons.length > 0 ? frame.findingsLanguageNote : null,
   };
 
   const bodySha256 = createHash('sha256').update(canonical(body)).digest('hex');
@@ -200,6 +212,7 @@ export async function createReport(
     snapshot: {
       scope_summary: input.body.scope_summary,
       limitations: body.limitations,
+      findings_language_note: body.findings_language_note,
       as_of: asOf,
       reviewer_membership_id: input.actor.membership.membershipId,
       detector_versions: [

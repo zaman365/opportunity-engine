@@ -190,7 +190,11 @@ export function toReport(
   row: ReportRow,
   findingVersions: { finding_id: string; finding_version: number }[],
 ): Report {
-  const snapshot = row.snapshot as { scope_summary?: string; limitations?: string[] };
+  const snapshot = row.snapshot as {
+    scope_summary?: string;
+    limitations?: string[];
+    findings_language_note?: unknown;
+  };
   return {
     id: row.id,
     account_id: row.account_id,
@@ -210,6 +214,8 @@ export function toReport(
     limitations: snapshot.limitations?.length
       ? snapshot.limitations
       : ['No limitations were recorded for this report.'],
+    findings_language_note:
+      typeof snapshot.findings_language_note === 'string' ? snapshot.findings_language_note : null,
   };
 }
 
@@ -432,6 +438,7 @@ export function toIntakeChannel(row: IntakeChannelRow): IntakeChannel {
     purpose_version: row.purpose_version,
     allowed_detectors: row.allowed_detectors,
     daily_request_limit: row.daily_request_limit,
+    language: row.language,
   };
 }
 

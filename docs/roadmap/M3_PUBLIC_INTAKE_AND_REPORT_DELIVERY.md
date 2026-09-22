@@ -63,9 +63,12 @@ build step, and nothing configurable that matters:
 - One scoped CORS allowance, granted only to origins whose host has a registered, enabled
   channel, with `credentials: 'omit'` so no session could ride along if one existed.
 
-**Still owed:** German copy at length. The report template supports `de` and the schema carries
-it, but no German report has been rendered or reviewed, and the embed's own strings are English
-only.
+### German copy — **done**
+
+The report frame, the customer-facing page and the form's labels are written in the report's
+or the channel's language. A confirmed claim is not translated: it is the exact text a reviewer
+put their name to, and the document says so above it.
+[ADR-026](../adr/ADR-026-german-copy.md).
 
 ## Explicitly not in M3
 

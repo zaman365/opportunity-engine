@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Opportunity Engine · initial internal API",
-    "version": "2.10.0",
+    "version": "2.11.0",
     "description": "Generated from the build kit's M1 contract plus contracts/overlay.json. This is the Brand Consistency Scanner's API; the capability beneath it is the Consistency Engine, whose detector namespace is CE-. Implemented detectors: CE-LINK-01, CE-ASSET-01, CE-DATA-01, CE-MOBILE-01 (accepted also under their handoff names). Adds the M2 offer catalogue, the M3 requested-intake surface and protected report delivery, and the M4 engagement lifecycle. Operations under /public and /r have no authenticated actor and carry x-protected-by instead of x-minimum-role. Contract only; an operation appearing here is not a claim that a deployment serves it."
   },
   "servers": [
@@ -7297,6 +7297,17 @@
               "maxLength": 2000
             },
             "minItems": 1
+          },
+          "findings_language_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the findings in this report may not be in its language. A confirmed claim is reproduced in the language it was confirmed in, because a translated claim is not the one anybody checked."
           }
         },
         "required": [
@@ -8302,13 +8313,26 @@
               "type": "string"
             },
             "minItems": 1
+          },
+          "language": {
+            "enum": [
+              "en",
+              "de"
+            ]
+          },
+          "copy": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The form's own labels, in the channel's language. Served rather than bundled, so a host page cannot rewrite the privacy sentence by shipping its own copy of the script."
           }
         },
         "required": [
           "host",
           "purpose_text",
           "allowed_detectors",
-          "purpose_version"
+          "purpose_version",
+          "language",
+          "copy"
         ]
       },
       "SubmitIntakeRequest": {
@@ -8634,6 +8658,12 @@
           "daily_request_limit": {
             "type": "integer",
             "minimum": 0
+          },
+          "language": {
+            "enum": [
+              "en",
+              "de"
+            ]
           }
         },
         "required": [
@@ -8644,7 +8674,8 @@
           "purpose_text",
           "purpose_version",
           "allowed_detectors",
-          "daily_request_limit"
+          "daily_request_limit",
+          "language"
         ]
       },
       "IntakeChannels": {

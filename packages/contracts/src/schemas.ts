@@ -402,6 +402,17 @@ export const Report = z
     published_at: z.union([DateTime, z.null()]),
     audience: z.literal('internal_tenant'),
     limitations: z.array(z.string().min(1).max(2000)).min(1),
+    /**
+     * Why this report's findings may not be in its language.
+     *
+     * A confirmed claim is reproduced in the language it was confirmed in: translating it
+     * would produce a sentence nobody checked, in a document whose value is that somebody did.
+     *
+     * Optional rather than required, because the handoff's own example payloads predate it and
+     * must keep validating — widening a response may add what a server sends, never remove
+     * what a client was allowed to omit.
+     */
+    findings_language_note: z.union([z.string(), z.null()]).optional(),
   })
   .strict();
 export type Report = z.infer<typeof Report>;
@@ -660,6 +671,9 @@ export type Authorizations = z.infer<typeof Authorizations>;
 export const IntakeForm = z
   .object({
     host: z.string(),
+    language: ReportLanguage,
+    /** The form's labels, served rather than bundled so a host page cannot rewrite them. */
+    copy: z.record(z.string(), z.unknown()),
     /** What a requester must be shown before submitting. Minimum length is the contract. */
     purpose_text: z.string().min(40),
     purpose_version: z.number().int().min(1),
@@ -757,6 +771,7 @@ export const IntakeChannel = z
     purpose_version: z.number().int().min(1),
     allowed_detectors: z.array(z.string()),
     daily_request_limit: z.number().int().min(0),
+    language: ReportLanguage,
   })
   .strict();
 export type IntakeChannel = z.infer<typeof IntakeChannel>;

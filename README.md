@@ -137,6 +137,9 @@ opportunity-engine-build-kit/   The handoff. Treat as read-only input.
   tenant field in any public request body.
 - **Infer marketing consent from a request for a check.** The column is absent from the
   submission path entirely, and carries a constraint requiring a timestamp beside it.
+- **Translate a claim somebody confirmed.** A report's frame is written in its own language;
+  a finding is reproduced in the language a reviewer confirmed it in, above a note saying why.
+  A translated claim is not the claim anybody checked.
 - **Send anything.** There is no outbound adapter, no mail, no webhook and no customer
   billing. The verification-code port has one implementation that refuses and one that
   returns the code to the caller and will not construct outside `APP_ENV=local`.

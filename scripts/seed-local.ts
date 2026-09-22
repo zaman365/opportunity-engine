@@ -97,6 +97,7 @@ export async function seedLocal(connectionString: string): Promise<void> {
       ventureSlug: 'marktfix',
       intakeChannelId: LOCAL_FIXTURE.intakeChannelA,
       intakeHost: 'intake-a.fixture.test',
+      intakeLanguage: 'en',
       // The same workspace, a second brand. Both are IntelligentLab's, which is why the
       // catalogue splits across them and membership is assigned per venture.
       secondaryVentures: [{ id: LOCAL_FIXTURE.venturePdpA, slug: 'pdp-studio' }],
@@ -123,6 +124,7 @@ export async function seedLocal(connectionString: string): Promise<void> {
       ventureSlug: 'modewerk',
       intakeChannelId: LOCAL_FIXTURE.intakeChannelB,
       intakeHost: 'intake-b.fixture.test',
+      intakeLanguage: 'de',
       secondaryVentures: [],
       accountId: LOCAL_FIXTURE.accountB,
       accountName: 'Modewerk Studio (synthetic fixture)',
@@ -156,6 +158,8 @@ interface TenantSeed {
   ventureBudgetId: string;
   intakeChannelId: string;
   intakeHost: string;
+  /** One fixture channel in each language, so both forms are exercised locally. */
+  intakeLanguage: 'en' | 'de';
   catalog: MergedOffer[];
   members: { id: string; subject: string; role: 'owner' | 'operator' | 'reviewer' | 'viewer' }[];
 }
@@ -270,8 +274,8 @@ async function seedIntakeChannel(client: pg.Client, seed: TenantSeed): Promise<v
   await client.query(
     `INSERT INTO oe.intake_channels
        (tenant_id, id, venture_id, host, enabled, purpose_text, allowed_detectors,
-        daily_request_limit, created_by)
-     VALUES ($1, $2, $3, $4, true, $5, $6::text[], 500, $7)
+        daily_request_limit, created_by, language)
+     VALUES ($1, $2, $3, $4, true, $5, $6::text[], 500, $7, $8)
      ON CONFLICT (tenant_id, id) DO NOTHING`,
     [
       seed.tenantId,
@@ -284,6 +288,7 @@ async function seedIntakeChannel(client: pg.Client, seed: TenantSeed): Promise<v
         'and nothing else, and asking for a check does not sign you up for anything.',
       ['CE-LINK-01', 'CE-ASSET-01'],
       owner.id,
+      seed.intakeLanguage,
     ],
   );
 }

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { fill, PAGE_COPY, type Language } from './copy.ts';
 import type { ReportBody } from './services/report.ts';
 
 /**
@@ -52,9 +53,9 @@ const STYLE = `
   code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.9em; word-break:break-all; }
 `;
 
-function page(title: string, body: string): string {
+function page(title: string, body: string, language: Language = 'en'): string {
   return `<!doctype html>
-<html lang="en">
+<html lang="${escape(language)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -75,13 +76,13 @@ function page(title: string, body: string): string {
  * once. It also does not offer a "request a new link" form, because that would be a way to
  * probe addresses.
  */
-export function invalidLinkPage(): string {
+export function invalidLinkPage(language: Language = 'en'): string {
+  const copy = PAGE_COPY[language];
   return page(
-    'This link is not available',
-    `<h1>This link is not available</h1>
-     <p>It may have expired, or it may have been withdrawn.</p>
-     <p>If you were expecting to read something here, reply to whoever sent you the link and
-        ask them to issue a new one.</p>`,
+    copy.invalidTitle,
+    `<h1>${escape(copy.invalidTitle)}</h1>
+     ${copy.invalidBody.map((line) => `<p>${escape(line)}</p>`).join('')}`,
+    language,
   );
 }
 
@@ -108,6 +109,10 @@ function isoDate(value: string | null): string {
  */
 export function deliveredReportPage(input: DeliveredPageInput): string {
   const { body } = input;
+  // The report's own language, not the reader's browser. A shared document reads the same for
+  // everyone who opens it, which is what makes "this is the version you were sent" true.
+  const language: Language = body.language === 'de' ? 'de' : 'en';
+  const copy = PAGE_COPY[language];
 
   const findings = body.confirmed_findings
     .map(
@@ -115,61 +120,73 @@ export function deliveredReportPage(input: DeliveredPageInput): string {
       <div class="card">
         <h3>${escape(finding.claim)}</h3>
         <p class="meta">${escape(finding.detector_id)} v${escape(finding.detector_version)} ·
-          evidence grade ${escape(finding.evidence_grade ?? 'not graded')} ·
-          ${finding.observed_conditions.length} recorded observation${
-            finding.observed_conditions.length === 1 ? '' : 's'
-          }</p>
+          ${escape(copy.evidenceGrade)} ${escape(finding.evidence_grade ?? copy.notGraded)} ·
+          ${escape(copy.observations(finding.observed_conditions.length))}</p>
         <p>${escape(finding.scope)}</p>
         <div class="limits">
-          <p class="meta" style="margin:0 0 .35rem">What this does not establish</p>
+          <p class="meta" style="margin:0 0 .35rem">${escape(copy.perFindingLimits)}</p>
           <ul>${finding.limitations.map((limit) => `<li>${escape(limit)}</li>`).join('')}</ul>
         </div>
       </div>`,
     )
     .join('');
 
+  /**
+   * Why some of this page is not in the page's language.
+   *
+   * Rendered once, above the first thing it covers — the scan's own notes when there are any,
+   * the findings otherwise. Both are written when they happen rather than when the report is
+   * composed, so neither can be authored in a language chosen later.
+   */
+  const languageNote = body.findings_language_note
+    ? `<p class="meta">${escape(body.findings_language_note)}</p>`
+    : '';
+
   const noDefect = body.no_supported_defect
     ? `<div class="card">
-         <h3>No supported defect in what we checked</h3>
-         <p>The pages listed above were inspected and nothing met the bar for a supported
-            finding. That is a result about this sample, not a statement about the whole
-            site.</p>
+         <h3>${escape(copy.noDefectHeading)}</h3>
+         <p>${escape(copy.noDefectBody)}</p>
        </div>`
     : '';
 
   return page(
     body.title,
     `<h1>${escape(body.title)}</h1>
-     <p class="meta">As of ${escape(isoDate(body.as_of))} ·
-        version ${escape(input.reportVersion)} ·
-        this link expires ${escape(isoDate(input.expiresAt))}</p>
+     <p class="meta">${escape(copy.asOf)} ${escape(isoDate(body.as_of))} ·
+        ${escape(copy.version)} ${escape(input.reportVersion)} ·
+        ${escape(copy.linkExpires)} ${escape(isoDate(input.expiresAt))}</p>
 
-     <h2>What we inspected</h2>
+     <h2>${escape(copy.inspected)}</h2>
      <p>${escape(body.scope_summary)}</p>
-     <p class="meta">${escape(body.inspected.captured_unique_pages)} of
-        ${escape(body.inspected.expected_unique_pages)} pages captured, starting from
+     <p class="meta">${escape(
+       fill(copy.pagesCaptured, {
+         captured: body.inspected.captured_unique_pages,
+         expected: body.inspected.expected_unique_pages,
+       }),
+     )}
         <code>${escape(body.inspected.target_url)}</code></p>
      ${
        body.inspected.partial_reasons.length > 0
-         ? `<div class="limits"><ul>${body.inspected.partial_reasons
+         ? `${languageNote}<div class="limits"><ul>${body.inspected.partial_reasons
              .map((reason) => `<li>${escape(reason)}</li>`)
              .join('')}</ul></div>`
          : ''
      }
 
-     <h2>What we found</h2>
+     <h2>${escape(copy.found)}</h2>
+     ${body.inspected.partial_reasons.length > 0 ? '' : languageNote}
      ${findings}${noDefect}
 
-     <h2>What this does not establish</h2>
+     <h2>${escape(copy.doesNotEstablish)}</h2>
      <ul>${body.limitations.map((limit) => `<li>${escape(limit)}</li>`).join('')}</ul>
 
-     <h2>What we did not do</h2>
+     <h2>${escape(copy.didNotDo)}</h2>
      <ul>${body.exclusions.map((item) => `<li>${escape(item)}</li>`).join('')}</ul>
 
      <footer>
-       <p>This page is a fixed version of a reviewed assessment. It does not change after
-          publication, and the link that opens it expires.</p>
+       <p>${escape(copy.footer)}</p>
      </footer>`,
+    language,
   );
 }
 

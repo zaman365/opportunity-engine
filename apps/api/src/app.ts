@@ -118,6 +118,7 @@ import { issueReportGrant, readDeliveredReport, revokeGrant } from './services/r
 import { advance, createEngagement, recordPayment } from './services/engagement.ts';
 import { deliveredReportPage, invalidLinkPage, PUBLIC_PAGE_CSP } from './public-pages.ts';
 import { EMBED_CACHE_CONTROL, EMBED_SCRIPT } from './embed.ts';
+import { EMBED_COPY } from './copy.ts';
 import type { ReportBody } from './services/report.ts';
 import { completeIdempotencyKey } from '@oe/db';
 
@@ -1507,9 +1508,13 @@ export function createApp(deps: AppDependencies) {
     await allowEmbeddingOrigin(c, deps);
     return c.json({
       host: channel.host,
+      language: channel.language,
       purpose_text: channel.purpose_text,
       purpose_version: channel.purpose_version,
       allowed_detectors: channel.allowed_detectors,
+      // The form's own labels, served rather than bundled, so a host page cannot rewrite the
+      // privacy sentence by shipping its own copy of the script.
+      copy: EMBED_COPY[channel.language],
     });
   });
 
@@ -1619,8 +1624,12 @@ export function createApp(deps: AppDependencies) {
     } catch (error) {
       // Expired, revoked, mistyped, another workspace's, never issued — and anything
       // unexpected. All one page, which is the whole point of the page.
+      //
+      // The language comes from the query rather than from the token, because a token that
+      // does not resolve identifies nothing — including which language its reader speaks. A
+      // venture site linking to a report in German asks for the German page explicitly.
       if (!(error instanceof ApiProblem)) console.error('[public report]', error);
-      return respond(404, invalidLinkPage());
+      return respond(404, invalidLinkPage(c.req.query('lang') === 'de' ? 'de' : 'en'));
     }
   });
 

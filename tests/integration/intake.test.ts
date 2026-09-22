@@ -547,3 +547,40 @@ describe('the embed', () => {
     expect(stranger.headers.get('access-control-allow-origin')).toBeNull();
   });
 });
+
+/**
+ * The form in the language of the site it sits on.
+ *
+ * Channel A is registered in English, channel B in German. The labels come from the API, in
+ * the channel's language — a form whose labels a host page could rewrite is a form whose
+ * privacy sentence a host page could rewrite.
+ */
+describe('the form speaks the site language', () => {
+  it('serves English labels for an English channel', async () => {
+    const form = await h.json<IntakeForm>(await publicRequest('/public/intake/form'));
+    expect(form.language).toBe('en');
+    expect((form.copy as Record<string, string>)['heading']).toBe('Request a check');
+    expect((form.copy as Record<string, string>)['privacy']).toContain('does not sign you up');
+  });
+
+  it('serves German labels for a German channel', async () => {
+    const form = await h.json<IntakeForm>(
+      await publicRequest('/public/intake/form', { host: CHANNEL_B }),
+    );
+    expect(form.language).toBe('de');
+    const copy = form.copy as Record<string, string>;
+    expect(copy['heading']).toBe('Prüfung anfragen');
+    // The sentence that matters most on this form, in the language of the person reading it.
+    expect(copy['privacy']).toContain('keine Anmeldung');
+    expect(copy['privacy']).not.toMatch(/\bthe\b/);
+  });
+
+  it('keeps the labels out of the script, so a host cannot ship its own', async () => {
+    const script = await (await publicRequest('/public/intake/embed.js')).text();
+    // The one string the script owns is the failure it cannot fetch anything to describe.
+    expect(script).toContain('This form is not available right now.');
+    expect(script).not.toContain('does not sign you up');
+    expect(script).not.toContain('Request a check');
+    expect(script).toContain('form.copy');
+  });
+});

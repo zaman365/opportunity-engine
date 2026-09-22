@@ -1508,10 +1508,12 @@ export interface IntakeChannelRow {
   purpose_version: number;
   allowed_detectors: string[];
   daily_request_limit: number;
+  /** The language the embedded form's own labels are written in. */
+  language: 'en' | 'de';
 }
 
 const CHANNEL_COLUMNS = `id, tenant_id, venture_id, host, enabled, purpose_text,
-  purpose_version, allowed_detectors, daily_request_limit`;
+  purpose_version, allowed_detectors, daily_request_limit, language`;
 
 /**
  * Resolve a public hostname to the workspace that registered it.

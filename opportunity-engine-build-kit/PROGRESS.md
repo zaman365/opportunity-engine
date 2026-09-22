@@ -10,7 +10,7 @@
 > This kit is left byte-identical apart from this file, which it instructs agents to update,
 > so it stays the record of what the handoff actually said.
 
-**Kit version 2.0 · last session 22 September 2026 (M3, M4 and four of six detectors)**
+**Kit version 2.0 · last session 22 September 2026 (M3, M4, four of six detectors, English and German)**
 
 ## Completed in this kit
 
@@ -25,10 +25,11 @@ VERIFICATION.md.
 |---|---|
 | Production application scaffold | **Built** · monorepo, pinned versions, lockfile, real build/type/lint/test scripts |
 | Live authentication/membership | **Partly** · Access JWT verification implemented (jose, pinned issuer/audience/algorithms) but never exercised against a real Access deployment. The local fixture identity is the only path actually run |
-| Production database/migrations | **Local only** · 15 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
+| Production database/migrations | **Local only** · 16 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
 | Live public scan adapter | **Not implemented** · `BrowserRunCaptureProvider` runs the address policy then reports `not_configured`. No egress-boundary proof, no credentials |
 | Detectors | **4 of 6 implemented** · `CE-LINK-01`, `CE-ASSET-01`, `CE-DATA-01` and `CE-MOBILE-01` (accepted also under their handoff names), each with a known positive, a healthy negative and one control per declared abstention. `CE-CONTENT-01` and `CE-VISUAL-01` are unrequestable and blocked on a category rubric that does not exist |
 | Persistent budget enforcement | **Implemented and tested** · SQL command functions, runtime holds `SELECT` only, concurrency asserted against real connections |
+| Customer-facing language | **English and German** · the report frame, the protected page and the embedded form are written in the report's or the channel's language. A confirmed claim is reproduced in the language it was confirmed in, above a note saying why |
 | Human review and reports | **Implemented and tested** · versioned review with optimistic locking, immutable hash-bound report snapshot |
 | Requested intake | **Implemented and tested, local only** · public submission, four rate-limit windows, hashed single-use codes, host-bound tenant resolution. No adapter can reach a member of the public: the only working verification channel returns the code to the caller and refuses to construct outside `APP_ENV=local` |
 | Public verification delivery | **Not implemented** · the port refuses and says so. An adapter that sends mail needs owner approval it does not have |
@@ -39,6 +40,68 @@ VERIFICATION.md.
 | Commercial prices | **Provisional** · EUR 290 / EUR 190 net, approved in `config/offer-approvals.json`. **VAT treatment unconfirmed** and recorded as open in both approval notes |
 | OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely, now for a legal reason as well as a design one (`docs/legal/DACH_OUTREACH_STUDY.md`) |
 | Production deployment | **Not performed** · no cloud resource was created or contacted |
+
+## Session log · 22 September 2026 · German copy
+
+**Agent:** Claude Opus 5 · **branch:** main.
+
+### What was built
+
+The report schema has accepted `de` since M1. What it produced was an English document with a
+German label on it — every heading, limitation and exclusion hard-coded English. For a product
+whose customers are German shops, and whose argument is that it states exactly what it checked
+and exactly what that does not prove, disclaimers in a language the reader may not have are not
+a small gap.
+
+Now: the report frame, the customer-facing page, the invalid-link page and the embedded form's
+labels are all written in the report's or the channel's language.
+
+**A confirmed claim is not translated**, and the document says so above it. That text is what a
+reviewer read and put their name to, bound to a finding version in `oe.reviews`; translating it
+afterwards would produce a sentence nobody confirmed inside a document whose whole value is
+that somebody did. Same principle that stopped migration 0011 rewriting recorded detector ids.
+
+Scan coverage notes are covered by the same note, because they are written when a scan runs —
+before any report language exists.
+
+The form's labels are **served, not bundled**: a form whose labels a host page could rewrite is
+a form whose privacy sentence a host page could rewrite, and that sentence is the one saying a
+request is not a sign-up. [ADR-026](../docs/adr/ADR-026-german-copy.md).
+
+### The tests are in two kinds
+
+Mechanical ones catch a half-finished translation, which is worse than none because it looks
+finished: every language has every key, no empty strings, every `{placeholder}` survives.
+
+Substantive ones check the German says the same careful things — the scope-limiting qualifier
+on "no defect found", the exclusions as refusals rather than reassurances, "revenue was not
+measured", "a request is not a sign-up" — and that no English leaked through.
+
+### Commands run and actual results
+
+| Command | Result |
+|---|---|
+| `npm run verify` | Clean: typecheck, lint, format, contract, build, all four suites |
+| `npm run test:unit` | **260 passed** (250 → 260) |
+| `npm run test:contract` | **52 passed** |
+| `npm run test:db` | **79 passed** |
+| `npm run test:integration` | **169 passed** (164 → 169) |
+| `npm run test:e2e` | **27 passed, 7 skipped**, clean from a reset database |
+
+Also checked by eye in the local preview: a real German report rendered through
+`/r/{token}` — German frame, German limitations, the English finding under the note that
+explains it.
+
+### What is left
+
+| Left | Blocked on |
+|---|---|
+| `CE-CONTENT-01`, `CE-VISUAL-01` | A category rubric that does not exist. A product decision before an engineering task |
+| Live capture | Owner authorization, Browser Run credentials, demonstrated deny-private-network egress (ADR-005) |
+| `POST /v1/engagements/{id}/verify` | Live capture, under the same recorded conditions |
+| M5 monitoring, M6 pilot | Live capture, and real paying customers |
+
+Nothing else in the roadmap is unblocked.
 
 ## Session log · 22 September 2026 · CE-MOBILE-01, and a bug it exposed
 
