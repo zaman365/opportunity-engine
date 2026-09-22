@@ -40,7 +40,7 @@ export interface MatrixModel {
  * Build the grid from the evidence a scan actually recorded.
  *
  * Rows come from the evidence itself rather than a fixed list, because what a scan inspects
- * depends on its detectors: MF-LINK-01 adds a linked page, MF-ASSET-01 adds one row per
+ * depends on its detectors: CE-LINK-01 adds a linked page, CE-ASSET-01 adds one row per
  * referenced image. `focusUrl` is the thing the selected finding rests on, so its row leads
  * and the agreement line describes it.
  */

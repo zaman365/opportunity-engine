@@ -11,10 +11,10 @@ The capability underneath is the **Consistency Engine** — capture, detectors, 
 `tasks/`. The directory and git remote are still named `opportunity-engine`; renaming them is
 a separate, disruptive act and is the owner's to take.
 
-**Status: M0–M2 complete against local fixtures; M3 in progress.** 2 of 6 detectors
-implemented (`CE-LINK-01`, `CE-ASSET-01`, still accepted under their handoff names
-`MF-LINK-01` and `MF-ASSET-01`), the offer catalogue in place, and requested intake open
-behind abuse controls. Nothing is deployed and nothing is sent: a drafted scope is an
+**Status: M0, M1, M3 and M4 complete against local fixtures; M2 at 3 of 6 detectors**
+(`CE-LINK-01`, `CE-ASSET-01`, `CE-DATA-01`, all still accepted under their handoff names).
+The offer catalogue, requested intake, protected report delivery and the engagement
+lifecycle are all in place. Nothing is deployed and nothing is sent: a drafted scope is an
 internal record, and no adapter can reach a member of the public. Live capture, cloud
 resources, payments and every integration remain unconfigured and fail closed. Read
 [`opportunity-engine-build-kit/PROGRESS.md`](opportunity-engine-build-kit/PROGRESS.md) for the
@@ -108,7 +108,11 @@ opportunity-engine-build-kit/   The handoff. Treat as read-only input.
 - **Rewrite a claim somebody confirmed.** Renaming the detector namespace normalised
   configuration and left `oe.findings.detector_id` alone: a reviewer confirmed that claim
   under that id, and comparisons are canonical instead.
-- **Call a slow image a broken one.** MF-ASSET-01 needs a failed request _and_ a failed render,
+- **Call a price difference a defect when tax could explain it.** CE-DATA-01 refuses a gap any
+  EU VAT rate could produce, refuses when two currencies are in view, refuses a price range
+  across variants, and refuses an element containing two prices. A false positive here tells a
+  shop their store contradicts itself when it does not.
+- **Call a slow image a broken one.** CE-ASSET-01 needs a failed request _and_ a failed render,
   agreeing across two sessions; anything pending, decorative or served in a changed product
   state is an abstention, not a claim.
 - **Quote a price nobody approved.** Scope comes from the kit's catalogue, price from a

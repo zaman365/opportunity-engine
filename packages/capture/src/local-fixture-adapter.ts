@@ -1,4 +1,5 @@
 import { classifyLink } from '@oe/domain';
+import { extractStructuredFacts, extractVisibleFacts } from './product-facts.ts';
 import type {
   CaptureOutcome,
   CaptureProvider,
@@ -230,6 +231,13 @@ function buildObservation(
     contentType: response.headers.get('content-type'),
     links: extractLinks(html, target),
     images: [],
+    // Read from the recorded HTML, like the links above. A price that only exists after a
+    // script has run is not visible to this, and the detector abstains rather than treating
+    // absence as a statement.
+    productFacts: {
+      structured: extractStructuredFacts(html),
+      visible: extractVisibleFacts(html, extractVariant(html)),
+    },
     body: buffer,
     screenshot: null,
     screenshotUnavailableReason: null,

@@ -10,9 +10,10 @@
  * no real merchant, no real photography, and no image here is a picture of a real product.
  * A browser capture of this site is not evidence about anybody's shop.
  *
- * Routes are designed as a matched set: one known positive, and one negative control for each
- * abstention MF-ASSET-01 declares (blocked, pending_lazy_load, decorative_image,
- * variant_changed).
+ * Routes are designed as a matched set: for each rule, one known positive and one negative
+ * control per abstention it declares — CE-ASSET-01's blocked, pending_lazy_load,
+ * decorative_image and variant_changed, and CE-DATA-01's variant_unknown, multi_currency,
+ * aggregate_offer and unavailable_variant_context.
  */
 import http from 'node:http';
 import { gradientPng } from './png.mjs';
@@ -73,6 +74,84 @@ const PAGES = {
       title: 'Everyday overshirt',
       note: 'The product image responds 200 with an empty body. The request looks successful and the image still does not render.',
       images: [{ src: '/img/empty.png', alt: 'Everyday overshirt, front view' }],
+    }),
+
+  /* ------------------------------------------------ CE-DATA-01 fixtures */
+
+  // Known positive. 49.00 in the markup against 89.00 on the page: an 82% gap, which no VAT
+  // rate in the EU could explain, so the rule does not get to call it a tax basis difference.
+  '/product-price-mismatch': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'The structured data declares a different price from the one on the page. Known positive for CE-DATA-01.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      visiblePrice: '89.00',
+      structured: { price: '49.00', currency: 'EUR', availability: 'InStock' },
+    }),
+
+  // Healthy negative control: the two statements agree.
+  '/product-data-healthy': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'The page and its structured data state the same price and the same availability.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      visiblePrice: '89.00',
+      // Both sides state availability, so both halves of the rule have something to compare.
+      visibleStock: 'In stock',
+      structured: { price: '89.00', currency: 'EUR', availability: 'InStock' },
+    }),
+
+  // The other half of the rule: the page says in stock, the markup says otherwise.
+  '/product-stock-mismatch': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'The page says the item is in stock; the structured data says it is not.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      visiblePrice: '89.00',
+      visibleStock: 'In stock',
+      structured: { price: '89.00', currency: 'EUR', availability: 'OutOfStock' },
+    }),
+
+  // A range across variants has no single price to compare. The rule must abstain.
+  '/product-aggregate-offer': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'The structured data declares an AggregateOffer spanning several variants. There is no single figure to compare.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      visiblePrice: '89.00',
+      structured: { aggregate: { low: '49.00', high: '129.00' }, currency: 'EUR' },
+    }),
+
+  // 74.79 net and 89.00 gross is exactly 19% German VAT: the commonest legal arrangement in
+  // Europe, and a rule that called it a defect would be wrong on a large share of real shops.
+  '/product-tax-basis': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'The markup states a net price and the page states a gross one. A tax basis difference is not a contradiction.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      visiblePrice: '89.00',
+      visibleTaxNote: 'inkl. MwSt.',
+      structured: { price: '74.79', currency: 'EUR', availability: 'InStock', vatIncluded: false },
+    }),
+
+  // Two currencies in view is ambiguity, not a contradiction.
+  '/product-multi-currency': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'The page shows a second currency alongside the price. Two currencies in view are ambiguous.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      visiblePrice: '89.00',
+      secondCurrencyNote: 'Approx. CHF 84.00 at today rate',
+      structured: { price: '49.00', currency: 'EUR', availability: 'InStock' },
+    }),
+
+  // No markup at all. Plenty of shops have none, and that is not a defect.
+  '/product-no-markup': () =>
+    productPage({
+      title: 'Everyday overshirt',
+      note: 'This page carries no structured product data. There is nothing to compare.',
+      images: [{ src: '/img/product.png', alt: 'Everyday overshirt, front view' }],
+      visiblePrice: '89.00',
     }),
 
   // The selected product state differs between requests, so two sessions are not comparable.
@@ -145,7 +224,17 @@ server.listen(PORT, '127.0.0.1', () => {
  * thing under test. The markup mirrors what the image classifier reads: `alt` text, an
  * explicit presentational marker, and whether the image sits inside <main>.
  */
-function productPage({ title, note, images, size = 'M' }) {
+function productPage({
+  title,
+  note,
+  images,
+  size = 'M',
+  visiblePrice = '89.00',
+  visibleStock = null,
+  visibleTaxNote = null,
+  secondCurrencyNote = null,
+  structured = null,
+}) {
   const media = images
     .map((image) => {
       const attributes = [
@@ -182,6 +271,7 @@ main{max-width:1060px;margin:52px auto;padding:0 36px}
 footer{padding:26px 42px;border-top:1px solid #dadde2;font-size:12px;color:#596574}
 @media(max-width:650px){.product{grid-template-columns:1fr}main{margin:28px auto;padding:0 20px}}
 </style>
+${structuredDataBlock(structured, size)}
 <div class="fixture">SYNTHETIC TEST FIXTURE · No real merchant, photography or purchase function</div>
 <header><div class="wordmark">ATELIER NORD</div></header>
 <main><div class="product">
@@ -189,13 +279,55 @@ footer{padding:26px 42px;border-top:1px solid #dadde2;font-size:12px;color:#5965
 <section class="details">
 <div class="small">PRODUCT FIXTURE / 002</div>
 <h1>${escapeHtml(title)}</h1>
-<div class="price">€89.00 <span class="small">fictional price</span></div>
+<div class="price">&euro;${escapeHtml(visiblePrice)}</div>
+<div class="small">fictional price${visibleTaxNote ? ` &middot; ${escapeHtml(visibleTaxNote)}` : ''}</div>
+${visibleStock ? `<div class="small">${escapeHtml(visibleStock)}</div>` : ''}
+${secondCurrencyNote ? `<div class="small">${escapeHtml(secondCurrencyNote)}</div>` : ''}
 <p>Test content for a reproducible product-page inspection. No claim is made about a real garment.</p>
 <div class="small">SELECTED STATE / SIZE ${escapeHtml(size)}</div>
 <div class="sizes"><span>S</span><span${size === 'M' ? ' aria-current="true"' : ''}>M</span><span${size === 'L' ? ' aria-current="true"' : ''}>L</span><span>XL</span></div>
 <div class="notice">${escapeHtml(note)}</div>
 </section></div></main>
 <footer>Local test page · browser captures must retain the synthetic-fixture label.</footer></html>`;
+}
+
+/**
+ * The page's JSON-LD, when a route declares one.
+ *
+ * Emitted as its own script block exactly as a real shop would, so the extractor reads it the
+ * same way it would read one in the wild. `null` means a page with no markup, which is a
+ * fixture in its own right: nothing to compare is not a defect.
+ */
+function structuredDataBlock(structured, size) {
+  if (!structured) return '';
+  const offers = structured.aggregate
+    ? {
+        '@type': 'AggregateOffer',
+        lowPrice: structured.aggregate.low,
+        highPrice: structured.aggregate.high,
+        priceCurrency: structured.currency,
+        offerCount: 4,
+      }
+    : {
+        '@type': 'Offer',
+        price: structured.price,
+        priceCurrency: structured.currency,
+        availability: `https://schema.org/${structured.availability}`,
+        ...(structured.vatIncluded === undefined
+          ? {}
+          : { valueAddedTaxIncluded: structured.vatIncluded }),
+      };
+  const document = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: 'Everyday overshirt (synthetic fixture)',
+    sku: `SIZE ${size}`,
+    offers,
+  };
+  // The document is generated here, not interpolated from a request, so JSON.stringify is the
+  // whole of the escaping it needs. `<` is replaced anyway: a closing tag inside a script
+  // block would end it early.
+  return `<script type="application/ld+json">${JSON.stringify(document).replaceAll('<', '\\u003c')}</script>`;
 }
 
 function escapeHtml(value) {

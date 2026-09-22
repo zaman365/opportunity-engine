@@ -33,15 +33,20 @@ import type { EvidenceStore } from '@oe/evidence';
 import {
   aggregateNeed,
   ASSET_DETECTOR_ID,
+  DATA_DETECTOR_ID,
+  DATA_DETECTOR_VERSION,
   ASSET_DETECTOR_VERSION,
   classifyLink,
   DETECTOR_ID,
   DETECTOR_VERSION,
   evaluateImportantLink,
   evaluateProductImage,
+  evaluateStructuredData,
   nextActionForCase,
   scoreOpportunity,
   type AssetDetectorResult,
+  type DataDetectorResult,
+  type DataObservation,
   type ImageObservation,
   type LinkObservation,
 } from '@oe/domain';
@@ -251,6 +256,18 @@ export class ScanRunner {
       : { reasons: [], checked: 0 };
     reasons.push(...assetOutcome.reasons);
 
+    // 3c · CE-DATA-01 over what the source page stated about itself. Like the image check,
+    //      this reads the page already captured: no extra request, no extra page in the
+    //      denominator.
+    const dataOutcome = requested.has(DATA_DETECTOR_ID)
+      ? await this.#detectStructuredDataMismatch(tenantId, scanId, {
+          accountId: account.id,
+          sourceUrl,
+          observations: sourceCaptures.dataObservations,
+        })
+      : { reasons: [], checked: false };
+    reasons.push(...dataOutcome.reasons);
+
     // 4 · Deterministic detection. Two independent, comparable, complete observations or
     //     the rule abstains — it never guesses from one capture.
     const verdict = requested.has(DETECTOR_ID)
@@ -290,7 +307,8 @@ export class ScanRunner {
 
     const linkComplete = !requested.has(DETECTOR_ID) || destinationObservations.length >= 2;
     const assetComplete = !requested.has(ASSET_DETECTOR_ID) || assetOutcome.checked > 0;
-    const complete = capturedPages > 0 && linkComplete && assetComplete;
+    const dataComplete = !requested.has(DATA_DETECTOR_ID) || dataOutcome.checked;
+    const complete = capturedPages > 0 && linkComplete && assetComplete && dataComplete;
     const finalState = complete ? 'succeeded' : 'partial';
     if (!complete) {
       reasons.push(
@@ -317,6 +335,8 @@ export class ScanRunner {
     observations: LinkObservation[];
     /** Image observations grouped by image URL, across the clean sessions. */
     imageObservations: Map<string, ImageObservation[]>;
+    /** What each session read off the page: its markup, and what a person would have seen. */
+    dataObservations: DataObservation[];
     reasons: string[];
     costMicro: string;
     fatal?: string;
@@ -326,6 +346,7 @@ export class ScanRunner {
     }[] = [];
     const observations: LinkObservation[] = [];
     const imageObservations = new Map<string, ImageObservation[]>();
+    const dataObservations: DataObservation[] = [];
     const reasons: string[] = [];
     let costMicro = 0n;
 
@@ -359,6 +380,7 @@ export class ScanRunner {
             captured,
             observations,
             imageObservations,
+            dataObservations,
             reasons,
             costMicro: '0',
             fatal: detail,
@@ -385,6 +407,22 @@ export class ScanRunner {
       });
 
       captured.push({ observation: outcome.observation });
+      // Only the source page carries product facts worth comparing; a linked size guide is
+      // not a product page and has no price to contradict.
+      if (input.role === 'source_page' && outcome.observation.productFacts) {
+        dataObservations.push({
+          sessionId,
+          evidenceId,
+          capturedAt: outcome.conditions.captured_at,
+          target: input.url,
+          contextKey,
+          structured: outcome.observation.productFacts.structured,
+          visible: outcome.observation.productFacts.visible,
+          pageComplete: outcome.observation.complete,
+          challenge: outcome.observation.challenge,
+          loginWall: outcome.observation.loginWall,
+        });
+      }
       observations.push({
         sessionId,
         evidenceId,
@@ -451,7 +489,14 @@ export class ScanRunner {
       );
     }
 
-    return { captured, observations, imageObservations, reasons, costMicro: costMicro.toString() };
+    return {
+      captured,
+      observations,
+      imageObservations,
+      dataObservations,
+      reasons,
+      costMicro: costMicro.toString(),
+    };
   }
 
   /**
@@ -610,6 +655,181 @@ export class ScanRunner {
     }
     await this.#step(tenantId, scanId, `detect:${ASSET_DETECTOR_ID}`, 'succeeded');
     return { reasons, checked };
+  }
+
+  /**
+   * Run CE-DATA-01 over what the source page stated about itself.
+   *
+   * One page, one comparison, at most one finding. Unlike the image rule there is nothing to
+   * iterate: a product page has one price and one availability for the state it was captured
+   * in, and if it has more than one the rule abstains rather than picking.
+   */
+  async #detectStructuredDataMismatch(
+    tenantId: string,
+    scanId: string,
+    input: { accountId: string; sourceUrl: string; observations: DataObservation[] },
+  ): Promise<{ reasons: string[]; checked: boolean }> {
+    const reasons: string[] = [];
+    const verdict = evaluateStructuredData({
+      target: input.sourceUrl,
+      observations: input.observations,
+      now: this.#options.now().toISOString(),
+      maxAgeMs: this.#options.freshnessDays * 86_400_000,
+    });
+
+    await this.#step(tenantId, scanId, `detect:${DATA_DETECTOR_ID}`, 'succeeded');
+
+    if (verdict.result === 'candidate') {
+      await this.#recordDataFinding(tenantId, scanId, { ...input, verdict });
+      return { reasons, checked: true };
+    }
+    if (verdict.result === 'no_finding') {
+      reasons.push('The page and its structured data stated the same facts in both checks.');
+      return { reasons, checked: true };
+    }
+
+    // Abstentions that mean "this rule does not apply to this page" are reported plainly and
+    // are not findings. A reader should be able to tell "we looked and it does not apply"
+    // from "we did not look", which is why each one gets its own sentence.
+    const explanations: Partial<Record<typeof verdict.reason, string>> = {
+      structured_data_absent:
+        'The page carries no structured product data, so there was nothing to compare its prices against.',
+      aggregate_offer:
+        'The structured data declares a price range across variants, which has no single figure to compare.',
+      variant_unknown:
+        'The page did not state which product variant was selected, so its markup could not be matched to it.',
+      unavailable_variant_context:
+        'The page and its markup describe different product states, so they were not compared.',
+      multi_currency:
+        'More than one currency was in view, so a difference between figures is ambiguous.',
+      tax_basis_could_explain_difference:
+        'The two figures differ by an amount a tax basis difference could explain, so no claim is made.',
+      visible_facts_not_established:
+        'Only one of the page and its markup stated a price, so there was nothing to compare.',
+      stock_not_stated:
+        'Only one of the page and its markup stated whether the item was in stock, so availability was not compared. The prices matched.',
+      blocked: 'An access check answered instead of the page, so its facts were not judged.',
+      noncomparable_context:
+        'The page served a different product state between checks, so its facts were not compared.',
+    };
+    const explanation = explanations[verdict.reason];
+    if (explanation) reasons.push(explanation);
+    // `checked` stays true for an abstention that is a real answer about this page, and false
+    // only when the rule could not run at all — which is what makes the scan partial.
+    return {
+      reasons,
+      checked: explanation !== undefined || input.observations.length >= 2,
+    };
+  }
+
+  async #recordDataFinding(
+    tenantId: string,
+    scanId: string,
+    input: { accountId: string; sourceUrl: string; verdict: DataDetectorResult },
+  ): Promise<void> {
+    const { db, now, freshnessDays } = this.#options;
+    const verdict = input.verdict;
+    if (verdict.result !== 'candidate') return;
+
+    await db.withTenant(tenantId, async (tx) => {
+      // Grouped by page and by what disagreed: the same page contradicting itself about price
+      // on two scans is one root cause, and a separate stock contradiction is another.
+      const rootCauseKey = `product-data:${new URL(input.sourceUrl).pathname}:${verdict.reason}`;
+      const evidenceRows = await listEvidenceForScan(tx, scanId);
+      const assetId =
+        evidenceRows.find((row) => row.source_url === input.sourceUrl)?.asset_id ??
+        evidenceRows[0]?.asset_id;
+      if (!assetId) return;
+
+      const finding = await insertFinding(tx, {
+        id: this.#options.newId(),
+        scanId,
+        assetId,
+        detectorId: DATA_DETECTOR_ID,
+        detectorVersion: DATA_DETECTOR_VERSION,
+        state: 'candidate',
+        rootCauseKey,
+        claim: verdict.claim,
+        scope: `The page at ${input.sourceUrl}, in the product state it was captured in, checked in two recorded sessions.`,
+        limitations: verdict.limitations,
+        evidenceGrade: verdict.proposed_grade,
+        capturedAt: now().toISOString(),
+        targetUrl: input.sourceUrl,
+        detectorOutput: verdict as unknown as Record<string, unknown>,
+        evidenceFreshUntil: new Date(now().getTime() + freshnessDays * 86_400_000).toISOString(),
+      });
+
+      for (const evidenceId of verdict.evidence_ids) {
+        await linkFindingEvidence(tx, {
+          id: this.#options.newId(),
+          findingId: finding.id,
+          evidenceId,
+          relationship: 'supports',
+        });
+      }
+
+      const existing = await findOpportunityByAccountAndRootCause(tx, {
+        accountId: input.accountId,
+        rootCauseKey,
+      });
+      const opportunityId = existing?.id ?? this.#options.newId();
+      if (!existing) {
+        const scan = await getScan(tx, scanId);
+        const need = aggregateNeed([{ rootCauseKey, severity: 0.5 }]);
+        const priority = scoreOpportunity({
+          fit: 0.9,
+          need: need.need,
+          // Lower than a broken link or image: this rule says two statements disagree, not
+          // which is wrong, so the work it implies is a diagnosis before it is a repair.
+          deliverability: 0.6,
+          timing: null,
+          value: null,
+        });
+        await insertOpportunity(tx, {
+          id: opportunityId,
+          accountId: input.accountId,
+          ventureId: scan!.venture_id,
+          title:
+            verdict.reason === 'price_mismatch'
+              ? 'Page and structured data state different prices'
+              : 'Page and structured data state different availability',
+          priority: priority as unknown as Record<string, unknown>,
+          permissionState: 'review_allowed',
+          nextAction: 'review_evidence',
+          ownerId: null,
+        });
+      }
+      await linkOpportunityFinding(tx, {
+        id: this.#options.newId(),
+        opportunityId,
+        findingId: finding.id,
+      });
+      if (existing) {
+        const nextAction = nextActionForCase({
+          findingStates: await findingStatesForOpportunity(tx, opportunityId),
+          current: existing.next_action,
+        });
+        if (nextAction !== existing.next_action) {
+          await updateOpportunity(tx, { id: opportunityId, nextAction });
+        }
+      }
+
+      await insertAuditEvent(tx, {
+        id: this.#options.newId(),
+        actorSubject: 'service:scan-runner',
+        action: 'finding.created',
+        objectType: 'finding',
+        objectId: finding.id,
+        objectVersion: finding.version,
+        requestId: `scan:${scanId}`,
+        detail: {
+          detector_id: DATA_DETECTOR_ID,
+          detector_version: DATA_DETECTOR_VERSION,
+          reason: verdict.reason,
+          root_cause_key: rootCauseKey,
+        },
+      });
+    });
   }
 
   async #recordAssetFinding(

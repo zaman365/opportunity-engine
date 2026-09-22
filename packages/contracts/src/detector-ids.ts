@@ -52,11 +52,11 @@ export function sameDetector(a: string, b: string): boolean {
 /**
  * The rules this build actually runs.
  *
- * Two of six. The other four are specified in `contracts/detectors.json` and remain
+ * Three of six. The other three are specified in `contracts/detectors.json` and remain
  * unrequestable: one list drives the request contract, admission and the database constraint,
  * so a detector cannot become requestable in one layer and not another.
  */
-export const IMPLEMENTED_DETECTORS = ['CE-LINK-01', 'CE-ASSET-01'] as const;
+export const IMPLEMENTED_DETECTORS = ['CE-LINK-01', 'CE-ASSET-01', 'CE-DATA-01'] as const;
 export type ImplementedDetector = (typeof IMPLEMENTED_DETECTORS)[number];
 
 /**

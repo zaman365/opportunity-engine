@@ -307,11 +307,18 @@ describe('detector namespace', () => {
   });
 
   it('accepts either spelling for a rule this build runs, and neither for one it does not', () => {
-    for (const id of ['CE-LINK-01', 'CE-ASSET-01', 'MF-LINK-01', 'MF-ASSET-01']) {
+    for (const id of [
+      'CE-LINK-01',
+      'CE-ASSET-01',
+      'CE-DATA-01',
+      'MF-LINK-01',
+      'MF-ASSET-01',
+      'MF-DATA-01',
+    ]) {
       expect(isImplementedDetector(id), id).toBe(true);
     }
     // Specified in contracts/detectors.json, not built, so not requestable under any name.
-    for (const id of ['CE-DATA-01', 'MF-DATA-01', 'CE-VISUAL-01', 'PDP-VISUAL-01']) {
+    for (const id of ['CE-CONTENT-01', 'PDP-CONTENT-01', 'CE-VISUAL-01', 'PDP-VISUAL-01']) {
       expect(isImplementedDetector(id), id).toBe(false);
     }
   });

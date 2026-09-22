@@ -5,3 +5,4 @@ export * from './egress-guard.ts';
 export * from './local-fixture-adapter.ts';
 export * from './browser-run-adapter.ts';
 export * from './playwright-renderer.ts';
+export * from './product-facts.ts';

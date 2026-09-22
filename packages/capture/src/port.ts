@@ -1,3 +1,5 @@
+import type { StructuredFacts, VisibleFacts } from '@oe/domain';
+
 /**
  * CaptureProvider port.
  *
@@ -97,6 +99,12 @@ export interface PageObservation {
   links: { text: string; href: string }[];
   /** Images the page referenced, with their request and rendered outcomes. */
   images: ImageCapture[];
+  /**
+   * The two statements CE-DATA-01 compares: what the page's markup declares, and what a
+   * person reading it would have seen. Both may be absent, which is an answer rather than a
+   * failure — plenty of pages carry no structured data at all.
+   */
+  productFacts: { structured: StructuredFacts; visible: VisibleFacts } | null;
   /** Raw page bytes, kept only when policy allows persisting the artifact. */
   body: Uint8Array | null;
   screenshot: { body: Uint8Array; contentType: string } | null;

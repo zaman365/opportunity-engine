@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ACCEPTED_DETECTOR_IDS } from './detector-ids.ts';
+import { ACCEPTED_DETECTOR_IDS, IMPLEMENTED_DETECTORS } from './detector-ids.ts';
 import {
   CurrencyCode,
   DateTime,
@@ -108,7 +108,7 @@ export const CreateScan = z
     detectors: z
       .array(RequestedDetectorId)
       .min(1)
-      .max(2)
+      .max(IMPLEMENTED_DETECTORS.length)
       .refine((value) => new Set(value).size === value.length, {
         message: 'detectors must be unique',
       }),
@@ -678,7 +678,7 @@ export type IntakeForm = z.infer<typeof IntakeForm>;
 export const SubmitIntakeRequest = z
   .object({
     target_url: z.string().min(8).max(2000),
-    requested_detectors: z.array(z.string()).min(1).max(2),
+    requested_detectors: z.array(z.string()).min(1).max(IMPLEMENTED_DETECTORS.length),
     purpose: z.string().min(10).max(2000),
     /** Recorded as a claim, never treated as proof of authority over the target. */
     authority_claim: z.string().min(10).max(2000),

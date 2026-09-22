@@ -10,7 +10,7 @@
 > This kit is left byte-identical apart from this file, which it instructs agents to update,
 > so it stays the record of what the handoff actually said.
 
-**Kit version 2.0 · last session 22 September 2026 (M3 and M4 complete)**
+**Kit version 2.0 · last session 22 September 2026 (M3, M4 and the third detector)**
 
 ## Completed in this kit
 
@@ -25,9 +25,9 @@ VERIFICATION.md.
 |---|---|
 | Production application scaffold | **Built** · monorepo, pinned versions, lockfile, real build/type/lint/test scripts |
 | Live authentication/membership | **Partly** · Access JWT verification implemented (jose, pinned issuer/audience/algorithms) but never exercised against a real Access deployment. The local fixture identity is the only path actually run |
-| Production database/migrations | **Local only** · 13 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
+| Production database/migrations | **Local only** · 14 migrations apply to a disposable PostgreSQL 17 cluster with separate migration/runtime/identity roles. No target deployment exists |
 | Live public scan adapter | **Not implemented** · `BrowserRunCaptureProvider` runs the address policy then reports `not_configured`. No egress-boundary proof, no credentials |
-| Detectors | **2 of 6 implemented** · `CE-LINK-01` and `CE-ASSET-01` (accepted also under the handoff names `MF-LINK-01`, `MF-ASSET-01`), both with negative controls. The other four are specified and unrequestable under either namespace |
+| Detectors | **3 of 6 implemented** · `CE-LINK-01`, `CE-ASSET-01` and `CE-DATA-01` (accepted also under their handoff names), each with a known positive, a healthy negative and one control per declared abstention. The other three are specified and unrequestable under either namespace |
 | Persistent budget enforcement | **Implemented and tested** · SQL command functions, runtime holds `SELECT` only, concurrency asserted against real connections |
 | Human review and reports | **Implemented and tested** · versioned review with optimistic locking, immutable hash-bound report snapshot |
 | Requested intake | **Implemented and tested, local only** · public submission, four rate-limit windows, hashed single-use codes, host-bound tenant resolution. No adapter can reach a member of the public: the only working verification channel returns the code to the caller and refuses to construct outside `APP_ENV=local` |
@@ -39,6 +39,64 @@ VERIFICATION.md.
 | Commercial prices | **Provisional** · EUR 290 / EUR 190 net, approved in `config/offer-approvals.json`. **VAT treatment unconfirmed** and recorded as open in both approval notes |
 | OAuth, payments, outreach, TREVV integration | **Not connected** · outreach remains out of scope entirely, now for a legal reason as well as a design one (`docs/legal/DACH_OUTREACH_STUDY.md`) |
 | Production deployment | **Not performed** · no cloud resource was created or contacted |
+
+## Session log · 22 September 2026 · CE-DATA-01
+
+**Agent:** Claude Opus 5 · **branch:** main.
+
+### What was built
+
+The third detector: the page says one price, its structured data says another.
+[ADR-024](../docs/adr/ADR-024-data-detector.md).
+
+This rule is different in kind from the two before it. A 404 is a defect on its face; a price
+disagreement is not. A page may legitimately show gross while its markup declares net, show one
+variant while marking up a range, or quote a second currency for convenience — and every one of
+those looks exactly like a contradiction to a naive comparison. So the design is almost entirely
+about refusing:
+
+- **Tax.** A difference is a candidate only when both sides declare the same basis, or neither
+  does and the gap exceeds any EU VAT rate. The boundary is Hungary's 27%, asserted to the cent
+  in both directions.
+- **Currency.** Refused when the two sides are priced differently, and refused when more than
+  one currency is anywhere in view.
+- **Aggregate offers.** Reported as such, never flattened to `lowPrice`.
+- **Two prices in one element.** A struck-through old price beside a new one yields no price at
+  all rather than the first one.
+
+And one thing it deliberately does not do: compare the markup's SKU to the page's visible
+variant label. `JKT-MED-NAVY` against "Medium" is two naming systems, and a literal comparison
+would abstain on almost every real page while catching almost nothing. That is written into the
+rule's limitations rather than faked with a string match.
+
+### Two limitations recorded rather than hidden
+
+1. **A JavaScript-rendered price is invisible to this rule.** The capture path does not execute
+   page scripts, deliberately, so a price that only exists after one runs reads as absent and the
+   rule abstains.
+2. **A page marking up a different variant from the one it displays is not detected**, for the
+   reason above.
+
+### Commands run and actual results
+
+| Command | Result |
+|---|---|
+| `npm run verify` | Clean: typecheck, lint, format, contract, build, all four suites |
+| `npm run test:unit` | **232 passed** (179 → 232; 26 for the rule, 20 for the parsers, 7 for the wiring) |
+| `npm run test:contract` | **52 passed** |
+| `npm run test:db` | **79 passed** |
+| `npm run test:integration` | **156 passed** (143 → 156) |
+| `npm run test:e2e` | **27 passed, 7 skipped** |
+
+### What is left
+
+| Left | Blocked on |
+|---|---|
+| `CE-CONTENT-01`, `CE-VISUAL-01`, `CE-MOBILE-01` | **A category rubric that does not exist.** All three turn on what a buyer of a particular kind of thing needs to see. Writing that is a product decision before it is an engineering task, and writing it badly produces a detector that asserts taste as defect |
+| Live capture | Owner authorization, Browser Run credentials, demonstrated deny-private-network egress (ADR-005) |
+| `POST /v1/engagements/{id}/verify` | Live capture, under the same recorded conditions |
+| German copy at length | Nothing; no German report has been rendered or reviewed |
+| M5 monitoring, M6 pilot | Live capture, and real paying customers |
 
 ## Session log · 22 September 2026 · M3 slices 2-3 and M4 slice 2
 
